@@ -13,12 +13,14 @@
     "@prisma/client": "^6.16.1",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-slot": "^1.2.3",
+    "@tabler/icons-react": "^3.35.0",
     "adm-zip": "^0.5.16",
     "axios": "^1.12.1",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.7.0",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.23.13",
     "lucide-react": "^0.544.0",
     "next": "^15.5.3",
     "next-auth": "^4.24.11",
@@ -35,10 +37,12 @@
     "@tailwindcss/postcss": "^4",
     "@types/node": "24.3.1",
     "@types/react": "19.1.12",
+    "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
+    "postcss": "^8.5.6",
     "prisma": "^6.16.1",
-    "tailwindcss": "^4",
+    "tailwindcss": "^4.1.13",
     "tw-animate-css": "^1.3.8"
   }
 }
