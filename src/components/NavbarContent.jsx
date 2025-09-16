@@ -11,7 +11,8 @@ import {
   MobileNavMenu,
 } from "@/components/ui/navbar";
 import { useState } from "react";
-
+import { client } from "../lib/client";
+import { ConnectButton } from "thirdweb/react";
 export function NavbarDemo() {
   const navItems = [
     {
@@ -39,7 +40,25 @@ export function NavbarDemo() {
           <NavItems items={navItems} />
           <div className="flex items-center gap-4">
             <NavbarButton variant="secondary" href="/signin">Login</NavbarButton>
-            <NavbarButton variant="primary">Wallet</NavbarButton>
+            <NavbarButton variant="primary">
+                <ConnectButton client={client}
+                connectButton={{
+                    style: {
+                        backgroundColor: "#1a202c",
+                        color: "#fff",
+                        borderRadius: "6px",
+                        padding: "8px 16px",
+                        fontSize: "14px",
+                        height: "36px",
+                        minWidth: "auto",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                    },
+                    label: "Connect Wallet"
+                    }}
+                />
+            </NavbarButton>
           </div>
         </NavBody>
 
