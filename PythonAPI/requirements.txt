@@ -3,3 +3,11 @@ torch
 torchvision
 Pillow
 flask-cors
+opencv-python
+pytesseract
+pdf2image
+spacy
+easyocr 
+pillow 
+
+numpy

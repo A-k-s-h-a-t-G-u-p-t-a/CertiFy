@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createWorker } from "tesseract.js";
 
 const OcrComparer = () => {
   const [selectedImages, setSelectedImages] = useState([null, null]);
@@ -27,6 +26,23 @@ const OcrComparer = () => {
     setStatus("");
   };
 
+  const extractTextFromApi = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("http://localhost:5001/robust-ocr", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "OCR extraction failed");
+
+    // Join text from all pages
+    const fullText = data.results.map((r) => r.text).join("\n");
+    return fullText;
+  };
+
   const readImageText = async () => {
     if (!selectedImages[0] || !selectedImages[1]) {
       alert("Please select both certificate images");
@@ -38,76 +54,76 @@ const OcrComparer = () => {
     setComparisonResult(null);
     setVisualResult(null);
 
-    const worker = await createWorker("eng", 1, { logger: (m) => console.log(m) });
-
     try {
-      const texts = [];
+      // ----------------- Step 1: Extract Text -----------------
+      setStatus("Extracting text from first certificate...");
+      const text1 = await extractTextFromApi(selectedImages[0]);
+      setStatus("Extracting text from second certificate...");
+      const text2 = await extractTextFromApi(selectedImages[1]);
 
-      // Extract text for both images
-      for (let i = 0; i < 2; i++) {
-        const { data } = await worker.recognize(selectedImages[i]);
-        texts.push(data.text);
-      }
+      setOcrResults([text1, text2]);
 
-      setOcrResults(texts);
-
-      // ---------------- Text Extraction via Gemini ----------------
-      setStatus("Sending first certificate to backend...");
+      // ----------------- Step 2: Send text to Gemini for field extraction -----------------
+      setStatus("Sending first certificate text to Gemini...");
       const res1 = await fetch("/api/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawText: texts[0] }),
+        body: JSON.stringify({ rawText: text1 }),
       });
       const data1 = await res1.json();
       if (!res1.ok) throw new Error(data1.error || "Gemini extraction failed for Cert 1");
 
-      setStatus("Sending second certificate to backend...");
+      setStatus("Sending second certificate text to Gemini...");
       const res2 = await fetch("/api/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawText: texts[1] }),
+        body: JSON.stringify({ rawText: text2 }),
       });
       const data2 = await res2.json();
       if (!res2.ok) throw new Error(data2.error || "Gemini extraction failed for Cert 2");
 
       setFormattedFields([data1.fields, data2.fields]);
 
-      // ---------------- Compare key-value pairs ----------------
+      // ----------------- Step 3: Compare key-value pairs -----------------
       const first = data1.fields;
       const second = data2.fields;
       const keys = Object.keys(first);
       const allMatch = keys.every((key) => first[key] === second[key]);
 
-      setComparisonResult(allMatch ? "YES ✅ Certificates match (Text)" : "NO ❌ Certificates differ (Text)");
-      setStatus("Text comparison done. Performing visual comparison...");
-
-      // ---------------- Call Python Flask API for visual similarity ----------------
-      const formData = new FormData();
-      formData.append("file1", selectedImages[0]);
-      formData.append("file2", selectedImages[1]);
-
-      const visualRes = await fetch("http://localhost:5000/compare-images", {
-        method: "POST",
-        body: formData,
-      });
-
-      const visualData = await visualRes.json();
-      if (!visualRes.ok) throw new Error(visualData.error || "Visual comparison failed");
-
-      setVisualResult(
-        visualData.is_same
-          ? `YES ✅ Certificates match visually (Similarity: ${visualData.similarity.toFixed(2)})`
-          : `NO ❌ Certificates differ visually (Similarity: ${visualData.similarity.toFixed(2)})`
+      setComparisonResult(
+        allMatch
+          ? "YES ✅ Certificates match (Text)"
+          : "NO ❌ Certificates differ (Text)"
       );
 
-      setStatus("Completed");
+      setStatus("Text comparison done. Performing visual comparison...");
 
+      // ----------------- Step 4: Call Python Flask API for visual similarity -----------------
+      // ----------------- Step 4: Call Python Flask API for visual similarity -----------------
+        const formData = new FormData();
+        formData.append("file1", selectedImages[0]);
+        formData.append("file2", selectedImages[1]);
+
+        const visualRes = await fetch("http://localhost:5000/compare-images", {
+        method: "POST",
+        body: formData,
+        });
+
+        const visualData = await visualRes.json();
+        if (!visualRes.ok) throw new Error(visualData.error || "Visual comparison failed");
+
+        // Update display for both DL and SIFT similarity
+        setVisualResult(
+        `Deep Learning Match: ${visualData.deep_learning_match ? "✅" : "❌"} (Similarity: ${visualData.deep_learning_similarity.toFixed(2)})
+        SIFT Match: ${visualData.sift_match ? "✅" : "❌"} (Similarity: ${visualData.sift_similarity.toFixed(2)})`
+        );
+
+
+      setStatus("Completed");
     } catch (err) {
       console.error(err);
       setError(err.message || "Error during OCR, Gemini, or visual comparison");
       setStatus("Failed");
-    } finally {
-      await worker.terminate();
     }
   };
 
@@ -118,7 +134,7 @@ const OcrComparer = () => {
 
         {[0, 1].map((index) => (
           <div key={index} style={{ marginTop: 15 }}>
-            <input type="file" accept="image/*" onChange={handleFileChange(index)} />
+            <input type="file" accept="image/*,.pdf" onChange={handleFileChange(index)} />
             {selectedImages[index] && (
               <img
                 src={URL.createObjectURL(selectedImages[index])}
