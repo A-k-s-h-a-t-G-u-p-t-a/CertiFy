@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Download, Type, Trash2, Palette, Move, Settings } from "lucide-react"
+import { Download, Type, Trash2, Palette, Move, Settings, Upload, Loader2, CheckCircle, AlertCircle } from "lucide-react"
 
 // Background Image Component
 const BackgroundImage = ({ src, width, height }) => {
@@ -90,6 +90,99 @@ export default function CertificateBuilder() {
     fill: "#000000",
     fontStyle: "normal",
   })
+  const [processingState, setProcessingState] = useState({
+  isProcessing: false,
+  extractionResult: null,
+  error: null,
+  step: null,
+  databaseResult: null,
+  })
+
+  const [apiConfig, setApiConfig] = useState({
+  ocrUrl: "http://localhost:5001/robust-ocr", // Flask OCR
+  extractionUrl: "/api/extract",              // Next.js → Gemini
+  databaseUrl: "",                            // optional DB endpoint
+  })
+
+
+// Extract text from robust-ocr Flask API
+const extractTextFromApi = async (file) => {
+  const formData = new FormData()
+  formData.append("file", file)
+
+  const res = await fetch("http://localhost:5001/robust-ocr", {
+    method: "POST",
+    body: formData,
+  })
+
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || "OCR extraction failed")
+
+  // Join text from all pages
+  return data.results.map((r) => r.text).join("\n")
+}
+
+// Send OCR text to Gemini extractor
+const extractFieldsFromGemini = async (rawText) => {
+  const res = await fetch("/api/extract", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rawText }),
+  })
+
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || "Gemini extraction failed")
+  return data.fields
+}
+
+// Unified function: OCR → Gemini → DB
+const processCertificate = async (file) => {
+  try {
+    setProcessingState({ isProcessing: true, step: "ocr" })
+
+    // Step 1: OCR via Flask
+    const rawText = await extractTextFromApi(file)
+
+    // Step 2: Field extraction via Gemini
+    setProcessingState({ isProcessing: true, step: "extracting" })
+    const fields = await extractFieldsFromGemini(rawText)
+
+    // Step 3: Save to database (if configured)
+    setProcessingState({ isProcessing: true, step: "saving" })
+    const certData = {
+      filename: file.name,
+      fields,
+      timestamp: new Date().toISOString(),
+    }
+    let dbResult = null
+    if (apiConfig.databaseUrl) {
+      const res = await fetch(apiConfig.databaseUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(certData),
+      })
+      dbResult = await res.json()
+    }
+
+    // Step 4: Done
+    setProcessingState({
+      isProcessing: false,
+      step: "complete",
+      extractionResult: fields,
+      databaseResult: dbResult,
+    })
+
+    return fields
+  } catch (err) {
+    console.error("Certificate processing failed:", err)
+    setProcessingState({
+      isProcessing: false,
+      step: "error",
+      error: err.message,
+    })
+    throw err
+  }
+}
 
   const stageRef = useRef()
 
@@ -143,7 +236,141 @@ export default function CertificateBuilder() {
     setBackgroundImage(templateSrc)
   }
 
-  // Download certificate
+  // Convert canvas to base64
+  const getCanvasAsBase64 = () => {
+    const dataURL = stageRef.current.toDataURL({
+      mimeType: 'image/png',
+      quality: 1,
+      pixelRatio: 2 // Higher quality
+    })
+    // Remove the data URL prefix to get just the base64 string
+    return dataURL.split(',')[1]
+  }
+
+  // Extract fields using your Flask API
+  const extractFields = async (base64Image) => {
+    try {
+      // Step 1: OCR using Flask
+      const formData = new FormData()
+      formData.append("file", new Blob([Uint8Array.from(atob(base64Image), c => c.charCodeAt(0))], { type: "image/png" }))
+
+      const ocrRes = await fetch(apiConfig.ocrUrl, {
+        method: "POST",
+        body: formData,
+      })
+
+      const ocrData = await ocrRes.json()
+      if (!ocrRes.ok) throw new Error(ocrData.error || "OCR extraction failed")
+
+      const rawText = ocrData.results.map(r => r.text).join("\n")
+
+      // Step 2: Field extraction using Gemini
+      const geminiRes = await fetch(apiConfig.extractionUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawText }),
+      })
+
+      const geminiData = await geminiRes.json()
+      if (!geminiRes.ok) throw new Error(geminiData.error || "Gemini extraction failed")
+
+      return geminiData
+    } catch (error) {
+      console.error("Field extraction error:", error)
+      throw error
+    }
+  }
+
+
+  // Save to database (you'll need to implement this endpoint)
+  const saveToDatabase = async (extractedFields, certificateData) => {
+    if (!apiConfig.databaseUrl) {
+      console.log('No database URL configured, skipping database save')
+      return { success: true, message: 'Database URL not configured' }
+    }
+
+    try {
+      const response = await fetch(apiConfig.databaseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          extractedFields: extractedFields,
+          certificateData: certificateData,
+          timestamp: new Date().toISOString()
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Database API error: ${response.status} ${response.statusText}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Database save error:', error)
+      throw error
+    }
+  }
+
+  // Enhanced download function with API integration
+  const downloadAndProcess = async () => {
+    setProcessingState({
+      isProcessing: true,
+      extractionResult: null,
+      error: null,
+      step: "generating"
+    })
+
+    try {
+      // Step 1: Generate the certificate image
+      const base64Image = getCanvasAsBase64()
+      
+      // Step 2: Download the certificate (original functionality)
+      const dataURL = stageRef.current.toDataURL()
+      const link = document.createElement("a")
+      link.download = `certificate_${Date.now()}.png`
+      link.href = dataURL
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      // Step 3: Extract fields using your API
+      setProcessingState(prev => ({ ...prev, step: "extracting" }))
+      const extractionResult = await extractFields(base64Image)
+
+      // Step 4: Save to database
+      setProcessingState(prev => ({ ...prev, step: "saving" }))
+      const certificateData = {
+        elements: elements,
+        canvasSize: canvasSize,
+        backgroundColor: backgroundColor,
+        backgroundImage: backgroundImage,
+        createdAt: new Date().toISOString()
+      }
+
+      const databaseResult = await saveToDatabase(extractionResult, certificateData)
+
+      // Step 5: Complete
+      setProcessingState({
+        isProcessing: false,
+        extractionResult: extractionResult,
+        error: null,
+        step: "complete",
+        databaseResult: databaseResult
+      })
+
+    } catch (error) {
+      setProcessingState({
+        isProcessing: false,
+        extractionResult: null,
+        error: error.message,
+        step: "error"
+      })
+    }
+  }
+
+  // Regular download without processing
   const downloadCertificate = () => {
     const uri = stageRef.current.toDataURL()
     const link = document.createElement("a")
@@ -178,10 +405,29 @@ export default function CertificateBuilder() {
                   <p className="text-sm text-muted-foreground">Professional Certificate Designer</p>
                 </div>
               </div>
-              <Button onClick={downloadCertificate} className="gap-2">
-                <Download className="w-4 h-4" />
-                Download Certificate
-              </Button>
+              <div className="flex gap-3">
+                <Button onClick={downloadCertificate} variant="outline" className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Download Only
+                </Button>
+                <Button 
+                  onClick={downloadAndProcess} 
+                  disabled={processingState.isProcessing}
+                  className="gap-2"
+                >
+                  {processingState.isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Download & Process
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </header>
@@ -189,6 +435,52 @@ export default function CertificateBuilder() {
         <div className="flex flex-1 overflow-hidden">
           <aside className="w-80 border-r bg-card overflow-y-auto">
             <div className="p-6 space-y-6">
+              {/* Processing Status Card */}
+              {(processingState.isProcessing || processingState.extractionResult || processingState.error) && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      {processingState.error ? (
+                        <AlertCircle className="w-5 h-5 text-red-500" />
+                      ) : processingState.step === "complete" ? (
+                        <CheckCircle className="w-5 h-5 text-green-500" />
+                      ) : (
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                      )}
+                      Processing Status
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {processingState.isProcessing && (
+                      <div className="text-sm text-muted-foreground">
+                        {processingState.step === "generating" && "Generating certificate..."}
+                        {processingState.step === "extracting" && "Extracting fields..."}
+                        {processingState.step === "saving" && "Saving to database..."}
+                      </div>
+                    )}
+                    
+                    {processingState.error && (
+                      <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+                        <strong>Error:</strong> {processingState.error}
+                      </div>
+                    )}
+
+                    {processingState.extractionResult && (
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium text-green-600">
+                          ✅ Fields extracted successfully!
+                        </div>
+                        <div className="text-xs bg-green-50 p-2 rounded max-h-32 overflow-y-auto">
+                          <pre className="whitespace-pre-wrap">
+                            {JSON.stringify(processingState.extractionResult.results?.[0]?.fields || {}, null, 2)}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -277,14 +569,14 @@ export default function CertificateBuilder() {
                     </div>
                   </div>
                   
-                  {/* Remove Background Button */}
                   <div className="mt-4 text-center">
-                    <button
-                      onClick={() => loadBackgroundImage(null)}  // Clear background
-                      className="btn btn-outline btn-error"
+                    <Button
+                      onClick={() => loadBackgroundImage(null)}
+                      variant="outline"
+                      className="w-full"
                     >
                       Remove Background
-                    </button>
+                    </Button>
                   </div>
                   
                 </CardContent>
@@ -307,33 +599,30 @@ export default function CertificateBuilder() {
                   >
                     <Layer>
                       {/* Background */}
-                      <Rect width={canvasSize.width} height={canvasSize.height} fill={backgroundColor} />
-
-                      {/* Background Image */}
-                      {backgroundImage && (
-                        <BackgroundImage src={backgroundImage} width={canvasSize.width} height={canvasSize.height} />
+                      {backgroundImage ? (
+                        <BackgroundImage
+                          src={backgroundImage}
+                          width={canvasSize.width}
+                          height={canvasSize.height}
+                        />
+                      ) : (
+                        <Rect
+                          width={canvasSize.width}
+                          height={canvasSize.height}
+                          fill={backgroundColor}
+                        />
                       )}
 
-                      {/* Elements */}
-                      {elements.map((element) => {
-                        if (element.type === "text") {
-                          return (
-                            <DraggableText
-                              key={element.id}
-                              shapeProps={element}
-                              isSelected={element.id === selectedId}
-                              onSelect={() => {
-                                setSelectedId(element.id)
-                              }}
-                              onChange={(newAttrs) => {
-                                updateElement(element.id, newAttrs)
-                              }}
-                              onDoubleClick={() => handleTextDblClick(element)}
-                            />
-                          )
-                        }
-                        return null
-                      })}
+                      {/* Text elements */}
+                      {elements.map((el) => (
+                        <DraggableText
+                          key={el.id}
+                          shapeProps={el}
+                          isSelected={el.id === selectedId}
+                          onSelect={() => setSelectedId(el.id)}
+                          onChange={(newProps) => updateElement(el.id, newProps)}
+                        />
+                      ))}
                     </Layer>
                   </Stage>
                 </CardContent>
@@ -539,6 +828,15 @@ export default function CertificateBuilder() {
                         <Trash2 className="w-4 h-4" />
                         Delete Element
                       </Button>
+                      
+                      <Button
+                        onClick={() => setSelectedId(null)}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        Deselect
+                      </Button>
+
                     </div>
                   ) : (
                     <div className="text-center py-8">
