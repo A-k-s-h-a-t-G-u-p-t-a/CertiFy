@@ -1,4 +1,5 @@
 "use client";
+import { MaskContainer } from "@/components/ui/svg-mask-effect";
 
 import { useState } from "react";
 
@@ -148,13 +149,26 @@ const OcrComparer = () => {
   };
 
   return (
-    // <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-    //   <div>
-    //     <h1>Legacy Certificate Comparison</h1>
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f6f1] p-6">
+   <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f6f1] p-6">
+  
+  {/* Masked Effect Section */}
+  <div className="w-full mb-10">
+    <MaskContainer
+      revealText={
+        <p className="mx-auto max-w-4xl text-center text-4xl font-bold text-slate-800 dark:text-white">
+          Legacy Certificate Comparison
+        </p>
+      }
+      className="h-[20rem] rounded-md border text-white dark:text-black"
+    >
+      Verify authenticity of{" "}
+      <span className="text-blue-500">certificates</span> with{" "}
+      <span className="text-blue-500">OCR + AI</span>.
+    </MaskContainer>
+  </div>
       <div className="bg-[#e1eae5] rounded-2xl shadow-lg p-8 w-full max-w-3xl">
         <h1 className="text-2xl font-bold text-center text-[#4e796b] mb-6">
-          Legacy Certificate Comparison
+          
         </h1>
 
         {/* Year */}
