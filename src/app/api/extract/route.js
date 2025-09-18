@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from "@google/genai"; 
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -18,8 +18,19 @@ export async function POST(req) {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: `
-        Extract certificate fields into JSON only.
-        Fields: College, Student, Degree, RollNumber, Date
+        From the certificate text below, extract the following fields:
+        - Name of the recipient
+        - Degree name
+        - Year of completion
+        - Honors or distinction if mentioned
+        - Roll number
+        - Grade
+        - Organisation
+        - Organisation ID
+
+        Return the result as a valid JSON object only, JSON object ONLY, without any explanations, comments, or extra text.
+        Keys: "name", "degree", "year", "honors", "roll_number", "grade", "organisation", "organisation_id".
+
         Input text: """${rawText}"""
       `,
       config: {
@@ -27,13 +38,16 @@ export async function POST(req) {
         responseSchema: {
           type: "object",
           properties: {
-            College: { type: "string" },
-            Student: { type: "string" },
-            Degree: { type: "string" },
-            RollNumber: { type: "string" },
-            Date: { type: "string" },
+            name: { type: "string" },
+            degree: { type: "string" },
+            year: { type: "string" },
+            honors: { type: "string" },
+            roll_number: { type: "string" },
+            grade: { type: "string" },
+            organisation: { type: "string" },
+            organisation_id: { type: "string" },
           },
-          required: ["College", "Student", "Degree", "RollNumber", "Date"],
+          required: ["name", "degree", "year", "roll_number", "organisation", "organisation_id"],
           additionalProperties: false,
         },
       },

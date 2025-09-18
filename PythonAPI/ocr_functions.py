@@ -70,9 +70,10 @@ From the certificate text below, extract the following fields:
 - Honors or distinction if mentioned
 - Roll number
 - Grade
-- Certificate ID
+- Organisation
+- Organisation ID
 
-Return the result as a valid JSON object only, JSON object ONLY, without any explanations, comments, or extra text with keys "name", "degree", "year", "honors", "roll_number", "grade","certificate_id".
+Return the result as a valid JSON object only, JSON object ONLY, without any explanations, comments, or extra text with keys "name", "degree", "year", "honors", "roll_number", "grade", "organisation", "organisation_id".
 If a field is not found, use null for that field.
 
 Certificate Text:
