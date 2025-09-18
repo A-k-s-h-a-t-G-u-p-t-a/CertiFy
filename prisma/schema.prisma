@@ -14,10 +14,36 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
+
+
+model Admin {
   id             Int      @id @default(autoincrement())
-  email          String   @unique
+  username       String   @unique
+  walletAddress  String
   hashedPassword String
   name           String?
   createdAt      DateTime @default(now())
 }
+
+model Organisation{
+  id             Int      @id @default(autoincrement())
+  username       String   @unique
+  walletAddress  String
+  hashedPassword String
+  name           String
+  certificates   Certificate[]
+  createdAt      DateTime @default(now())
+}
+
+model Certificate{
+  id             Int               @id @default(autoincrement())
+  name           String
+  degree         String
+  honors         String?
+  rollNo         String?
+  grade          String?
+  organisation   Organisation     @relation(fields: [organisationId], references: [id])
+  organisationId Int
+}
+
+
