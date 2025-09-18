@@ -1,6 +1,9 @@
+"use client";
 import { NavbarDemo } from "@/components/NavbarContent";
 import Image from "next/image";
 import { ShieldCheck, Zap, CheckCircle2 } from "lucide-react";
+import React from "react";
+import { WavyBackground } from "../components/ui/wavy-background";
 
 export default function Home() {
   return (
@@ -8,15 +11,20 @@ export default function Home() {
       {/* Navbar */}
       <NavbarDemo />
 
-     
-      {/*Hero Section*/}
-      <section className="flex flex-col items-center justify-center text-center gap-6 px-6 sm:px-20 py-20 bg-[#e1eae5] rounded-b-3xl shadow-lg">
-        <h1 className="text-4xl sm:text-5xl font-bold text-[#4e796b]">
-          Certify
-        </h1>
-        <p className="text-lg sm:text-xl text-[#66b2a0] max-w-xl">
+      <WavyBackground className="max-w-4xl mx-auto pb-40">
+        <p
+          className="text-2xl md:text-4xl lg:text-7xl text-white font-bold inter-var text-center">
+          CertiFy
+        </p>
+        <p
+          className="text-base md:text-lg mt-4 text-white font-normal inter-var text-center">
           Academic Certificate Authenticity Validator – Secure, Reliable, and Fast.
         </p>
+      </WavyBackground>
+
+     
+      {/*Hero Section*/}
+      <section className="flex flex-col items-center justify-center text-center gap-6 px-6 sm:px-15 py-15 bg-[#e1eae5] rounded-b-3xl shadow-lg">
         <div className="flex flex-col sm:flex-row gap-4 mt-4">
           <a
             href="#get-started"
