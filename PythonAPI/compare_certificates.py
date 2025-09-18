@@ -8,6 +8,7 @@ from PIL import Image
 import io
 import cv2
 import numpy as np
+import fitz  # PyMuPDF
 
 app = Flask(__name__)
 CORS(app)
@@ -26,29 +27,41 @@ preprocess = transforms.Compose([
                          std=[0.229, 0.224, 0.225])
 ])
 
-def extract_features(image_bytes):
-    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    img_t = preprocess(img).unsqueeze(0)
+# ------------------- File Loader -------------------
+def load_image(file_bytes, file_type):
+    """Load file as PIL Image (handles both PDFs and images)."""
+    if file_type == "normal":  # PDF
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        page = doc[0]  # first page only
+        pix = page.get_pixmap(dpi=300)
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        doc.close()
+    else:  # scanned -> jpg/png
+        img = Image.open(io.BytesIO(file_bytes)).convert("RGB")
+    return img
+
+# ------------------- Deep Features -------------------
+def extract_features(image):
+    img_t = preprocess(image).unsqueeze(0)
     with torch.no_grad():
         features = resnet_model(img_t)
     return features
 
 # ------------------- SIFT Matching -------------------
-def sift_similarity(file_bytes1, file_bytes2):
-    # Read images as grayscale
-    img1 = cv2.imdecode(np.frombuffer(file_bytes1, np.uint8), cv2.IMREAD_GRAYSCALE)
-    img2 = cv2.imdecode(np.frombuffer(file_bytes2, np.uint8), cv2.IMREAD_GRAYSCALE)
+def sift_similarity(img1_pil, img2_pil):
+    img1 = cv2.cvtColor(np.array(img1_pil), cv2.COLOR_RGB2GRAY)
+    img2 = cv2.cvtColor(np.array(img2_pil), cv2.COLOR_RGB2GRAY)
 
-    # Initialize SIFT detector
     sift = cv2.SIFT_create()
     kp1, des1 = sift.detectAndCompute(img1, None)
     kp2, des2 = sift.detectAndCompute(img2, None)
 
-    # BFMatcher with default params
+    if des1 is None or des2 is None:
+        return 0.0
+
     bf = cv2.BFMatcher()
     matches = bf.knnMatch(des1, des2, k=2)
 
-    # Apply ratio test as per Lowe's paper
     good_matches = []
     for m, n in matches:
         if m.distance < 0.75 * n.distance:
@@ -68,26 +81,32 @@ def compare_images():
 
     file1 = request.files['file1']
     file2 = request.files['file2']
+    file_type1 = request.form.get("file_type1", "scanned")
+    file_type2 = request.form.get("file_type2", "scanned")
 
     try:
-        # ------------------- Deep Learning Similarity -------------------
-        feat1 = extract_features(file1.read())
-        file1.seek(0)  # reset buffer
-        feat2 = extract_features(file2.read())
+        img1 = load_image(file1.read(), file_type1)
+        file1.seek(0)
+        img2 = load_image(file2.read(), file_type2)
         file2.seek(0)
 
+        # Deep Learning Similarity
+        feat1 = extract_features(img1)
+        feat2 = extract_features(img2)
         similarity_dl = cos(feat1, feat2).item()
         is_same_dl = similarity_dl >= 0.95
 
-        # ------------------- SIFT Similarity -------------------
-        sift_score = sift_similarity(file1.read(), file2.read())
-        is_same_sift = sift_score >= 0.75  # adjust threshold experimentally
+        # SIFT Similarity
+        sift_score = sift_similarity(img1, img2)
+        is_same_sift = sift_score >= 0.75
 
         return jsonify({
-            "deep_learning_similarity": similarity_dl,
-            "deep_learning_match": is_same_dl,
-            "sift_similarity": sift_score,
-            "sift_match": is_same_sift
+            "results": {
+                "deep_learning_similarity": similarity_dl,
+                "deep_learning_match": is_same_dl,
+                "sift_similarity": sift_score,
+                "sift_match": is_same_sift
+            }
         })
 
     except Exception as e:

@@ -9,5 +9,5 @@ pdf2image
 spacy
 easyocr 
 pillow 
-
+pymupdf
 numpy

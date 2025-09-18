@@ -32,22 +32,25 @@ const OcrComparer = () => {
     setStatus("");
   };
 
-  const extractTextFromApi = async (file) => {
-    const formData = new FormData();
-    formData.append("file", file);
+  const extractTextFromApi = async (file, fileType) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("type", fileType); // ✅ matches backend
 
-    const res = await fetch("http://localhost:5001/robust-ocr", {
-      method: "POST",
-      body: formData,
-    });
+  const res = await fetch("http://localhost:5001/robust-ocr", {
+    method: "POST",
+    body: formData,
+  });
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "OCR extraction failed");
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "OCR extraction failed");
 
-    // Join text from all pages
-    const fullText = data.results.map((r) => r.text).join("\n");
-    return fullText;
-  };
+  // Now data.results is already the full text string
+  return data.results;
+};
+
+
+
 
   const readImageText = async () => {
     if (!selectedImages[0] || !selectedImages[1]) {
@@ -78,9 +81,11 @@ const OcrComparer = () => {
     try {
       // ----------------- Step 1: Extract Text -----------------
       setStatus("Extracting text from first certificate...");
-      const text1 = await extractTextFromApi(selectedImages[0]);
+      const text1 = await extractTextFromApi(selectedImages[0], legacyType || "scanned");
+
       setStatus("Extracting text from second certificate...");
-      const text2 = await extractTextFromApi(selectedImages[1]);
+      const text2 = await extractTextFromApi(selectedImages[1], legacyType || "scanned");
+
 
       setOcrResults([text1, text2]);
 
@@ -120,10 +125,13 @@ const OcrComparer = () => {
       setStatus("Text comparison done. Performing visual comparison...");
 
       // ----------------- Step 4: Call Python Flask API for visual similarity -----------------
-      // ----------------- Step 4: Call Python Flask API for visual similarity -----------------
       const formData = new FormData();
       formData.append("file1", selectedImages[0]);
       formData.append("file2", selectedImages[1]);
+
+      // Use legacyType (user selection) OR default to "scanned"
+      formData.append("file_type1", legacyType || "scanned");
+      formData.append("file_type2", legacyType || "scanned");
 
       const visualRes = await fetch("http://localhost:5000/compare-images", {
         method: "POST",
@@ -135,9 +143,10 @@ const OcrComparer = () => {
 
       // Update display for both DL and SIFT similarity
       setVisualResult(
-        `Deep Learning Match: ${visualData.deep_learning_match ? "✅" : "❌"} (Similarity: ${visualData.deep_learning_similarity.toFixed(2)})
-          SIFT Match: ${visualData.sift_match ? "✅" : "❌"} (Similarity: ${visualData.sift_similarity.toFixed(2)})`
+        `Deep Learning Match: ${visualData.results.deep_learning_match ? "✅" : "❌"} (Similarity: ${visualData.results.deep_learning_similarity.toFixed(2)})
+        SIFT Match: ${visualData.results.sift_match ? "✅" : "❌"} (Similarity: ${visualData.results.sift_similarity.toFixed(2)})`
       );
+
 
 
       setStatus("Completed");
