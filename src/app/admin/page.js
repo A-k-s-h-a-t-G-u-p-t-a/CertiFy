@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react"; 
+import { LampContainer } from "@/components/ui/lamp"; 
 
 export default function AdminDashboard() {
   const [showForm, setShowForm] = useState(false);
@@ -23,7 +25,7 @@ export default function AdminDashboard() {
     setMessage("");
 
     try {
-      const res = fetch("/api/organizations", {
+      const res = await fetch("/api/organizations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
@@ -47,12 +49,28 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen flex flex-col items-center p-10" style={{ backgroundColor: "#f8f6f1" }}>
-      <h1 className="text-3xl font-bold mb-6" style={{ color: "#4e796b" }}>Admin Dashboard</h1>
 
+      {/* Lamp section now only 1/3 of screen height */}
+      <LampContainer className="h-[30vh]">
+        <motion.h1
+          initial={{ opacity: 0.5, y: 100 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{
+            delay: 0.3,
+            duration: 0.8,
+            ease: "easeInOut",
+          }}
+          className="mt-8 bg-gradient-to-br from-slate-300 to-slate-500 py-4 bg-clip-text text-center text-4xl font-bold tracking-tight text-transparent md:text-6xl"
+        >
+          Admin Dashboard
+        </motion.h1>
+      </LampContainer>
+
+          {/* Toggle Form Button */}
       <button
         onClick={() => setShowForm(!showForm)}
-        className="px-5 py-2 rounded-lg shadow transition"
-         style={{
+        className="px-5 py-2 rounded-lg shadow transition mt-6"
+        style={{
           backgroundColor: "#66b2a0",
           color: "#fff",
         }}
@@ -60,13 +78,17 @@ export default function AdminDashboard() {
         {showForm ? "Cancel" : "Create Organization"}
       </button>
 
+     
+       {/* Form Section */}
       {showForm && (
         <form
           onSubmit={handleSubmit}
           className="mt-6 p-6 rounded-xl shadow-lg w-full max-w-md space-y-4"
         >
           <div>
-            <label className="block font-medium" style={{ color: "#4e796b" }}>Organization Name</label>
+            <label className="block font-medium" style={{ color: "#4e796b" }}>
+              Organization Name
+            </label>
             <input
               type="text"
               name="name"
@@ -77,9 +99,11 @@ export default function AdminDashboard() {
               style={{ borderColor: "#a7d7b8" }}
             />
           </div>
-
-          <div>
-            <label className="block font-medium" style={{ color: "#4e796b" }}>Email</label>
+        
+         <div>
+            <label className="block font-medium" style={{ color: "#4e796b" }}>
+              Email
+            </label>
             <input
               type="email"
               name="email"
@@ -91,8 +115,10 @@ export default function AdminDashboard() {
             />
           </div>
 
-          <div>
-            <label className="block font-medium" style={{ color: "#4e796b" }}>Address</label>
+           <div>
+            <label className="block font-medium" style={{ color: "#4e796b" }}>
+              Address
+            </label>
             <textarea
               name="address"
               value={formData.address}
@@ -103,7 +129,7 @@ export default function AdminDashboard() {
             />
           </div>
 
-          <button
+           <button
             type="submit"
             disabled={loading}
             className="w-full py-2 rounded-lg transition"
@@ -125,4 +151,52 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+//           <div>
+//             <label className="block font-medium" style={{ color: "#4e796b" }}>Email</label>
+//             <input
+//               type="email"
+//               name="email"
+//               value={formData.email}
+//               onChange={handleChange}
+//               required
+//               className="w-full border p-2 rounded-md mt-1"
+//               style={{ borderColor: "#a7d7b8" }}
+//             />
+//           </div>
+
+//           <div>
+//             <label className="block font-medium" style={{ color: "#4e796b" }}>Address</label>
+//             <textarea
+//               name="address"
+//               value={formData.address}
+//               onChange={handleChange}
+//               required
+//               className="w-full border p-2 rounded-md mt-1"
+//               style={{ borderColor: "#a7d7b8" }}
+//             />
+//           </div>
+
+//           <button
+//             type="submit"
+//             disabled={loading}
+//             className="w-full py-2 rounded-lg transition"
+//             style={{
+//               backgroundColor: "#66b2a0",
+//               color: "#fff",
+//             }}
+//           >
+//             {loading ? "Saving..." : "Create Organization"}
+//           </button>
+//         </form>
+//       )}
+
+//       {message && (
+//         <p className="mt-4 text-lg" style={{ color: "#4e796b" }}>
+//           {message}
+//         </p>
+//       )}
+//     </div>
+//   );
+// }
 
