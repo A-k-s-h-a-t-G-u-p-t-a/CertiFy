@@ -17,16 +17,21 @@ export function NavbarDemo() {
   const navItems = [
     {
       name: "Admin",
-      link: "#admin",
+      link: "/admin",
     },
     {
       name: "Organizations",
-      link: "#organizations",
+      link: "/organizations",
     },
     {
       name: "Verifier",
-      link: "#verifier",
+      link: "/verifier",
     },
+    ,
+    {
+      name: "Certificate Playground",
+      link: "/certificate-generator",
+    }
   ];
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

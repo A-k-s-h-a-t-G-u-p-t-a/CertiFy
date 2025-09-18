@@ -406,7 +406,7 @@ const processCertificate = async (file) => {
                 </div>
               </div>
               <div className="flex gap-3">
-                <Button onClick={downloadCertificate} variant="outline" className="gap-2">
+                <Button onClick={downloadCertificate} variant="outline" className="gap-2 text-black">
                   <Download className="w-4 h-4" />
                   Download Only
                 </Button>
