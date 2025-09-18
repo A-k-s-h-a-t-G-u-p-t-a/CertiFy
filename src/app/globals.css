@@ -3,6 +3,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+body {
+  padding-top: 38px;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -45,24 +49,24 @@
 
 :root {
   --radius: 0.625rem;
-  --background: #f7f3e9;
-  --foreground: #241f1f;
-  --card: #ffebc8;
-  --card-foreground: #241f1f;
+  --background: #ffffff;
+  --foreground: #ffffff;
+  --card: #a4cabd;
+  --card-foreground: #0f4030;
   --popover: #ffebc8;
-  --popover-foreground: #241f1f;
-  --primary: oklch(0.205 0 0);
+  --popover-foreground: #ffffff;
+  --primary: oklch(0% 0 0);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted: oklch(83.744% 0.10018 139.31);
+  --muted-foreground: oklch(100% 0.00011 271.152);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(53.963% 0.17212 21.61);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: oklch(83.85% 0.08904 19.05);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
