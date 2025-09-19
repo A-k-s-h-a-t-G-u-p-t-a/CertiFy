@@ -10,7 +10,7 @@ import base64
 from pdf2image import convert_from_bytes  
 import os
 import json
-from google import genai
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 # ------------------- Flask App -------------------
@@ -22,7 +22,7 @@ nlp = spacy.load("en_core_web_sm")
 # Initialize Gemini Client
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 api_key = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key)
+genai.configure(api_key=api_key)
 
 
 def load_document_from_bytes(file_bytes, filename="file"):
@@ -65,6 +65,7 @@ def extract_fields_with_gemini(text):
 You are an AI trained to extract information from certificates. 
 From the certificate text below, extract the following fields:
 - Name of the recipient
+- Name of the organisation
 - Degree name
 - Year of completion
 - Honors or distinction if mentioned
@@ -80,10 +81,8 @@ Certificate Text:
 \"\"\"{text}\"\"\"
 """
     
-    response = client.models.generate_content(
-        model="gemini-2.0-flash-001", 
-        contents=prompt
-    )
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(prompt)
 
     output_text = response.text.strip()
     cleaned_text = clean_json(output_text)
