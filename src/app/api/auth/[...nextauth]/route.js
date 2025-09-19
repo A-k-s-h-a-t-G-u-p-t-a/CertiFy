@@ -12,14 +12,15 @@ const handler = NextAuth({
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "text" },
+        username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
+        name: {label:"Name", type:"text"}
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.username || !credentials?.password || !credentials?.name) return null;
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { username: credentials.username },
         });
 
         if (!user || !user.hashedPassword) return null;
@@ -27,7 +28,7 @@ const handler = NextAuth({
         const isValid = await compare(credentials.password, user.hashedPassword);
         if (!isValid) return null;
 
-        return { id: user.id, email: user.email };
+        return { id: user.id, username: user.username, name:this.name };
       },
     }),
   ],
@@ -44,7 +45,9 @@ const handler = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      if (token && session.user) session.user.id = token.id || undefined;
+      if (token && session.user) {session.user.id = token.id || undefined
+        session.user.name=token.name||null;
+      }
       return session;
     },
   },

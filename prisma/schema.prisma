@@ -30,7 +30,7 @@ model Organisation{
   username       String   @unique
   walletAddress  String
   hashedPassword String
-  name           String
+  name           String   @unique
   certificates   Certificate[]
   createdAt      DateTime @default(now())
 }
@@ -38,7 +38,10 @@ model Organisation{
 model Certificate{
   id             Int               @id @default(autoincrement())
   name           String
+  url            String
   degree         String
+  certificateId  String?
+  year           String?
   honors         String?
   rollNo         String?
   grade          String?
