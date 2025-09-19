@@ -90,7 +90,7 @@ export async function POST(request) {
         cloudinary.uploader.upload_stream(
           {
             resource_type: resourceType,
-            folder: "pdfs",
+            folder:name,
             public_id: entry.entryName.replace(/\.(pdf|jpg|jpeg|png)$/i, ""),
             unique_filename: "false",
           },
