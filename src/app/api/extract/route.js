@@ -48,7 +48,7 @@ export async function POST(req) {
             grade: { type: "string" },
             
           },
-          required: ["name", "degree", "roll_number"],
+          required: [],
           additionalProperties: false,
         },
       },
