@@ -14,21 +14,34 @@ const handler = NextAuth({
       credentials: {
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
-        name: {label:"Name", type:"text"}
+        name: {label:"Name", type:"text"},
+        role:{label:"Role",type:"text"},
       },
       async authorize(credentials) {
-        if (!credentials?.username || !credentials?.password || !credentials?.name) return null;
+        if (!credentials?.username || !credentials?.password || !credentials?.name || !credentials?.role) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { username: credentials.username },
-        });
+        let user;
+        if(role=="Organistaion"){
+          user=await prisma.organisation.findUnique({
+            where:{username:credentials.username}
+          });
+        }else{
+          user=await prisma.admin.findUnique({
+            where:{
+              username:credentials.username
+            }
+          })
+        }
+        // const user = await prisma.user.findUnique({
+        //   where: { username: credentials.username },
+        // });
 
         if (!user || !user.hashedPassword) return null;
 
         const isValid = await compare(credentials.password, user.hashedPassword);
         if (!isValid) return null;
 
-        return { id: user.id, username: user.username, name:this.name };
+        return { id: user.id, username: user.username, name: user.name };
       },
     }),
   ],
@@ -41,7 +54,11 @@ const handler = NextAuth({
   },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.id = user.id;
+      if (user) {
+        token.id = user.id
+        token.name=user.name||null;
+        token.username=user.username||null;
+      }
       return token;
     },
     async session({ session, token }) {
