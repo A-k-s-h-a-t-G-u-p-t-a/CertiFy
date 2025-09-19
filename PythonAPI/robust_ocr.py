@@ -1,4 +1,3 @@
-# file: robust_ocr.py
 from flask import Flask, request, jsonify
 import easyocr
 import numpy as np
@@ -13,26 +12,49 @@ CORS(app)
 # Initialize EasyOCR reader (English)
 reader = easyocr.Reader(['en'], gpu=False)  # Set gpu=True if you have GPU
 
-# ----------------- Helper Functions -----------------
+# ----------------- Helper Functions (REVISED) -----------------
 def load_document(file_bytes, file_type):
+    """
+    Load a scanned image or a PDF page as a PIL Image.
+    This function has been revised for more robust PDF handling.
+    """
     images = []
+
     if file_type == "normal":  # PDF
-        doc = fitz.open(stream=file_bytes, filetype="pdf")
-        page = doc[0]  # first page only
-        pix = page.get_pixmap(dpi=300)
-        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-        images.append(img)
-        doc.close()
+        try:
+            doc = fitz.open(stream=file_bytes, filetype="pdf")
+            # Loop over all pages in the PDF
+            for page in doc:
+                pix = page.get_pixmap(dpi=300)
+
+                # Convert pixmap to a standard format (like PNG) in memory and
+                # then load it with PIL. This handles different color spaces reliably.
+                img_data = pix.tobytes("png")
+                img = Image.open(io.BytesIO(img_data))
+
+                # Ensure the image is in RGB format, as required by EasyOCR.
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+
+                images.append(img)
+            doc.close()
+        except Exception as e:
+            # Propagate error with more context
+            raise RuntimeError(f"Failed to process PDF file: {e}") from e
+
     elif file_type == "scanned":  # JPG/PNG
         img = Image.open(io.BytesIO(file_bytes)).convert("RGB")
         images.append(img)
+
     else:
         raise ValueError("Invalid file type. Use 'scanned' or 'normal'.")
+
     return images
 
 def extract_text(img):
     """Uses EasyOCR to extract text from a PIL Image."""
-    results = reader.readtext(np.array(img), detail=0)  # detail=0 returns plain text
+    # detail=0 returns a list of plain text strings
+    results = reader.readtext(np.array(img), detail=0)
     return "\n".join(results)
 
 # ----------------- Flask Route -----------------
@@ -52,12 +74,15 @@ def robust_ocr():
         # Concatenate all page texts into one string
         full_text = ""
         for img in images:
-            full_text += extract_text(img) + "\n"
+            # Add a separator for multi-page documents
+            if full_text:
+                full_text += "\n\n--- Page Break ---\n\n"
+            full_text += extract_text(img)
 
         return jsonify({"results": full_text.strip()})
 
     except Exception as e:
-        return jsonify({"results": f"Error: {str(e)}"})
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 # ----------------- Run Flask -----------------
 if __name__ == "__main__":
