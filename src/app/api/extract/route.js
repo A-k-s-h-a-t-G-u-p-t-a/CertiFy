@@ -21,15 +21,17 @@ export async function POST(req) {
         From the certificate text below, extract the following fields:
         - Name of the recipient
         - Degree name
-        - Year of completion
+        
         - Honors or distinction if mentioned
         - Roll number
         - Grade
-        - Organisation
-        - Organisation ID
+        
 
         Return the result as a valid JSON object only, JSON object ONLY, without any explanations, comments, or extra text.
-        Keys: "name", "degree", "year", "honors", "roll_number", "grade", "organisation", "organisation_id".
+        Important:
+        - Always include all keys in the JSON.
+        - If a field is not present in the text, set its value to null.                                               
+        Keys: "name", "degree", "honors", "roll_number", "grade", "organisation", "organisation_id".
 
         Input text: """${rawText}"""
       `,
@@ -40,14 +42,13 @@ export async function POST(req) {
           properties: {
             name: { type: "string" },
             degree: { type: "string" },
-            year: { type: "string" },
+            
             honors: { type: "string" },
             roll_number: { type: "string" },
             grade: { type: "string" },
-            organisation: { type: "string" },
-            organisation_id: { type: "string" },
+            
           },
-          required: ["name", "degree", "year", "roll_number", "organisation", "organisation_id"],
+          required: [],
           additionalProperties: false,
         },
       },
