@@ -1,7 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import { NavbarDemo } from "@/components/NavbarContent";
 import { ThirdwebProvider } from "thirdweb/react";
-import { client } from "./thirdwebClient";
+import { client } from "../lib/client";
 import "./globals.css";
 
 const geistSans = Geist({
