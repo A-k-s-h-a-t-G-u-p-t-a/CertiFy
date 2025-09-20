@@ -13,20 +13,22 @@ export default function SignInPage() {
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    const res = await signIn('credentials', {
-      redirect: false,
-      email,
-      password,
-      role, // pass role along
-    });
+  e.preventDefault();
+  const res = await signIn("credentials", {
+    redirect: false,
+    username: email,   // backend expects "username"
+    password,
+    name,              // backend expects "name"
+    role,
+  });
 
-    if (res?.error) {
-      setError('Invalid credentials');
-    } else {
-      router.push('/dashboard'); // or any authenticated route
-    }
-  };
+  if (res?.error) {
+    setError("Invalid credentials");
+  } else {
+    router.push("/dashboard");
+  }
+};
+
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">

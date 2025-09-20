@@ -14,29 +14,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-
 model Admin {
-  id             Int      @id @default(autoincrement())
-  username       String   @unique
-  walletAddress  String
+  id       Int    @id @default(autoincrement())
+  username String @unique
+
   hashedPassword String
   name           String?
   createdAt      DateTime @default(now())
 }
 
-model Organisation{
-  id             Int      @id @default(autoincrement())
-  username       String   @unique
-  walletAddress  String
+model Organisation {
+  id       Int    @id @default(autoincrement())
+  username String @unique
+
   hashedPassword String
-  name           String   @unique
+  name           String        @unique
   certificates   Certificate[]
-  createdAt      DateTime @default(now())
+  createdAt      DateTime      @default(now())
 }
 
-model Certificate{
-  id             Int               @id @default(autoincrement())
+model Certificate {
+  id             Int          @id @default(autoincrement())
   name           String
   url            String
   degree         String
@@ -45,8 +43,6 @@ model Certificate{
   honors         String?
   rollNo         String?
   grade          String?
-  organisation   Organisation     @relation(fields: [organisationId], references: [id])
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
   organisationId Int
 }
-
-
