@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { NavbarDemo } from "@/components/NavbarContent";
 import { ThirdwebProvider } from "thirdweb/react";
 import { client } from "../lib/client";
+import SessionProvider from "@/components/SessionProvider"; // ✅ import
 import "./globals.css";
 
 const geistSans = Geist({
@@ -21,14 +22,14 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" >
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      > 
-      <ThirdwebProvider client={client}>
-        <NavbarDemo />
-        {children}
-        </ThirdwebProvider>
+    <html lang="en">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <SessionProvider> {/* ✅ wrap with SessionProvider */}
+          <ThirdwebProvider client={client}>
+            <NavbarDemo />
+            {children}
+          </ThirdwebProvider>
+        </SessionProvider>
       </body>
     </html>
   );

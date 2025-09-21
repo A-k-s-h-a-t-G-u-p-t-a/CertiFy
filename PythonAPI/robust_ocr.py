@@ -78,7 +78,7 @@ def robust_ocr():
             if full_text:
                 full_text += "\n\n--- Page Break ---\n\n"
             full_text += extract_text(img)
-
+        print(full_text.strip())
         return jsonify({"results": full_text.strip()})
 
     except Exception as e:

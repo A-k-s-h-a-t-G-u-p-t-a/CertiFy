@@ -12,3 +12,5 @@ pillow
 pymupdf
 numpy
 ultralytics
+google.generativeai
+spacy

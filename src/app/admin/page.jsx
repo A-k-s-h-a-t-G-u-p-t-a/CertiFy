@@ -1,5 +1,7 @@
 "use client";
 import { contract } from "../../lib/client";
+import { useSession } from "next-auth/react";
+
 import { useReadContract, useSendTransaction, useActiveAccount } from "thirdweb/react";
 import { prepareContractCall } from "thirdweb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,8 +15,11 @@ import { useState, useEffect } from "react";
 import { PieChart as RechartsPieChart, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area, Pie } from 'recharts';
 
 export default function AdminPage() {
-  const ADMIN_ADDRESS = "0x0408e64385FA3E98b86b55b8998B94Ecb771EF1D";
+  const ADMIN_ADDRESS = "0x7CA9404d028d8E2fF08733Ad737c61823076414c";
   const account = useActiveAccount();
+  const { data: session } = useSession(); // ✅ Get session info
+const adminUsername = session?.user?.username || "Unknown"; // ✅ Logged-in username
+
   
   const [formData, setFormData] = useState({
     orgWallet: "",
@@ -337,6 +342,15 @@ export default function AdminPage() {
           </Badge>
         </div>
       </div>
+
+      <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+  <Shield className="h-8 w-8 text-blue-600" />
+  Admin Dashboard
+  <span className="ml-4 text-sm text-gray-600">
+    Logged in as: <strong>{adminUsername}</strong>
+  </span>
+</h1>
+
 
       {/* Add Organization Form */}
       <Card className="border-2 border-dashed border-blue-200 bg-blue-50/30">
