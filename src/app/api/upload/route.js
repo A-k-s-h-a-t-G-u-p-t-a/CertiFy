@@ -1,9 +1,10 @@
 import { v2 as cloudinary } from "cloudinary";
-import { PrismaClient } from "@prisma/client";
+import {prisma} from "@/lib/prisma";
 import { getSession } from "next-auth/react";
 import AdmZip from "adm-zip";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { connect } from "http2";
 
 cloudinary.config({
   cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
@@ -19,9 +20,8 @@ export async function POST(request) {
   }
 
   // Access user data securely
-  const { id, username, role } = session.user;
+  const { id, username, role, name } = session.user;
 
-  const prisma = new PrismaClient();
 
   const org=await prisma.organisation.findUnique({
     where:{id:id}
@@ -46,16 +46,34 @@ export async function POST(request) {
     for (const entry of entries) {
       const fileBuffer = entry.getData();
       const base64Data = fileBuffer.toString("base64");
-      const res=await fetch("http://localhost:5001/extract", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              filename: entry.entryName,
-                              b64: base64Data,
-                            }),
-                          });
-      const fields=res.results[0].fields;
-      fields.organisation_id=org.id;
+      console.log(`Processing file: ${entry.entryName}`);
+      
+      const ocrResponse = await fetch("http://localhost:5001/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: entry.entryName,
+          b64: base64Data,
+        }),
+      });
+
+      console.log(`OCR Response Status: ${ocrResponse.status}`);
+
+      if (!ocrResponse.ok) {
+        console.error(`OCR request failed for ${entry.entryName}:`, ocrResponse.status);
+        continue;
+      }
+
+      const res = await ocrResponse.json();
+      console.log(`OCR Response:`, res);
+
+      if (!res.results || !res.results[0] || !res.results[0].fields) {
+        console.error(`Invalid OCR response structure:`, res);
+        continue;
+      }
+
+      const fields = res.results[0].fields;
+      fields.organisation_id = org.id;
 
       const finalFields={};
       finalFields.name=fields.name;
@@ -63,8 +81,11 @@ export async function POST(request) {
       finalFields.certificateId=fields.certificate_id||null;
       finalFields.rollNo=fields.roll_no||null;
       finalFields.year=fields.year||null;
-      finalFields.honor=fields.honor||null;
+      finalFields.honors=fields.honors||null;
       finalFields.grade=fields.grade||null;
+      finalFields.organisation={
+        connect: {id:org.id}
+      }
 
 
       const ext = entry.entryName.split('.').pop().toLowerCase();

@@ -13,6 +13,8 @@ import json
 import google.generativeai as genai
 from dotenv import load_dotenv
 
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
 # ------------------- Flask App -------------------
 app = Flask(__name__)
 
@@ -34,7 +36,9 @@ def load_document_from_bytes(file_bytes, filename="file"):
     try:
         if filename.lower().endswith(".pdf"):
             # PDF → convert pages to images
-            pages = convert_from_bytes(file_bytes, dpi=300)
+            # Specify poppler path if not in PATH
+            poppler_path = r'C:\Program Files\poppler-25.07.0\Library\bin'  # Adjust this path
+            pages = convert_from_bytes(file_bytes, dpi=300, poppler_path=poppler_path)
             for page in pages:
                 img_bytes = io.BytesIO()
                 page.save(img_bytes, format="PNG")
@@ -106,29 +110,52 @@ def extract_certificate_fields():
         "b64": "<Base64 encoded file>"
     }
     """
+    print("🔄 OCR extraction endpoint called")
+    
     data = request.get_json()
+    print(f"📨 Received data keys: {list(data.keys()) if data else 'None'}")
+    
     if not data or "b64" not in data:
+        print("❌ No Base64 data provided")
         return jsonify({"error": "No Base64 data provided"}), 400
 
     file_b64 = data["b64"]
     filename = data.get("filename", "file.png")  # default extension if not provided
+    print(f"📁 Processing file: {filename}")
 
     try:
+        print("🔓 Decoding Base64 data...")
         file_bytes = base64.b64decode(file_b64)
+        print(f"✅ Base64 decoded successfully, size: {len(file_bytes)} bytes")
     except Exception as e:
+        print(f"❌ Base64 decode error: {e}")
         return jsonify({"error": f"Invalid Base64: {e}"}), 400
 
     try:
+        print("📖 Loading document from bytes...")
         images = load_document_from_bytes(file_bytes, filename)
+        print(f"✅ Document loaded, {len(images)} pages/images found")
     except Exception as e:
+        print(f"❌ Document loading error: {e}")
         return jsonify({"error": str(e)}), 500
 
     all_results = []
     for idx, img in enumerate(images):
-        ocr_text = extract_text(img)
-        fields = extract_fields_with_gemini(ocr_text)
-        all_results.append({"page": idx + 1, "ocr_text": ocr_text, "fields": fields})
+        print(f"🔍 Processing page/image {idx + 1}...")
+        try:
+            ocr_text = extract_text(img)
+            print(f"📝 OCR text extracted (length: {len(ocr_text)})")
+            print(f"OCR Text preview: {ocr_text[:200]}...")
+            
+            fields = extract_fields_with_gemini(ocr_text)
+            print(f"🤖 Gemini fields extracted: {fields}")
+            
+            all_results.append({"page": idx + 1, "ocr_text": ocr_text, "fields": fields})
+        except Exception as e:
+            print(f"❌ Error processing page {idx + 1}: {e}")
+            all_results.append({"page": idx + 1, "error": str(e)})
 
+    print(f"🎯 Final results: {all_results}")
     return jsonify({"results": all_results})
 
 
