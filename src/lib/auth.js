@@ -13,35 +13,70 @@ export const authOptions = {
         role: { label: "Role", type: "text" }, // "admin" or "organisation"
       },
       async authorize(credentials) {
+        console.log("=== AUTH DEBUG ===");
+        console.log("Credentials received:", {
+          username: credentials?.username,
+          password: credentials?.password ? "PROVIDED" : "MISSING",
+          role: credentials?.role
+        });
+        
         if (!credentials?.username || !credentials?.password || !credentials?.role) {
+          console.log("❌ Missing required credentials");
           return null;
         }
 
         let user;
 
-        if (credentials.role === "admin") {
-          user = await prisma.admin.findUnique({
-            where: { username: credentials.username },
-          });
-        } else if (credentials.role === "organisation") {
-          user = await prisma.organisation.findUnique({
-            where: { username: credentials.username },
-          });
-        } else {
-          return null; // invalid role
+        try {
+          if (credentials.role === "admin") {
+            console.log("🔍 Looking for admin user...");
+            user = await prisma.admin.findUnique({
+              where: { username: credentials.username },
+            });
+          } else if (credentials.role === "organisation") {
+            console.log("🔍 Looking for organisation user...");
+            user = await prisma.organisation.findUnique({
+              where: { username: credentials.username },
+            });
+          } else {
+            console.log("❌ Invalid role:", credentials.role);
+            return null;
+          }
+
+          console.log("User found in DB:", user ? "✅ YES" : "❌ NO");
+          if (user) {
+            console.log("User data:", {
+              id: user.id,
+              username: user.username,
+              hasPassword: user.hashedPassword ? "YES" : "NO"
+            });
+          }
+
+          if (!user || !user.hashedPassword) {
+            console.log("❌ No user found or no hashed password");
+            return null;
+          }
+
+          console.log("🔐 Comparing passwords...");
+          const isValid = await compare(credentials.password, user.hashedPassword);
+          console.log("Password comparison result:", isValid ? "✅ VALID" : "❌ INVALID");
+          
+          if (!isValid) {
+            console.log("❌ Password mismatch");
+            return null;
+          }
+
+          console.log("✅ Authentication successful");
+          return {
+            id: user.id,
+            username: user.username,
+            name: user.name,
+            role: credentials.role,
+          };
+        } catch (error) {
+          console.error("❌ Auth error:", error);
+          return null;
         }
-
-        if (!user || !user.hashedPassword) return null;
-
-        const isValid = await compare(credentials.password, user.hashedPassword);
-        if (!isValid) return null;
-
-        return {
-          id: user.id,
-          username: user.username,
-          name: user.name,
-          role: credentials.role,
-        };
       },
     }),
   ],
