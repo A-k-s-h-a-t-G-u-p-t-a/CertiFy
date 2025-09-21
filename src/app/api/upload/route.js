@@ -75,17 +75,18 @@ export async function POST(request) {
       const fields = res.results[0].fields;
       fields.organisation_id = org.id;
 
-      const finalFields={};
-      finalFields.name=fields.name;
-      finalFields.degree=fields.degree;
-      finalFields.certificateId=fields.certificate_id||null;
-      finalFields.rollNo=fields.roll_no||null;
-      finalFields.year=fields.year||null;
-      finalFields.honors=fields.honors||null;
-      finalFields.grade=fields.grade||null;
-      finalFields.organisation={
-        connect: {id:org.id}
-      }
+      const finalFields = {
+        name: String(fields.name || ""),                  // required
+        degree: fields.degree ? String(fields.degree) : null,
+        certificateId: fields.certificate_id ? String(fields.certificate_id) : null,
+        rollNo: fields.roll_no ? String(fields.roll_no) : null,
+        year: fields.year ? String(fields.year) : null,
+        honors: fields.honors ? String(fields.honors) : null,
+        grade: fields.grade ? String(fields.grade) : null,
+        organisation: {
+          connect: { id: org.id }  // keep as is
+        }
+      };
 
 
       const ext = entry.entryName.split('.').pop().toLowerCase();
