@@ -2,20 +2,20 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-
-
-// By default, the CldImage component applies auto-format and auto-quality to all delivery URLs for optimized delivery.
 export default function UploadPage() {
+  const { data: session } = useSession(); // ✅ Get session info
+  const username = session?.user?.username || "Unknown"; // ✅ Logged-in username
+
   const form = useForm();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const onSubmit = async (data) => {
-    console.log("Submitting...", data); // Debug log
     setLoading(true);
     setError("");
 
@@ -42,7 +42,7 @@ export default function UploadPage() {
           setLoading(false);
         } else {
           setLoading(false);
-          router.push("/home"); // Navigate to /home after successful upload
+          router.push("/home"); // Navigate after success
         }
       };
       reader.onerror = () => {
@@ -59,9 +59,15 @@ export default function UploadPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
       <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-md dark:bg-gray-800">
-        <h2 className="mb-6 text-center text-2xl font-bold text-gray-900 dark:text-white">
+        <h2 className="mb-2 text-center text-2xl font-bold text-gray-900 dark:text-white">
           Upload ZIP File
         </h2>
+
+        {/* Display logged-in username */}
+        <p className="mb-4 text-center text-gray-700 dark:text-gray-300">
+          Logged in as: <strong>{username}</strong>
+        </p>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <FormField
@@ -93,9 +99,8 @@ export default function UploadPage() {
             </button>
           </form>
         </Form>
-        {error && (
-          <div className="mt-4 text-center text-red-600">{error}</div>
-        )}
+
+        {error && <div className="mt-4 text-center text-red-600">{error}</div>}
       </div>
     </div>
   );

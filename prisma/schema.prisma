@@ -37,7 +37,7 @@ model Certificate {
   id             Int          @id @default(autoincrement())
   name           String
   url            String
-  degree         String
+  degree         String?
   certificateId  String?
   year           String?
   honors         String?
