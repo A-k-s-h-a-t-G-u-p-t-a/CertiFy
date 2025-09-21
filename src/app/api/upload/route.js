@@ -2,6 +2,8 @@ import { v2 as cloudinary } from "cloudinary";
 import { PrismaClient } from "@prisma/client";
 import { getSession } from "next-auth/react";
 import AdmZip from "adm-zip";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 cloudinary.config({
   cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
@@ -10,9 +12,15 @@ cloudinary.config({
 });
 
 export async function POST(request) {
-  const session=await getSession();
-  const id=session.user.id;
-  const name=session.user.name;
+  const session = await getServerSession(authOptions);
+
+  if (!session) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  }
+
+  // Access user data securely
+  const { id, username, role } = session.user;
+
   const prisma = new PrismaClient();
 
   const org=await prisma.organisation.findUnique({

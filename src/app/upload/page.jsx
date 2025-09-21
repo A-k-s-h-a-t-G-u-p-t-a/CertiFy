@@ -36,13 +36,15 @@ export default function UploadPage() {
           body: JSON.stringify({ zipBase64 }),
         });
 
+        
+
         if (!response.ok) {
           const result = await response.json();
           setError(result.error || "Upload failed");
           setLoading(false);
         } else {
           setLoading(false);
-          router.push("/home"); // Navigate after success
+          router.push("/"); // Navigate after success
         }
       };
       reader.onerror = () => {
