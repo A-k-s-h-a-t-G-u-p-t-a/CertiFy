@@ -13,6 +13,7 @@ import json
 import google.generativeai as genai
 from dotenv import load_dotenv
 from flask_cors import CORS
+import pandas as pd  # For Excel processing
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
@@ -159,6 +160,51 @@ def extract_certificate_fields():
 
     print(f"🎯 Final results: {all_results}")
     return jsonify({"results": all_results})
+
+
+@app.route("/upload/excel", methods=["POST"])
+def extract_excel_data():
+
+    data = request.get_json()
+    print(f"📨 Received data keys: {list(data.keys()) if data else 'None'}")
+    
+    if not data or "b64" not in data:
+        print("❌ No Base64 data provided")
+        return jsonify({"error": "No Base64 data provided"}), 400
+
+    file_b64 = data["b64"]
+    filename = data.get("filename", "file.xlsx")
+    print(f"📁 Processing Excel file: {filename}")
+    
+    try:
+        print("🔓 Decoding Base64 data...")
+        file_bytes = base64.b64decode(file_b64)
+        print(f"✅ Base64 decoded successfully, size: {len(file_bytes)} bytes")
+        
+        # Read Excel file from bytes
+        excel_file = io.BytesIO(file_bytes)
+        
+        # Read all sheets or specific sheet
+        df = pd.read_excel(excel_file, sheet_name=0)  # Read first sheet
+        # OR read all sheets: pd.read_excel(excel_file, sheet_name=None)
+        
+        print(f"📊 Excel loaded: {df.shape[0]} rows, {df.shape[1]} columns")
+        print(f"Columns: {list(df.columns)}")
+        
+        # Convert to JSON or process as needed
+        data_json = df.to_dict('records')  # Convert to list of dictionaries
+        
+        return jsonify({
+            "success": True,
+            "rows": len(df),
+            "columns": list(df.columns),
+            "data": data_json  # Return all rows
+        })
+        
+    except Exception as e:
+        print(f"❌ Excel processing error: {e}")
+        return jsonify({"error": f"Excel processing failed: {e}"}), 500
+   
 
 
 # ------------------- Run Server -------------------
