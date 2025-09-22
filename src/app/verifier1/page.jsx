@@ -399,6 +399,43 @@ const OcrComparer = () => {
   </div>
 )}
 
+      {/* Cropped / Boxed Images Section */}
+{result?.compareResult?.boxed_images && (
+  <div className="mt-6 p-4 rounded-lg bg-white border shadow-sm">
+    <h3 className="font-semibold text-[#4e796b] mb-4">🖼️ Cropped / Highlighted Images</h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Uploaded File */}
+      <div className="flex flex-col items-center">
+        <h4 className="font-semibold text-[#4e796b] mb-2">Uploaded File</h4>
+        {result.compareResult.boxed_images.file1 ? (
+          <img
+            src={result.compareResult.boxed_images.file1}
+            alt="Uploaded with boxes"
+            className="rounded-lg border border-[#a7d7b8] shadow-md max-w-xs"
+          />
+        ) : (
+          <p className="text-gray-500">No profile/sign detected</p>
+        )}
+      </div>
+
+      {/* Best Matched File */}
+      <div className="flex flex-col items-center">
+        <h4 className="font-semibold text-[#4e796b] mb-2">Best Matched File</h4>
+        {result.compareResult.boxed_images.file2 ? (
+          <img
+            src={result.compareResult.boxed_images.file2}
+            alt="Best matched with boxes"
+            className="rounded-lg border border-[#a7d7b8] shadow-md max-w-xs"
+          />
+        ) : (
+          <p className="text-gray-500">No profile/sign detected</p>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
+
           </div>
         )}
       </div>

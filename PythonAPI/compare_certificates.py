@@ -50,19 +50,38 @@ def load_image_universal(file_bytes):
         except Exception as e:
             raise RuntimeError(f"Failed to process file. Unsupported format or corrupted file. Error: {e}")
 
-def crop_from_yolo(image):
+# ---------------- Draw Boxes ----------------
+def draw_boxes_on_image(image, boxes, labels):
+    img_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+    for (x1, y1, x2, y2), label in zip(boxes, labels):
+        color = (0, 255, 0) if label.lower() == "profile" else (0, 0, 255)
+        cv2.rectangle(img_cv, (x1, y1), (x2, y2), color, 3)
+        cv2.putText(img_cv, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+    img_pil = Image.fromarray(cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB))
+    buffered = io.BytesIO()
+    img_pil.save(buffered, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buffered.getvalue()).decode()
+
+def crop_from_yolo_with_boxes(image):
     results = yolo_model(image)
     profile_crop, sign_crop = None, None
+    boxes = []
+    labels = []
+
     if results and results[0].boxes:
         for box, cls in zip(results[0].boxes.xyxy, results[0].boxes.cls):
             x1, y1, x2, y2 = map(int, box.tolist())
             crop = image.crop((x1, y1, x2, y2))
             label = results[0].names[int(cls)]
+            boxes.append((x1, y1, x2, y2))
+            labels.append(label)
             if label.lower() == "profile":
                 profile_crop = crop
             elif label.lower() == "sign":
                 sign_crop = crop
-    return profile_crop, sign_crop
+
+    boxed_image_b64 = draw_boxes_on_image(image, boxes, labels) if boxes else None
+    return profile_crop, sign_crop, boxed_image_b64
 
 def extract_features(image):
     img_t = preprocess(image).unsqueeze(0)
@@ -84,7 +103,6 @@ def compute_sift_similarity(img1, img2):
 
     bf = cv2.BFMatcher()
     matches = bf.knnMatch(des1, des2, k=2)
-
     good_matches = [m for m, n in matches if m.distance < 0.75 * n.distance]
 
     sim = len(good_matches) / min(len(kp1), len(kp2))
@@ -117,19 +135,15 @@ def compare_images():
 
         file1_bytes = decode_base64_to_bytes(data["file1"])
         file2_bytes = decode_base64_to_bytes(data["file2"])
-        
+
         img1 = load_image_universal(file1_bytes)
         img2 = load_image_universal(file2_bytes)
 
-        profile1, sign1 = crop_from_yolo(img1)
-        profile2, sign2 = crop_from_yolo(img2)
+        profile1, sign1, boxed1 = crop_from_yolo_with_boxes(img1)
+        profile2, sign2, boxed2 = crop_from_yolo_with_boxes(img2)
 
         results = {}
-        tampering_details = {
-            "profile": "Not Checked",
-            "signature": "Not Checked",
-           
-        }
+        tampering_details = {"profile": "Not Checked", "signature": "Not Checked"}
 
         # Profile
         if profile1 and profile2:
@@ -152,7 +166,12 @@ def compare_images():
         return jsonify({
             "results": results,
             "tampering_suspected": tampering_suspected,
-            "tampering_details": tampering_details
+            "tampering_details": tampering_details,
+            # ✅ Added cropped/boxed images for frontend display
+            "boxed_images": {
+                "file1": boxed1,
+                "file2": boxed2
+            }
         })
 
     except Exception as e:
