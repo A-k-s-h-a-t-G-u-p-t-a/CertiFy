@@ -62,7 +62,7 @@ const OcrComparer = () => {
       // The OCR backend returns fields in results[0].fields
       const fields = data?.results?.[0]?.fields || {};
 
-      // Override organization and year with manually entered values
+      // Override organization and add the manually entered year
       const finalFields = {
         ...fields,
         organisation: organization,
@@ -97,11 +97,16 @@ const OcrComparer = () => {
       const certs = data.certificates || [];
 
       if (certs.length === 0) {
-        setResult({ tampering: true, mismatches: ["No certificate found"] });
+        setResult({
+          tampering: true,
+          mismatches: ["No certificate found for this organization."],
+        });
+        setError("No certificates found for the specified organization.");
+        setStatus("Verification Failed ❌");
         return;
       }
 
-      // Fields to compare (year comes from OCR now)
+      // Fields to compare
       const keys = [
         "name",
         "degree",
@@ -138,12 +143,17 @@ const OcrComparer = () => {
       });
 
       if (!bestMatch) {
-        setResult({ tampering: true, mismatches: ["No matching certificate"] });
+        setResult({
+          tampering: true,
+          mismatches: ["No closely matching certificate found."],
+        });
+        setStatus("Verification Failed ❌");
         return;
       }
 
       const tampering = bestMatch.mismatches.length > 0;
 
+      // Set the initial result based on OCR field comparison
       setResult({
         tampering,
         mismatches: bestMatch.mismatches,
@@ -152,9 +162,11 @@ const OcrComparer = () => {
 
       setStatus("Verification complete ✅");
 
-      // ---- NEW: If no tampering, run image comparison ----
-      if (!tampering && bestMatch.cert?.url) {
+      
+      if (bestMatch.cert?.url) {
         await compareCertificates(uploadedBase64, bestMatch.cert.url);
+      } else {
+        setError("Best matched certificate does not have a URL for comparison.");
       }
     } catch (err) {
       console.error(err);
@@ -168,14 +180,18 @@ const OcrComparer = () => {
       setStatus("Performing additional image comparison...");
 
       // Convert DB certificate URL (Cloudinary) → Base64
-      const dbCertBase64 = await convertPdfUrlToBase64(dbCertUrl);
+      const dbCertBase64 = await convertUrlToBase64(dbCertUrl);
+
+      if (!dbCertBase64) {
+        throw new Error("Could not convert the database certificate URL to Base64.");
+      }
 
       const compareRes = await fetch("http://localhost:5000/compare-images", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          file1: uploadedBase64, // uploaded file
-          file2: dbCertBase64, // db file
+          file1: `data:image/jpeg;base64,${uploadedBase64}`, // Ensure correct data URI format
+          file2: dbCertBase64, // Already a data URI from the conversion function
         }),
       });
 
@@ -187,29 +203,29 @@ const OcrComparer = () => {
 
       setStatus("Image comparison complete ✅");
 
-      // extend `result` with compare info
+      // Extend `result` state with the new comparison info
       setResult((prev) => ({
         ...prev,
         compareResult: compareData,
       }));
     } catch (err) {
       console.error("Image comparison error:", err);
-      setError("Image comparison failed");
+      setError(`Image comparison failed: ${err.message}`);
       setStatus("Failed during comparison ❌");
     }
   };
 
-  const convertPdfUrlToBase64 = async (pdfUrl) => {
+  const convertUrlToBase64 = async (url) => {
     try {
-      const response = await fetch(pdfUrl);
-      if (!response.ok) throw new Error("Failed to fetch PDF");
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Failed to fetch the certificate image from URL: ${response.statusText}`);
 
       const blob = await response.blob();
       const reader = new FileReader();
 
       return new Promise((resolve, reject) => {
         reader.onloadend = () => {
-          resolve(reader.result); // "data:application/pdf;base64,XXXX..."
+          resolve(reader.result); // Returns a data URI e.g., "data:image/png;base64,XXXX..."
         };
         reader.onerror = reject;
         reader.readAsDataURL(blob);
@@ -219,6 +235,7 @@ const OcrComparer = () => {
       return null;
     }
   };
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f6f1] p-6">
@@ -316,7 +333,7 @@ const OcrComparer = () => {
                 {result.mismatches.join(", ")}
               </p>
             ) : (
-              <p className="text-green-600 font-bold mt-2">✅ No Tampering</p>
+              <p className="text-green-600 font-bold mt-2">✅ No Text Tampering Detected</p>
             )}
             {result.winner && (
               <div className="mt-3">
@@ -336,106 +353,104 @@ const OcrComparer = () => {
 
             {/* Image Comparison Result */}
             {result.compareResult && (
-  <div className="mt-4 p-4 rounded-lg bg-white border shadow-sm">
-    <h4 className="font-semibold text-[#4e796b] mb-3">
-      🔍 Additional Image Comparison
-    </h4>
+              <div className="mt-4 p-4 rounded-lg bg-white border shadow-sm">
+                <h4 className="font-semibold text-[#4e796b] mb-3">
+                  🔍 Additional Image Comparison
+                </h4>
 
-    {/* Tampering Details */}
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {Object.entries(result.compareResult.tampering_details).map(
-        ([key, value]) => (
-          <div
-            key={key}
-            className={`p-3 rounded-lg text-white font-semibold ${
-              value === "Match"
-                ? "bg-green-500"
-                : value === "Mismatch"
-                ? "bg-red-500"
-                : "bg-gray-400"
-            }`}
-          >
-            {key.charAt(0).toUpperCase() + key.slice(1)}: {value}
-          </div>
-        )
-      )}
-    </div>
+                {/* Tampering Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.entries(result.compareResult.tampering_details).map(
+                    ([key, value]) => (
+                      <div
+                        key={key}
+                        className={`p-3 rounded-lg text-white font-semibold ${
+                          value === "Match"
+                            ? "bg-green-500"
+                            : value === "Mismatch"
+                            ? "bg-red-500"
+                            : "bg-gray-400"
+                        }`}
+                      >
+                        {key.charAt(0).toUpperCase() + key.slice(1)}: {value}
+                      </div>
+                    )
+                  )}
+                </div>
 
-    {/* Detailed similarity scores */}
-    {result.compareResult.results && (
-      <div className="mt-4">
-        {["profile", "sign"].map((item) => {
-          const res = result.compareResult.results[item];
-          if (!res) return null;
+                {/* Detailed similarity scores */}
+                {result.compareResult.results && (
+                  <div className="mt-4">
+                    {["profile", "sign"].map((item) => {
+                      const res = result.compareResult.results[item];
+                      if (!res) return null;
 
-          return (
-            <div key={item} className="mb-3 p-3 rounded-lg border bg-[#f8f6f1]">
-              <h5 className="font-semibold text-[#4e796b]">
-                {item.charAt(0).toUpperCase() + item.slice(1)} Similarity:
-              </h5>
-              {res.error ? (
-                <p className="text-red-600">{res.error}</p>
-              ) : (
-                <ul className="list-disc ml-5">
-                  <li>Deep Learning Similarity: {res.deep_learning_similarity.toFixed(3)}</li>
-                  <li>SIFT Similarity: {res.sift_similarity.toFixed(3)}</li>
-                  <li>
-                    Match Status:{" "}
-                    <span
-                      className={`font-bold ${
-                        res.match ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {res.match ? "✅ Match" : "⚠️ Mismatch"}
-                    </span>
-                  </li>
-                </ul>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    )}
-  </div>
-)}
+                      return (
+                        <div key={item} className="mb-3 p-3 rounded-lg border bg-[#f8f6f1]">
+                          <h5 className="font-semibold text-[#4e796b]">
+                            {item.charAt(0).toUpperCase() + item.slice(1)} Similarity:
+                          </h5>
+                          {res.error ? (
+                            <p className="text-red-600">{res.error}</p>
+                          ) : (
+                            <ul className="list-disc ml-5">
+                              <li>Deep Learning Similarity: {res.deep_learning_similarity.toFixed(3)}</li>
+                              <li>SIFT Similarity: {res.sift_similarity.toFixed(3)}</li>
+                              <li>
+                                Match Status:{" "}
+                                <span
+                                  className={`font-bold ${
+                                    res.match ? "text-green-600" : "text-red-600"
+                                  }`}
+                                >
+                                  {res.match ? "✅ Match" : "⚠️ Mismatch"}
+                                </span>
+                              </li>
+                            </ul>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
-      {/* Cropped / Boxed Images Section */}
-{result?.compareResult?.boxed_images && (
-  <div className="mt-6 p-4 rounded-lg bg-white border shadow-sm">
-    <h3 className="font-semibold text-[#4e796b] mb-4">🖼️ Cropped / Highlighted Images</h3>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Uploaded File */}
-      <div className="flex flex-col items-center">
-        <h4 className="font-semibold text-[#4e796b] mb-2">Uploaded File</h4>
-        {result.compareResult.boxed_images.file1 ? (
-          <img
-            src={result.compareResult.boxed_images.file1}
-            alt="Uploaded with boxes"
-            className="rounded-lg border border-[#a7d7b8] shadow-md max-w-xs"
-          />
-        ) : (
-          <p className="text-gray-500">No profile/sign detected</p>
-        )}
-      </div>
+            {/* Cropped / Boxed Images Section */}
+            {result?.compareResult?.boxed_images && (
+              <div className="mt-6 p-4 rounded-lg bg-white border shadow-sm">
+                <h3 className="font-semibold text-[#4e796b] mb-4">🖼️ Cropped / Highlighted Images</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Uploaded File */}
+                  <div className="flex flex-col items-center">
+                    <h4 className="font-semibold text-[#4e796b] mb-2">Uploaded File</h4>
+                    {result.compareResult.boxed_images.file1 ? (
+                      <img
+                        src={result.compareResult.boxed_images.file1}
+                        alt="Uploaded with boxes"
+                        className="rounded-lg border border-[#a7d7b8] shadow-md max-w-xs"
+                      />
+                    ) : (
+                      <p className="text-gray-500">No profile/sign detected</p>
+                    )}
+                  </div>
 
-      {/* Best Matched File */}
-      <div className="flex flex-col items-center">
-        <h4 className="font-semibold text-[#4e796b] mb-2">Best Matched File</h4>
-        {result.compareResult.boxed_images.file2 ? (
-          <img
-            src={result.compareResult.boxed_images.file2}
-            alt="Best matched with boxes"
-            className="rounded-lg border border-[#a7d7b8] shadow-md max-w-xs"
-          />
-        ) : (
-          <p className="text-gray-500">No profile/sign detected</p>
-        )}
-      </div>
-    </div>
-  </div>
-)}
-
-
+                  {/* Best Matched File */}
+                  <div className="flex flex-col items-center">
+                    <h4 className="font-semibold text-[#4e796b] mb-2">Best Matched File</h4>
+                    {result.compareResult.boxed_images.file2 ? (
+                      <img
+                        src={result.compareResult.boxed_images.file2}
+                        alt="Best matched with boxes"
+                        className="rounded-lg border border-[#a7d7b8] shadow-md max-w-xs"
+                      />
+                    ) : (
+                      <p className="text-gray-500">No profile/sign detected</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
