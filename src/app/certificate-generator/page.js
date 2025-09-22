@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Download, Type, Trash2, Palette, Move, Settings, Upload, Loader2, CheckCircle, AlertCircle } from "lucide-react"
+import { Download, Type, Trash2, Palette, Move, Settings, Upload, Loader2, CheckCircle, AlertCircle, Image as ImageIcon } from "lucide-react"
 
 // Background Image Component
 const BackgroundImage = ({ src, width, height }) => {
@@ -19,7 +19,71 @@ const BackgroundImage = ({ src, width, height }) => {
   return image ? <KonvaImage image={image} width={width} height={height} /> : null
 }
 
-// Draggable Text Component
+// Draggable Image Component
+const DraggableImage = ({ shapeProps, isSelected, onSelect, onChange }) => {
+  const [image] = useImage(shapeProps.src)
+  const shapeRef = useRef()
+  const trRef = useRef()
+
+  useEffect(() => {
+    if (isSelected) {
+      trRef.current?.nodes([shapeRef.current])
+      trRef.current?.getLayer()?.batchDraw()
+    }
+  }, [isSelected])
+
+  return (
+    <>
+      {image && (
+        <KonvaImage
+          onClick={onSelect}
+          onTap={onSelect}
+          ref={shapeRef}
+          image={image}
+          x={shapeProps.x}
+          y={shapeProps.y}
+          width={shapeProps.width}
+          height={shapeProps.height}
+          draggable
+          onDragEnd={(e) => {
+            onChange({
+              ...shapeProps,
+              x: e.target.x(),
+              y: e.target.y(),
+            })
+          }}
+          onTransformEnd={(e) => {
+            const node = shapeRef.current
+            const scaleX = node.scaleX()
+            const scaleY = node.scaleY()
+
+            node.scaleX(1)
+            node.scaleY(1)
+
+            onChange({
+              ...shapeProps,
+              x: node.x(),
+              y: node.y(),
+              width: Math.max(5, node.width() * scaleX),
+              height: Math.max(5, node.height() * scaleY),
+            })
+          }}
+        />
+      )}
+      {isSelected && (
+        <Transformer
+          ref={trRef}
+          boundBoxFunc={(oldBox, newBox) => {
+            if (newBox.width < 5 || newBox.height < 5) {
+              return oldBox
+            }
+            return newBox
+          }}
+        />
+      )}
+    </>
+  )
+}
 const DraggableText = ({ shapeProps, isSelected, onSelect, onChange }) => {
   const shapeRef = useRef()
   const trRef = useRef()
@@ -91,100 +155,107 @@ export default function CertificateBuilder() {
     fontStyle: "normal",
   })
   const [processingState, setProcessingState] = useState({
-  isProcessing: false,
-  extractionResult: null,
-  error: null,
-  step: null,
-  databaseResult: null,
+    isProcessing: false,
+    extractionResult: null,
+    error: null,
+    step: null,
   })
 
-  const [apiConfig, setApiConfig] = useState({
-  ocrUrl: "http://localhost:5001/robust-ocr", // Flask OCR
-  extractionUrl: "/api/extract",              // Next.js → Gemini
-  databaseUrl: "",                            // optional DB endpoint
+  const [apiConfig] = useState({
+    extractionUrl: "http://localhost:5001/extract",
   })
 
+  const [uploadedImages, setUploadedImages] = useState([])
+  const fileInputRef = useRef()
+  const stageRef = useRef()
 
-// Extract text from robust-ocr Flask API
-const extractTextFromApi = async (file) => {
-  const formData = new FormData()
-  formData.append("file", file)
+  // Simplified extraction function matching your working code exactly
+  const extractFieldsFromImage = async (file) => {
+    try {
+      console.log("Starting extraction for file:", file.name)
+      
+      // Convert file to Base64 (exactly like your working code)
+      const fileBuffer = await file.arrayBuffer();
+      const base64Data = btoa(
+        new Uint8Array(fileBuffer).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ""
+        )
+      );
 
-  const res = await fetch("http://localhost:5001/robust-ocr", {
-    method: "POST",
-    body: formData,
-  })
-
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error || "OCR extraction failed")
-
-  // Join text from all pages
-  return data.results.map((r) => r.text).join("\n")
-}
-
-// Send OCR text to Gemini extractor
-const extractFieldsFromGemini = async (rawText) => {
-  const res = await fetch("/api/extract", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ rawText }),
-  })
-
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error || "Gemini extraction failed")
-  return data.fields
-}
-
-// Unified function: OCR → Gemini → DB
-const processCertificate = async (file) => {
-  try {
-    setProcessingState({ isProcessing: true, step: "ocr" })
-
-    // Step 1: OCR via Flask
-    const rawText = await extractTextFromApi(file)
-
-    // Step 2: Field extraction via Gemini
-    setProcessingState({ isProcessing: true, step: "extracting" })
-    const fields = await extractFieldsFromGemini(rawText)
-
-    // Step 3: Save to database (if configured)
-    setProcessingState({ isProcessing: true, step: "saving" })
-    const certData = {
-      filename: file.name,
-      fields,
-      timestamp: new Date().toISOString(),
-    }
-    let dbResult = null
-    if (apiConfig.databaseUrl) {
-      const res = await fetch(apiConfig.databaseUrl, {
+      console.log("Sending request to:", apiConfig.extractionUrl)
+      
+      // Send file directly to OCR backend (exactly like your working code)
+      const res = await fetch(apiConfig.extractionUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(certData),
-      })
-      dbResult = await res.json()
+        body: JSON.stringify({
+          filename: file.name,
+          b64: base64Data,
+        }),
+      });
+
+      console.log("Response status:", res.status)
+      
+      const data = await res.json();
+      console.log("Response data:", data)
+      
+      if (!res.ok) {
+        throw new Error(data.error || "OCR extraction failed");
+      }
+
+      // The OCR backend returns fields in results[0].fields (exactly like your working code)
+      const fields = data?.results?.[0]?.fields || {};
+      console.log("Extracted fields:", fields)
+
+      return {
+        success: true,
+        fields: fields,
+        rawData: data
+      };
+    } catch (error) {
+      console.error("Extraction error:", error);
+      throw error;
     }
+  };
 
-    // Step 4: Done
-    setProcessingState({
-      isProcessing: false,
-      step: "complete",
-      extractionResult: fields,
-      databaseResult: dbResult,
-    })
+  // Process certificate function
+  const processCertificate = async (file) => {
+    try {
+      setProcessingState({ 
+        isProcessing: true, 
+        step: "extracting",
+        extractionResult: null,
+        error: null 
+      });
 
-    return fields
-  } catch (err) {
-    console.error("Certificate processing failed:", err)
-    setProcessingState({
-      isProcessing: false,
-      step: "error",
-      error: err.message,
-    })
-    throw err
-  }
-}
+      console.log("Processing certificate file:", file.name, file.size, "bytes")
 
-  const stageRef = useRef()
+      // Extract fields using the same method as your working code
+      const extractionResult = await extractFieldsFromImage(file);
+
+      console.log("Extraction completed successfully:", extractionResult)
+
+      // Update state with results
+      setProcessingState({
+        isProcessing: false,
+        step: "complete",
+        extractionResult: extractionResult,
+        error: null,
+      });
+
+      return extractionResult.fields;
+    } catch (err) {
+      console.error("Certificate processing failed:", err);
+      setProcessingState({
+        isProcessing: false,
+        step: "error",
+        error: err.message,
+        extractionResult: null,
+      });
+      throw err;
+    }
+  };
 
   // Add text element
   const addText = () => {
@@ -201,6 +272,41 @@ const processCertificate = async (file) => {
       width: 200,
     }
     setElements([...elements, newText])
+  }
+
+  // Add image element
+  const addImage = (imageSrc) => {
+    const newImage = {
+      id: Date.now(),
+      type: "image",
+      src: imageSrc,
+      x: canvasSize.width / 2 - 100,
+      y: canvasSize.height / 2 - 75,
+      width: 200,
+      height: 150,
+    }
+    setElements([...elements, newImage])
+  }
+
+  // Handle file upload
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0]
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const imageSrc = e.target.result
+        setUploadedImages(prev => [...prev, { id: Date.now(), src: imageSrc, name: file.name }])
+        addImage(imageSrc)
+      }
+      reader.readAsDataURL(file)
+    }
+    // Reset file input
+    event.target.value = ''
+  }
+
+  // Trigger file upload
+  const triggerFileUpload = () => {
+    fileInputRef.current?.click()
   }
 
   // Update element
@@ -236,85 +342,39 @@ const processCertificate = async (file) => {
     setBackgroundImage(templateSrc)
   }
 
-  // Convert canvas to base64
-  const getCanvasAsBase64 = () => {
-    const dataURL = stageRef.current.toDataURL({
-      mimeType: 'image/png',
-      quality: 1,
-      pixelRatio: 2 // Higher quality
-    })
-    // Remove the data URL prefix to get just the base64 string
-    return dataURL.split(',')[1]
-  }
-
-  // Extract fields using your Flask API
-  const extractFields = async (base64Image) => {
-    try {
-      // Step 1: OCR using Flask
-      const formData = new FormData()
-      formData.append("file", new Blob([Uint8Array.from(atob(base64Image), c => c.charCodeAt(0))], { type: "image/png" }))
-
-      const ocrRes = await fetch(apiConfig.ocrUrl, {
-        method: "POST",
-        body: formData,
-      })
-
-      const ocrData = await ocrRes.json()
-      if (!ocrRes.ok) throw new Error(ocrData.error || "OCR extraction failed")
-
-      const rawText = ocrData.results.map(r => r.text).join("\n")
-
-      // Step 2: Field extraction using Gemini
-      const geminiRes = await fetch(apiConfig.extractionUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawText }),
-      })
-
-      const geminiData = await geminiRes.json()
-      if (!geminiRes.ok) throw new Error(geminiData.error || "Gemini extraction failed")
-
-      return geminiData
-    } catch (error) {
-      console.error("Field extraction error:", error)
-      throw error
-    }
-  }
-
-
-  // Save to database (you'll need to implement this endpoint)
-  const saveToDatabase = async (extractedFields, certificateData) => {
-    if (!apiConfig.databaseUrl) {
-      console.log('No database URL configured, skipping database save')
-      return { success: true, message: 'Database URL not configured' }
-    }
-
-    try {
-      const response = await fetch(apiConfig.databaseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          extractedFields: extractedFields,
-          certificateData: certificateData,
-          timestamp: new Date().toISOString()
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error(`Database API error: ${response.status} ${response.statusText}`)
+  // Convert canvas to file for processing with better quality
+  const getCanvasAsFile = () => {
+    return new Promise((resolve, reject) => {
+      try {
+        // Use higher quality settings
+        const dataURL = stageRef.current.toDataURL({
+          pixelRatio: 2, // Higher resolution
+          quality: 0.9,  // Higher quality
+          mimeType: 'image/png'
+        });
+        
+        // Convert data URL to blob
+        fetch(dataURL)
+          .then(res => res.blob())
+          .then(blob => {
+            const file = new File([blob], `certificate_${Date.now()}.png`, { 
+              type: "image/png" 
+            });
+            console.log("Generated canvas file:", file.name, file.size, "bytes");
+            resolve(file);
+          })
+          .catch(reject);
+      } catch (error) {
+        console.error("Error converting canvas to file:", error);
+        reject(error);
       }
-
-      return await response.json()
-    } catch (error) {
-      console.error('Database save error:', error)
-      throw error
-    }
+    });
   }
 
-  // Enhanced download function with API integration
+  // Enhanced download function with processing
   const downloadAndProcess = async () => {
+    console.log("Starting download and process...")
+    
     setProcessingState({
       isProcessing: true,
       extractionResult: null,
@@ -323,11 +383,12 @@ const processCertificate = async (file) => {
     })
 
     try {
-      // Step 1: Generate the certificate image
-      const base64Image = getCanvasAsBase64()
-      
-      // Step 2: Download the certificate (original functionality)
-      const dataURL = stageRef.current.toDataURL()
+      // Step 1: Download the certificate (original functionality)
+      console.log("Step 1: Generating download...")
+      const dataURL = stageRef.current.toDataURL({
+        pixelRatio: 2,
+        quality: 0.9
+      })
       const link = document.createElement("a")
       link.download = `certificate_${Date.now()}.png`
       link.href = dataURL
@@ -335,32 +396,17 @@ const processCertificate = async (file) => {
       link.click()
       document.body.removeChild(link)
 
-      // Step 3: Extract fields using your API
-      setProcessingState(prev => ({ ...prev, step: "extracting" }))
-      const extractionResult = await extractFields(base64Image)
+      // Step 2: Convert canvas to file for processing
+      setProcessingState(prev => ({ ...prev, step: "converting" }))
+      console.log("Step 2: Converting canvas to file...")
+      const certificateFile = await getCanvasAsFile()
 
-      // Step 4: Save to database
-      setProcessingState(prev => ({ ...prev, step: "saving" }))
-      const certificateData = {
-        elements: elements,
-        canvasSize: canvasSize,
-        backgroundColor: backgroundColor,
-        backgroundImage: backgroundImage,
-        createdAt: new Date().toISOString()
-      }
-
-      const databaseResult = await saveToDatabase(extractionResult, certificateData)
-
-      // Step 5: Complete
-      setProcessingState({
-        isProcessing: false,
-        extractionResult: extractionResult,
-        error: null,
-        step: "complete",
-        databaseResult: databaseResult
-      })
+      // Step 3: Process with API
+      console.log("Step 3: Processing with API...")
+      await processCertificate(certificateFile)
 
     } catch (error) {
+      console.error("Download and process error:", error)
       setProcessingState({
         isProcessing: false,
         extractionResult: null,
@@ -372,7 +418,10 @@ const processCertificate = async (file) => {
 
   // Regular download without processing
   const downloadCertificate = () => {
-    const uri = stageRef.current.toDataURL()
+    const uri = stageRef.current.toDataURL({
+      pixelRatio: 2,
+      quality: 0.9
+    })
     const link = document.createElement("a")
     link.download = "certificate.png"
     link.href = uri
@@ -418,7 +467,9 @@ const processCertificate = async (file) => {
                   {processingState.isProcessing ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Processing...
+                      {processingState.step === "generating" && "Generating..."}
+                      {processingState.step === "converting" && "Converting..."}
+                      {processingState.step === "extracting" && "Extracting..."}
                     </>
                   ) : (
                     <>
@@ -454,14 +505,19 @@ const processCertificate = async (file) => {
                     {processingState.isProcessing && (
                       <div className="text-sm text-muted-foreground">
                         {processingState.step === "generating" && "Generating certificate..."}
-                        {processingState.step === "extracting" && "Extracting fields..."}
-                        {processingState.step === "saving" && "Saving to database..."}
+                        {processingState.step === "converting" && "Converting to file..."}
+                        {processingState.step === "extracting" && "Extracting fields with AI..."}
                       </div>
                     )}
                     
                     {processingState.error && (
                       <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
-                        <strong>Error:</strong> {processingState.error}
+                        <div className="font-semibold mb-1">Error Details:</div>
+                        <div>{processingState.error}</div>
+                        <div className="mt-2 text-xs">
+                          <div>API Endpoint: {apiConfig.extractionUrl}</div>
+                          <div>Check console for detailed logs</div>
+                        </div>
                       </div>
                     )}
 
@@ -471,12 +527,57 @@ const processCertificate = async (file) => {
                           ✅ Fields extracted successfully!
                         </div>
                         <div className="text-xs bg-green-50 p-2 rounded max-h-32 overflow-y-auto">
-                          <pre className="whitespace-pre-wrap">
-                            {JSON.stringify(processingState.extractionResult.results?.[0]?.fields || {}, null, 2)}
-                          </pre>
+                          <div className="font-semibold mb-1">Extracted Fields:</div>
+                          {Object.keys(processingState.extractionResult.fields || {}).length > 0 ? (
+                            Object.entries(processingState.extractionResult.fields).map(([key, value]) => (
+                              <div key={key} className="mb-1">
+                                <span className="font-medium">{key}:</span> {value}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-gray-500">No fields found</div>
+                          )}
                         </div>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Uploaded Images Gallery */}
+              {uploadedImages.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <ImageIcon className="w-5 h-5" />
+                      Uploaded Images
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      {uploadedImages.map((img) => (
+                        <div key={img.id} className="group relative">
+                          <div 
+                            onClick={() => addImage(img.src)}
+                            className="cursor-pointer rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-colors"
+                          >
+                            <img 
+                              src={img.src} 
+                              alt={img.name}
+                              className="w-full aspect-square object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-primary text-primary-foreground rounded-full p-2">
+                                <ImageIcon className="w-4 h-4" />
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-xs text-center mt-1 truncate" title={img.name}>
+                            {img.name}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -502,19 +603,40 @@ const processCertificate = async (file) => {
 
                     <Tooltip>
                       <TooltipTrigger asChild>
+                        <Button variant="outline" onClick={triggerFileUpload} className="h-16 flex-col gap-2 bg-transparent">
+                          <ImageIcon className="w-6 h-6" />
+                          <span className="text-xs">Add Image</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Upload and add an image</TooltipContent>
+                    </Tooltip>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-3 mt-3">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
                         <Button
                           variant="outline"
                           onClick={deleteSelected}
                           disabled={!selectedId}
-                          className="h-16 flex-col gap-2 text-destructive hover:text-destructive bg-transparent"
+                          className="h-12 flex gap-2 text-destructive hover:text-destructive bg-transparent"
                         >
-                          <Trash2 className="w-6 h-6" />
-                          <span className="text-xs">Delete</span>
+                          <Trash2 className="w-4 h-4" />
+                          <span className="text-sm">Delete Selected</span>
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Delete selected element</TooltipContent>
                     </Tooltip>
                   </div>
+
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    style={{ display: 'none' }}
+                  />
                 </CardContent>
               </Card>
 
@@ -596,6 +718,7 @@ const processCertificate = async (file) => {
                     onMouseDown={checkDeselect}
                     onTouchStart={checkDeselect}
                     ref={stageRef}
+                    style={{ position: 'relative' }}
                   >
                     <Layer>
                       {/* Background */}
@@ -614,15 +737,30 @@ const processCertificate = async (file) => {
                       )}
 
                       {/* Text elements */}
-                      {elements.map((el) => (
-                        <DraggableText
-                          key={el.id}
-                          shapeProps={el}
-                          isSelected={el.id === selectedId}
-                          onSelect={() => setSelectedId(el.id)}
-                          onChange={(newProps) => updateElement(el.id, newProps)}
-                        />
-                      ))}
+                      {elements.map((el) => {
+                        if (el.type === "text") {
+                          return (
+                            <DraggableText
+                              key={el.id}
+                              shapeProps={el}
+                              isSelected={el.id === selectedId}
+                              onSelect={() => setSelectedId(el.id)}
+                              onChange={(newProps) => updateElement(el.id, newProps)}
+                            />
+                          )
+                        } else if (el.type === "image") {
+                          return (
+                            <DraggableImage
+                              key={el.id}
+                              shapeProps={el}
+                              isSelected={el.id === selectedId}
+                              onSelect={() => setSelectedId(el.id)}
+                              onChange={(newProps) => updateElement(el.id, newProps)}
+                            />
+                          )
+                        }
+                        return null
+                      })}
                     </Layer>
                   </Stage>
                 </CardContent>
@@ -797,19 +935,44 @@ const processCertificate = async (file) => {
                       <Separator />
 
                       <div className="space-y-3">
-                        <Label className="text-sm font-medium">Font Size</Label>
-                        <Input
-                          type="number"
-                          value={selectedElement.fontSize || 24}
-                          onChange={(e) =>
-                            updateElement(selectedId, { fontSize: Number.parseInt(e.target.value) || 24 })
-                          }
-                        />
+                        <Label className="text-sm font-medium">Dimensions</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Width</Label>
+                            <Input
+                              type="number"
+                              value={Math.round(selectedElement.width || 0)}
+                              onChange={(e) => updateElement(selectedId, { width: Number.parseInt(e.target.value) || 0 })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Height</Label>
+                            <Input
+                              type="number"
+                              value={Math.round(selectedElement.height || 0)}
+                              onChange={(e) => updateElement(selectedId, { height: Number.parseInt(e.target.value) || 0 })}
+                            />
+                          </div>
+                        </div>
                       </div>
+
+                      <Separator />
 
                       {selectedElement.type === "text" && (
                         <>
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium">Font Size</Label>
+                            <Input
+                              type="number"
+                              value={selectedElement.fontSize || 24}
+                              onChange={(e) =>
+                                updateElement(selectedId, { fontSize: Number.parseInt(e.target.value) || 24 })
+                              }
+                            />
+                          </div>
+
                           <Separator />
+                          
                           <div className="space-y-3">
                             <Label className="text-sm font-medium">Text Content</Label>
                             <Textarea
@@ -818,6 +981,21 @@ const processCertificate = async (file) => {
                               rows={3}
                               placeholder="Enter your text here..."
                             />
+                          </div>
+                        </>
+                      )}
+
+                      {selectedElement.type === "image" && (
+                        <>
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium">Image Source</Label>
+                            <div className="p-3 bg-muted rounded-lg">
+                              <img 
+                                src={selectedElement.src} 
+                                alt="Selected" 
+                                className="w-full h-20 object-cover rounded"
+                              />
+                            </div>
                           </div>
                         </>
                       )}
