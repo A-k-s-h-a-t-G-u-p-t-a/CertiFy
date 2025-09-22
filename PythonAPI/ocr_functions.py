@@ -12,12 +12,13 @@ import os
 import json
 import google.generativeai as genai
 from dotenv import load_dotenv
+from flask_cors import CORS
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 # ------------------- Flask App -------------------
 app = Flask(__name__)
-
+CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 # Load spaCy English model
 nlp = spacy.load("en_core_web_sm")
 
@@ -76,9 +77,10 @@ From the certificate text below, extract the following fields:
 - Roll number
 - Grade
 - Organisation
-- Organisation ID
 
-Return the result as a valid JSON object only, JSON object ONLY, without any explanations, comments, or extra text with keys "name", "degree", "year", "honors", "roll_number", "grade", "organisation", "organisation_id".
+- certificateId
+
+Return the result as a valid JSON object only, JSON object ONLY, without any explanations, comments, or extra text with keys "name", "degree", "year", "honors", "roll_number", "grade", "organisation", "certificateId".
 If a field is not found, use null for that field.
 
 Certificate Text:

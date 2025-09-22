@@ -78,7 +78,7 @@ export async function POST(request) {
       const finalFields = {
         name: String(fields.name || ""),                  // required
         degree: fields.degree ? String(fields.degree) : null,
-        certificateId: fields.certificate_id ? String(fields.certificate_id) : null,
+        certificateId: fields.certificateId ? String(fields.certificateId) : null,
         rollNo: fields.roll_no ? String(fields.roll_no) : null,
         year: fields.year ? String(fields.year) : null,
         honors: fields.honors ? String(fields.honors) : null,
