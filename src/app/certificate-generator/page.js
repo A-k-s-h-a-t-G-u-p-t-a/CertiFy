@@ -84,6 +84,8 @@ const DraggableImage = ({ shapeProps, isSelected, onSelect, onChange }) => {
     </>
   )
 }
+
+// Draggable Text Component
 const DraggableText = ({ shapeProps, isSelected, onSelect, onChange }) => {
   const shapeRef = useRef()
   const trRef = useRef()
@@ -160,21 +162,54 @@ export default function CertificateBuilder() {
     error: null,
     step: null,
   })
+  const [showHashOnDownload, setShowHashOnDownload] = useState(true)
+  const [hashSettings, setHashSettings] = useState({
+    fontSize: 14,
+    color: "#666666",
+    prefix: "CERT-"
+  })
+  const [uploadedImages, setUploadedImages] = useState([])
+  const fileInputRef = useRef()
+  const stageRef = useRef()
 
   const [apiConfig] = useState({
     extractionUrl: "http://localhost:5001/extract",
   })
 
-  const [uploadedImages, setUploadedImages] = useState([])
-  const fileInputRef = useRef()
-  const stageRef = useRef()
+  // Generate unique hash
+  const generateHash = () => {
+    const timestamp = Date.now().toString(16)
+    const random = Math.random().toString(16).substr(2, 8)
+    return `${hashSettings.prefix}${timestamp}-${random}`.toUpperCase()
+  }
+
+  // Add hash to canvas temporarily
+  const addTemporaryHash = () => {
+    if (!showHashOnDownload) return null
+
+    const hash = generateHash()
+    const hashElement = {
+      id: 'temp-hash-' + Date.now(),
+      type: "text",
+      text: hash,
+      x: 15,
+      y: 25,
+      fontSize: hashSettings.fontSize,
+      fontFamily: "Arial",
+      fill: hashSettings.color,
+      fontStyle: "normal",
+      width: 300,
+      isTemporary: true
+    }
+    
+    return hashElement
+  }
 
   // Simplified extraction function matching your working code exactly
   const extractFieldsFromImage = async (file) => {
     try {
       console.log("Starting extraction for file:", file.name)
       
-      // Convert file to Base64 (exactly like your working code)
       const fileBuffer = await file.arrayBuffer();
       const base64Data = btoa(
         new Uint8Array(fileBuffer).reduce(
@@ -185,7 +220,6 @@ export default function CertificateBuilder() {
 
       console.log("Sending request to:", apiConfig.extractionUrl)
       
-      // Send file directly to OCR backend (exactly like your working code)
       const res = await fetch(apiConfig.extractionUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -204,7 +238,6 @@ export default function CertificateBuilder() {
         throw new Error(data.error || "OCR extraction failed");
       }
 
-      // The OCR backend returns fields in results[0].fields (exactly like your working code)
       const fields = data?.results?.[0]?.fields || {};
       console.log("Extracted fields:", fields)
 
@@ -231,12 +264,10 @@ export default function CertificateBuilder() {
 
       console.log("Processing certificate file:", file.name, file.size, "bytes")
 
-      // Extract fields using the same method as your working code
       const extractionResult = await extractFieldsFromImage(file);
 
       console.log("Extraction completed successfully:", extractionResult)
 
-      // Update state with results
       setProcessingState({
         isProcessing: false,
         step: "complete",
@@ -300,7 +331,6 @@ export default function CertificateBuilder() {
       }
       reader.readAsDataURL(file)
     }
-    // Reset file input
     event.target.value = ''
   }
 
@@ -322,14 +352,6 @@ export default function CertificateBuilder() {
     }
   }
 
-  // Handle text editing
-  const handleTextDblClick = (element) => {
-    const newText = prompt("Edit text:", element.text)
-    if (newText !== null) {
-      updateElement(element.id, { text: newText })
-    }
-  }
-
   // Apply current text settings to selected element
   const applyTextSettings = () => {
     if (selectedId) {
@@ -346,14 +368,12 @@ export default function CertificateBuilder() {
   const getCanvasAsFile = () => {
     return new Promise((resolve, reject) => {
       try {
-        // Use higher quality settings
         const dataURL = stageRef.current.toDataURL({
-          pixelRatio: 2, // Higher resolution
-          quality: 0.9,  // Higher quality
+          pixelRatio: 2,
+          quality: 0.9,
           mimeType: 'image/png'
         });
         
-        // Convert data URL to blob
         fetch(dataURL)
           .then(res => res.blob())
           .then(blob => {
@@ -371,7 +391,7 @@ export default function CertificateBuilder() {
     });
   }
 
-  // Enhanced download function with processing
+  // Enhanced download function with processing and hash
   const downloadAndProcess = async () => {
     console.log("Starting download and process...")
     
@@ -382,26 +402,35 @@ export default function CertificateBuilder() {
       step: "generating"
     })
 
+    let tempHashElement = null
+    if (showHashOnDownload) {
+      tempHashElement = addTemporaryHash()
+      setElements(prev => [...prev, tempHashElement])
+      
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+
     try {
-      // Step 1: Download the certificate (original functionality)
       console.log("Step 1: Generating download...")
       const dataURL = stageRef.current.toDataURL({
         pixelRatio: 2,
         quality: 0.9
       })
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const filename = `certificate_${timestamp}.png`
+      
       const link = document.createElement("a")
-      link.download = `certificate_${Date.now()}.png`
+      link.download = filename
       link.href = dataURL
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
 
-      // Step 2: Convert canvas to file for processing
       setProcessingState(prev => ({ ...prev, step: "converting" }))
       console.log("Step 2: Converting canvas to file...")
       const certificateFile = await getCanvasAsFile()
 
-      // Step 3: Process with API
       console.log("Step 3: Processing with API...")
       await processCertificate(certificateFile)
 
@@ -413,21 +442,43 @@ export default function CertificateBuilder() {
         error: error.message,
         step: "error"
       })
+    } finally {
+      if (showHashOnDownload && tempHashElement) {
+        setElements(prev => prev.filter(el => el.id !== tempHashElement.id))
+      }
     }
   }
 
-  // Regular download without processing
-  const downloadCertificate = () => {
-    const uri = stageRef.current.toDataURL({
-      pixelRatio: 2,
-      quality: 0.9
-    })
-    const link = document.createElement("a")
-    link.download = "certificate.png"
-    link.href = uri
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+  // Regular download without processing but with hash
+  const downloadCertificate = async () => {
+    let tempHashElement = null
+    if (showHashOnDownload) {
+      tempHashElement = addTemporaryHash()
+      setElements(prev => [...prev, tempHashElement])
+      
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+
+    try {
+      const uri = stageRef.current.toDataURL({
+        pixelRatio: 2,
+        quality: 0.9
+      })
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const filename = `certificate_${timestamp}.png`
+      
+      const link = document.createElement("a")
+      link.download = filename
+      link.href = uri
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } finally {
+      if (showHashOnDownload && tempHashElement) {
+        setElements(prev => prev.filter(el => el.id !== tempHashElement.id))
+      }
+    }
   }
 
   const checkDeselect = (e) => {
@@ -486,7 +537,6 @@ export default function CertificateBuilder() {
         <div className="flex flex-1 overflow-hidden">
           <aside className="w-80 border-r bg-card overflow-y-auto">
             <div className="p-6 space-y-6">
-              {/* Processing Status Card */}
               {(processingState.isProcessing || processingState.extractionResult || processingState.error) && (
                 <Card>
                   <CardHeader className="pb-3">
@@ -544,7 +594,6 @@ export default function CertificateBuilder() {
                 </Card>
               )}
 
-              {/* Uploaded Images Gallery */}
               {uploadedImages.length > 0 && (
                 <Card>
                   <CardHeader className="pb-3">
@@ -581,6 +630,82 @@ export default function CertificateBuilder() {
                   </CardContent>
                 </Card>
               )}
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Settings className="w-5 h-5" />
+                    Certificate Hash
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Auto-add hash on download</Label>
+                    <Button
+                      variant={showHashOnDownload ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowHashOnDownload(!showHashOnDownload)}
+                    >
+                      {showHashOnDownload ? "Enabled" : "Disabled"}
+                    </Button>
+                  </div>
+                  
+                  {showHashOnDownload && (
+                    <div className="space-y-3 pt-2 border-t">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Hash Prefix</Label>
+                        <Input
+                          value={hashSettings.prefix}
+                          onChange={(e) => setHashSettings(prev => ({ ...prev, prefix: e.target.value }))}
+                          placeholder="CERT-"
+                          className="text-sm"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Font Size</Label>
+                          <Select
+                            value={hashSettings.fontSize.toString()}
+                            onValueChange={(value) => setHashSettings(prev => ({ ...prev, fontSize: parseInt(value) }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="10">10px</SelectItem>
+                              <SelectItem value="12">12px</SelectItem>
+                              <SelectItem value="14">14px</SelectItem>
+                              <SelectItem value="16">16px</SelectItem>
+                              <SelectItem value="18">18px</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Color</Label>
+                          <div className="flex gap-2">
+                            {["#666666", "#333333", "#999999", "#cccccc"].map((color) => (
+                              <Button
+                                key={color}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setHashSettings(prev => ({ ...prev, color }))}
+                                className="w-6 h-6 p-0 rounded-full"
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                        <strong>Preview:</strong> {hashSettings.prefix}1A2B3C4D-5E6F7890
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               <Card>
                 <CardHeader className="pb-3">
@@ -629,7 +754,6 @@ export default function CertificateBuilder() {
                     </Tooltip>
                   </div>
 
-                  {/* Hidden file input */}
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -707,7 +831,6 @@ export default function CertificateBuilder() {
             </div>
           </aside>
 
-          {/* Main Canvas */}
           <main className="flex-1 flex flex-col overflow-hidden">
             <div className="flex-1 overflow-auto p-8 flex items-center justify-center bg-muted/30">
               <Card className="shadow-2xl">
@@ -721,7 +844,6 @@ export default function CertificateBuilder() {
                     style={{ position: 'relative' }}
                   >
                     <Layer>
-                      {/* Background */}
                       {backgroundImage ? (
                         <BackgroundImage
                           src={backgroundImage}
@@ -736,7 +858,6 @@ export default function CertificateBuilder() {
                         />
                       )}
 
-                      {/* Text elements */}
                       {elements.map((el) => {
                         if (el.type === "text") {
                           return (
