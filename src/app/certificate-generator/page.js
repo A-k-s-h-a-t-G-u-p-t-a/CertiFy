@@ -2,6 +2,10 @@
 import { useState, useRef, useEffect } from "react"
 import { Stage, Layer, Text, Rect, Image as KonvaImage, Transformer } from "react-konva"
 import useImage from "use-image"
+import { useActiveAccount, useSendTransaction } from "thirdweb/react"
+import { getContract, prepareContractCall } from "thirdweb"
+import { defineChain } from "thirdweb/chains"
+import { client } from "../../lib/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Download, Type, Trash2, Palette, Move, Settings, Upload, Loader2, CheckCircle, AlertCircle, Image as ImageIcon } from "lucide-react"
+import { Download, Type, Trash2, Palette, Move, Settings, Upload, Loader2, CheckCircle, AlertCircle, Image as ImageIcon, Shield, Hash } from "lucide-react"
 
 // Background Image Component
 const BackgroundImage = ({ src, width, height }) => {
@@ -145,6 +149,16 @@ const DraggableText = ({ shapeProps, isSelected, onSelect, onChange }) => {
 }
 
 export default function CertificateBuilder() {
+  // Wallet to contract mapping (same as org page)
+  const WALLET_CONTRACT_MAPPING = {
+    "0x7e14929d682236d3Cb02B6E2aCC779ca9b255E78": "0x1627fb0cc3e87E22648C05Db23c4638B0B881e3E",
+    "0x5b2E5aB341743706cFae342A05df91E018838F59": "0xE13FB895ce3Bc12b61Ff725a32b44585DD0ACc2e", 
+    "0x8e6a18B80bDbdF6422dA06BA04daCe8D832Fea98": "0xD2722d58332c42f27d1242D5Bb8D19e9DBFDB4eD"
+  };
+
+  const account = useActiveAccount();
+  const { mutate: sendTransaction } = useSendTransaction();
+  
   const [canvasSize] = useState({ width: 800, height: 600 })
   const [backgroundColor, setBackgroundColor] = useState("#ffffff")
   const [backgroundImage, setBackgroundImage] = useState(null)
@@ -161,6 +175,10 @@ export default function CertificateBuilder() {
     extractionResult: null,
     error: null,
     step: null,
+    blockchainTxHash: null,
+    fileHash: null,
+    dataHash: null,
+    certID: null,
   })
   const [showHashOnDownload, setShowHashOnDownload] = useState(true)
   const [hashSettings, setHashSettings] = useState({
@@ -175,6 +193,129 @@ export default function CertificateBuilder() {
   const [apiConfig] = useState({
     extractionUrl: "http://localhost:5001/extract",
   })
+
+  // Get organization contract for current wallet
+  const getOrgContract = () => {
+    if (!account?.address) return null;
+    
+    const contractAddress = WALLET_CONTRACT_MAPPING[account.address];
+    if (!contractAddress) return null;
+
+    try {
+      return getContract({
+        client,
+        chain: defineChain(11155111),
+        address: contractAddress,
+      });
+    } catch (error) {
+      console.error("Error creating contract:", error);
+      return null;
+    }
+  };
+
+  // Generate crypto hash for data
+  const generateCryptoHash = async (data) => {
+    const encoder = new TextEncoder();
+    const dataBuffer = encoder.encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return `0x${hashHex}`;
+  };
+
+  // Generate crypto hash for file
+  const generateFileHash = async (file) => {
+    const arrayBuffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return `0x${hashHex}`;
+  };
+
+  // Deploy certificate to blockchain
+  const deployToBlockchain = async (certificateFile, extractedData) => {
+    try {
+      const orgContract = getOrgContract();
+      
+      if (!orgContract) {
+        throw new Error("No valid organization contract found for your wallet");
+      }
+
+      if (!account?.address) {
+        throw new Error("Please connect your wallet");
+      }
+
+      setProcessingState(prev => ({ ...prev, step: "hashing" }));
+      
+      // Generate certificate ID
+      const timestamp = Date.now().toString();
+      const random = Math.random().toString(36).substring(2);
+      const certID = `${hashSettings.prefix}${timestamp}-${random}`.toUpperCase();
+
+      // Generate file hash
+      const fileHash = await generateFileHash(certificateFile);
+      
+      // Generate data hash from extracted OCR data
+      const dataString = JSON.stringify(extractedData.fields || {});
+      const dataHash = await generateCryptoHash(dataString);
+      
+      // Create encrypted data (simplified - in real implementation you'd encrypt properly)
+      const encryptedDataString = btoa(dataString); // Base64 encoding as simple "encryption"
+      const encryptedDataBytes = `0x${Array.from(new TextEncoder().encode(encryptedDataString))
+        .map(b => b.toString(16).padStart(2, '0')).join('')}`;
+
+      console.log("Blockchain Deployment Data:", {
+        certID,
+        fileHash,
+        dataHash,
+        encryptedDataBytes: encryptedDataBytes.substring(0, 100) + "..." // Log only first 100 chars
+      });
+
+      setProcessingState(prev => ({ 
+        ...prev, 
+        step: "blockchain",
+        certID,
+        fileHash,
+        dataHash
+      }));
+
+      // Prepare blockchain transaction
+      const transaction = prepareContractCall({
+        contract: orgContract,
+        method: "function issueCertificate(string certID, bytes32 filePhash, bytes32 dataHash, bytes encryptedData)",
+        params: [certID, fileHash, dataHash, encryptedDataBytes],
+      });
+
+      // Send transaction
+      await new Promise((resolve, reject) => {
+        sendTransaction(transaction, {
+          onSuccess: (result) => {
+            console.log("Certificate deployed to blockchain successfully:", result);
+            setProcessingState(prev => ({ 
+              ...prev, 
+              blockchainTxHash: result.transactionHash 
+            }));
+            resolve(result);
+          },
+          onError: (error) => {
+            console.error("Failed to deploy certificate:", error);
+            reject(error);
+          }
+        });
+      });
+
+      return {
+        certID,
+        fileHash,
+        dataHash,
+        encryptedDataBytes
+      };
+
+    } catch (error) {
+      console.error("Blockchain deployment error:", error);
+      throw error;
+    }
+  };
 
   // Generate unique hash
   const generateHash = () => {
@@ -205,7 +346,7 @@ export default function CertificateBuilder() {
     return hashElement
   }
 
-  // Simplified extraction function matching your working code exactly
+  // Enhanced extraction function matching your working code exactly
   const extractFieldsFromImage = async (file) => {
     try {
       console.log("Starting extraction for file:", file.name)
@@ -391,7 +532,7 @@ export default function CertificateBuilder() {
     });
   }
 
-  // Enhanced download function with processing and hash
+  // Enhanced download function with processing, blockchain deployment and hash
   const downloadAndProcess = async () => {
     console.log("Starting download and process...")
     
@@ -399,7 +540,11 @@ export default function CertificateBuilder() {
       isProcessing: true,
       extractionResult: null,
       error: null,
-      step: "generating"
+      step: "generating",
+      blockchainTxHash: null,
+      fileHash: null,
+      dataHash: null,
+      certID: null,
     })
 
     let tempHashElement = null
@@ -431,8 +576,25 @@ export default function CertificateBuilder() {
       console.log("Step 2: Converting canvas to file...")
       const certificateFile = await getCanvasAsFile()
 
-      console.log("Step 3: Processing with API...")
-      await processCertificate(certificateFile)
+      console.log("Step 3: Extracting data with OCR...")
+      setProcessingState(prev => ({ ...prev, step: "extracting" }))
+      const extractionResult = await extractFieldsFromImage(certificateFile);
+
+      console.log("Step 4: Deploying to blockchain...")
+      const blockchainData = await deployToBlockchain(certificateFile, extractionResult);
+
+      setProcessingState({
+        isProcessing: false,
+        extractionResult: extractionResult,
+        error: null,
+        step: "complete",
+        blockchainTxHash: processingState.blockchainTxHash,
+        fileHash: blockchainData.fileHash,
+        dataHash: blockchainData.dataHash,
+        certID: blockchainData.certID,
+      });
+
+      console.log("Certificate successfully deployed to blockchain!", blockchainData);
 
     } catch (error) {
       console.error("Download and process error:", error)
@@ -440,7 +602,11 @@ export default function CertificateBuilder() {
         isProcessing: false,
         extractionResult: null,
         error: error.message,
-        step: "error"
+        step: "error",
+        blockchainTxHash: null,
+        fileHash: null,
+        dataHash: null,
+        certID: null,
       })
     } finally {
       if (showHashOnDownload && tempHashElement) {
@@ -506,13 +672,29 @@ export default function CertificateBuilder() {
                 </div>
               </div>
               <div className="flex gap-3">
+                {!account ? (
+                  <Badge variant="outline" className="gap-2 text-yellow-600 border-yellow-300">
+                    <AlertCircle className="w-4 h-4" />
+                    Wallet not connected
+                  </Badge>
+                ) : WALLET_CONTRACT_MAPPING[account.address] ? (
+                  <Badge variant="default" className="gap-2 text-green-600 border-green-300 bg-green-50">
+                    <Shield className="w-4 h-4" />
+                    Valid Organization
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="gap-2 text-red-600 border-red-300">
+                    <AlertCircle className="w-4 h-4" />
+                    Invalid Organization
+                  </Badge>
+                )}
                 <Button onClick={downloadCertificate} variant="outline" className="gap-2 text-black">
                   <Download className="w-4 h-4" />
                   Download Only
                 </Button>
                 <Button 
                   onClick={downloadAndProcess} 
-                  disabled={processingState.isProcessing}
+                  disabled={processingState.isProcessing || (!account || !WALLET_CONTRACT_MAPPING[account?.address])}
                   className="gap-2"
                 >
                   {processingState.isProcessing ? (
@@ -521,11 +703,13 @@ export default function CertificateBuilder() {
                       {processingState.step === "generating" && "Generating..."}
                       {processingState.step === "converting" && "Converting..."}
                       {processingState.step === "extracting" && "Extracting..."}
+                      {processingState.step === "hashing" && "Hashing..."}
+                      {processingState.step === "blockchain" && "Deploying to Blockchain..."}
                     </>
                   ) : (
                     <>
                       <Upload className="w-4 h-4" />
-                      Download & Process
+                      Download & Deploy to Blockchain
                     </>
                   )}
                 </Button>
@@ -537,6 +721,51 @@ export default function CertificateBuilder() {
         <div className="flex flex-1 overflow-hidden">
           <aside className="w-80 border-r bg-card overflow-y-auto">
             <div className="p-6 space-y-6">
+              {/* Blockchain Status Card */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Shield className="w-5 h-5" />
+                    Blockchain Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Wallet Status:</span>
+                      <Badge variant={account ? "default" : "secondary"}>
+                        {account ? "Connected" : "Not Connected"}
+                      </Badge>
+                    </div>
+                    
+                    {account && (
+                      <div className="text-xs text-muted-foreground">
+                        <code>{account.address}</code>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Organization:</span>
+                      <Badge variant={account && WALLET_CONTRACT_MAPPING[account.address] ? "default" : "destructive"}>
+                        {account && WALLET_CONTRACT_MAPPING[account.address] ? "Valid" : "Invalid"}
+                      </Badge>
+                    </div>
+                    
+                    {account && WALLET_CONTRACT_MAPPING[account.address] && (
+                      <div className="text-xs text-muted-foreground">
+                        Contract: <code>{WALLET_CONTRACT_MAPPING[account.address]}</code>
+                      </div>
+                    )}
+                    
+                    {(!account || !WALLET_CONTRACT_MAPPING[account?.address]) && (
+                      <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                        ⚠️ Blockchain deployment requires a valid organization wallet
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               {(processingState.isProcessing || processingState.extractionResult || processingState.error) && (
                 <Card>
                   <CardHeader className="pb-3">
@@ -557,6 +786,8 @@ export default function CertificateBuilder() {
                         {processingState.step === "generating" && "Generating certificate..."}
                         {processingState.step === "converting" && "Converting to file..."}
                         {processingState.step === "extracting" && "Extracting fields with AI..."}
+                        {processingState.step === "hashing" && "Generating cryptographic hashes..."}
+                        {processingState.step === "blockchain" && "Deploying to blockchain..."}
                       </div>
                     )}
                     
@@ -572,10 +803,46 @@ export default function CertificateBuilder() {
                     )}
 
                     {processingState.extractionResult && (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <div className="text-sm font-medium text-green-600">
-                          ✅ Fields extracted successfully!
+                          ✅ Certificate deployed successfully!
                         </div>
+                        
+                        {/* Blockchain Information */}
+                        {(processingState.certID || processingState.fileHash || processingState.dataHash || processingState.blockchainTxHash) && (
+                          <div className="bg-blue-50 p-3 rounded-lg space-y-2">
+                            <div className="font-semibold text-blue-800 flex items-center gap-2">
+                              <Shield className="w-4 h-4" />
+                              Blockchain Deployment
+                            </div>
+                            {processingState.certID && (
+                              <div className="text-xs">
+                                <span className="font-medium">Certificate ID:</span> 
+                                <code className="ml-1 bg-blue-100 px-1 rounded">{processingState.certID}</code>
+                              </div>
+                            )}
+                            {processingState.fileHash && (
+                              <div className="text-xs">
+                                <span className="font-medium">File Hash:</span> 
+                                <code className="ml-1 bg-blue-100 px-1 rounded text-xs break-all">{processingState.fileHash}</code>
+                              </div>
+                            )}
+                            {processingState.dataHash && (
+                              <div className="text-xs">
+                                <span className="font-medium">Data Hash:</span> 
+                                <code className="ml-1 bg-blue-100 px-1 rounded text-xs break-all">{processingState.dataHash}</code>
+                              </div>
+                            )}
+                            {processingState.blockchainTxHash && (
+                              <div className="text-xs">
+                                <span className="font-medium">Transaction:</span> 
+                                <code className="ml-1 bg-blue-100 px-1 rounded text-xs break-all">{processingState.blockchainTxHash}</code>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* OCR Results */}
                         <div className="text-xs bg-green-50 p-2 rounded max-h-32 overflow-y-auto">
                           <div className="font-semibold mb-1">Extracted Fields:</div>
                           {Object.keys(processingState.extractionResult.fields || {}).length > 0 ? (

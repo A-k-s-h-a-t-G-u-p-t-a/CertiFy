@@ -44,7 +44,7 @@ export default function LandingPage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentFeature((prev) => (prev + 1) % 4);
-    }, 4000);
+    }, 1000); // Reduced from 4000ms to 2000ms
     return () => clearInterval(interval);
   }, []);
 
@@ -305,7 +305,7 @@ export default function LandingPage() {
               {features.map((feature, index) => (
                 <motion.div
                   key={index}
-                  className={`p-6 rounded-xl cursor-pointer transition-all duration-300 ${
+                  className={`p-6 rounded-xl cursor-pointer transition-all duration-100 ${
                     currentFeature === index 
                       ? 'bg-gradient-to-r ' + feature.color + ' text-white shadow-xl scale-105' 
                       : 'bg-gray-50 hover:bg-gray-100 text-gray-900'
