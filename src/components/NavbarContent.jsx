@@ -14,6 +14,7 @@ import { useState } from "react";
 import { ConnectButton } from "thirdweb/react";
 import { client } from "../lib/client";
 import { useSession, signOut } from "next-auth/react";
+import PWAInstallButton from "./PWAInstallButton";
 
 export function NavbarDemo() {
   const { data: session } = useSession(); // ✅ get session
@@ -34,6 +35,7 @@ export function NavbarDemo() {
           <NavbarLogo />
           <NavItems items={navItems} />
           <div className="flex items-center gap-4">
+            <PWAInstallButton />
             {session ? (
               <>
                 <span className="text-sm text-gray-700 dark:text-gray-200">
