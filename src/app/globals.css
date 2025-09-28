@@ -124,3 +124,27 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+
+.navbar {
+  position: fixed;
+  top: 42px; /* or margin-top to push below banner */
+  z-index: 9999; /* higher than Google Translate (usually 1000) */
+  width: 100%;
+}
+
+body {
+  margin-top: 42px !important;
+  position: relative !important;
+  top: 42px !important;
+}
+
+
+/* Optionally hide the Google Translate bar */
+#goog-gt-tt,
+.goog-te-banner-frame.skiptranslate,
+.goog-te-balloon-frame {
+  display: none !important;
+}
+
+

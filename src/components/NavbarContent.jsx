@@ -1,4 +1,4 @@
-"use client";
+"use client"
 import {
   Navbar,
   NavBody,
@@ -9,34 +9,37 @@ import {
   MobileNavHeader,
   MobileNavToggle,
   MobileNavMenu,
-} from "@/components/ui/navbar";
-import { useState } from "react";
-import { ConnectButton } from "thirdweb/react";
-import { client } from "../lib/client";
-import { useSession, signOut } from "next-auth/react";
+} from "@/components/ui/navbar"
+import { useState } from "react"
+import { ConnectButton } from "thirdweb/react"
+import { client } from "../lib/client"
+import { useSession, signOut } from "next-auth/react"
+import GoogleTranslate from "./google-translate"
 
 export function NavbarDemo() {
-  const { data: session } = useSession(); // ✅ get session
+  const { data: session } = useSession() // get session
   const navItems = [
     { name: "Admin", link: "/admin" },
     { name: "Organizations", link: "/organizations" },
     { name: "Verifier", link: "/verifier" },
     { name: "Certificate Playground", link: "/certificate-generator" },
-  ];
+  ]
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   return (
-    <div className="relative w-full">
-      <Navbar>
+    <div className="relative w-full z-50 mt-[42px]">
+      <Navbar className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         {/* Desktop Navigation */}
         <NavBody>
           <NavbarLogo />
           <NavItems items={navItems} />
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <GoogleTranslate />
+
             {session ? (
               <>
-                <span className="text-sm text-gray-700 dark:text-gray-200">
+                <span className="text-sm text-muted-foreground hidden md:inline">
                   {session.user?.name || session.user?.username}
                 </span>
                 <NavbarButton variant="secondary" onClick={() => signOut()}>
@@ -75,52 +78,58 @@ export function NavbarDemo() {
         <MobileNav>
           <MobileNavHeader>
             <NavbarLogo />
-            <MobileNavToggle
-              isOpen={isMobileMenuOpen}
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            />
+            <div className="flex items-center gap-2">
+              <GoogleTranslate />
+              <MobileNavToggle isOpen={isMobileMenuOpen} onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
+            </div>
           </MobileNavHeader>
 
-          <MobileNavMenu
-            isOpen={isMobileMenuOpen}
-            onClose={() => setIsMobileMenuOpen(false)}
-          >
+          <MobileNavMenu isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)}>
             {navItems.map((item, idx) => (
               <a
                 key={`mobile-link-${idx}`}
                 href={item.link}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="relative text-neutral-600 dark:text-neutral-300"
+                className="relative text-neutral-600 dark:text-neutral-300 hover:text-foreground transition-colors"
               >
-                <span className="block">{item.name}</span>
+                <span className="block py-2">{item.name}</span>
               </a>
             ))}
-            <div className="flex w-full flex-col gap-4 mt-4">
+            <div className="flex w-full flex-col gap-4 mt-4 pt-4 border-t">
               {session ? (
-                <NavbarButton
-                  onClick={() => {
-                    signOut();
-                    setIsMobileMenuOpen(false);
-                  }}
-                  variant="primary"
-                  className="w-full"
-                >
-                  Logout
-                </NavbarButton>
+                <>
+                  <span className="text-sm text-muted-foreground px-2">
+                    {session.user?.name || session.user?.username}
+                  </span>
+                  <NavbarButton
+                    onClick={() => {
+                      signOut()
+                      setIsMobileMenuOpen(false)
+                    }}
+                    variant="secondary"
+                    className="w-full"
+                  >
+                    Logout
+                  </NavbarButton>
+                </>
               ) : (
                 <NavbarButton
                   onClick={() => setIsMobileMenuOpen(false)}
-                  variant="primary"
+                  variant="secondary"
                   className="w-full"
                   href="/signin"
                 >
                   Login
                 </NavbarButton>
               )}
+              <NavbarButton onClick={() => setIsMobileMenuOpen(false)} variant="primary" className="w-full">
+                Connect Wallet
+              </NavbarButton>
             </div>
           </MobileNavMenu>
         </MobileNav>
       </Navbar>
     </div>
-  );
+  )
 }
+
