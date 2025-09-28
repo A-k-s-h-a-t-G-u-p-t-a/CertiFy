@@ -1,0 +1,19 @@
+{
+  "uploadFiles": "Upload Files",
+  "loggedInAs": "Logged in as:",
+  "uploadZipFile": "Upload ZIP File",
+  "selectZipFile": "Select ZIP File",
+  "chooseZipFileDesc": "Choose a ZIP file containing certificates.",
+  "uploadZip": "Upload ZIP",
+  "uploadingZip": "Uploading ZIP...",
+  "uploadExcelFile": "Upload Excel File",
+  "selectExcelFile": "Select Excel File",
+  "chooseExcelFileDesc": "Choose an Excel file with certificate data.",
+  "uploadExcel": "Upload Excel",
+  "uploadingExcel": "Uploading Excel...",
+  "pleaseSelectZip": "Please select a ZIP file.",
+  "pleaseSelectExcel": "Please select an Excel file.",
+  "uploadFailed": "Upload failed",
+  "failedToReadFile": "Failed to read file.",
+  "processingFile": "Processing file... Please wait."
+}

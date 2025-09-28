@@ -1,0 +1,11 @@
+{
+  "Navbar": {
+    "admin": "প্রশাসক",
+    "organizations": "সংগঠন",
+    "verifier": "যাচাইকর্তা",
+    "certificate_playground": "সার্টিফিকেট জেনারেটর",
+    "login": "লগইন",
+    "logout": "লগআউট",
+    "connect_wallet": "ওয়ালেট সংযুক্ত করুন"
+  }
+}

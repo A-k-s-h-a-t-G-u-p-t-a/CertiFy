@@ -1,0 +1,11 @@
+{
+  "Navbar": {
+    "admin": "Admin",
+    "organizations": "Organizations",
+    "verifier": "Verifier",
+    "certificate_playground": "Certificate Playground",
+    "login": "Login",
+    "logout": "Logout",
+    "connect_wallet": "Connect Wallet"
+  }
+}
