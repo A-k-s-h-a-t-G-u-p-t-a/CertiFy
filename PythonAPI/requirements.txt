@@ -14,5 +14,6 @@ numpy
 ultralytics
 google.generativeai
 spacy
-
+Pillow>=9.0.0
+requests>=2.25.0
 # python -m spacy download en_core_web_sm
