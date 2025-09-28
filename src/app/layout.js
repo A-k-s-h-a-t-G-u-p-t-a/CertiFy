@@ -1,3 +1,4 @@
+import { SessionProvider } from "next-auth/react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NavbarDemo } from "@/components/NavbarContent";
 import { ThirdwebProvider } from "thirdweb/react";
@@ -25,10 +26,12 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       > 
+      <SessionProvider>
       <ThirdwebProvider client={client}>
         <NavbarDemo />
         {children}
         </ThirdwebProvider>
+        </SessionProvider>
       </body>
     </html>
   );
