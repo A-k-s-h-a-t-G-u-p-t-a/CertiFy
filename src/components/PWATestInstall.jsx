@@ -40,24 +40,39 @@ export default function PWATestInstall() {
     setCanInstall(false);
   };
 
-  const forceReload = () => {
+  const forceReload = async () => {
+    console.log('Force reload initiated...');
+    
     // Clear all caches and reload
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(registrations => {
-        registrations.forEach(registration => registration.unregister());
-      });
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(registration => registration.unregister()));
+        console.log('Service workers unregistered');
+      } catch (error) {
+        console.error('Error unregistering service workers:', error);
+      }
     }
     
-    // Clear caches
+    // Clear all caches
     if ('caches' in window) {
-      caches.keys().then(cacheNames => {
-        cacheNames.forEach(cacheName => caches.delete(cacheName));
-      });
+      try {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+        console.log('All caches cleared');
+      } catch (error) {
+        console.error('Error clearing caches:', error);
+      }
     }
     
+    // Clear localStorage and sessionStorage
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    console.log('Reloading page...');
     setTimeout(() => {
-      window.location.reload(true);
-    }, 1000);
+      window.location.href = window.location.href;
+    }, 500);
   };
 
   return (
