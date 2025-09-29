@@ -3,9 +3,7 @@ import { NavbarDemo } from "@/components/NavbarContent";
 import { ThirdwebProvider } from "thirdweb/react";
 import { client } from "../lib/client";
 import SessionProvider from "@/components/SessionProvider"; // ✅ import
-import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
-import PWATestInstall from "@/components/PWATestInstall";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -86,8 +84,6 @@ export default function RootLayout({ children }) {
             <ServiceWorkerRegistration />
             <NavbarDemo />
             {children}
-            <PWAInstallPrompt />
-            <PWATestInstall />
           </ThirdwebProvider>
         </SessionProvider>
       </body>
