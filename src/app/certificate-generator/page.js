@@ -19,6 +19,46 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Download, Type, Trash2, Palette, Move, Settings, Upload, Loader2, CheckCircle, AlertCircle, Image as ImageIcon, Shield, Hash } from "lucide-react"
 import ChatbotSidebar from "@/components/ChatbotSidebar"
 
+// Add animation styles
+const animationStyles = `
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+    50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.6); }
+  }
+  
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .animate-glow {
+    animation: glow 3s ease-in-out infinite;
+  }
+  
+  .animate-gradient {
+    background-size: 300% 300%;
+    animation: gradient-shift 8s ease infinite;
+  }
+  
+  .hover-scale {
+    transition: transform 0.3s ease;
+  }
+  
+  .hover-scale:hover {
+    transform: scale(1.02);
+  }
+`
+
 // Background Image Component
 const BackgroundImage = ({ src, width, height }) => {
   const [image] = useImage(src)
@@ -674,111 +714,133 @@ export default function CertificateBuilder() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-7xl mx-auto">
-        <TooltipProvider>
-          <div className="pt-12 flex flex-col min-h-screen bg-background">
-            <header className="border-b bg-card shadow-sm">
-              <div className="container mx-auto px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-lg">
-                      <Settings className="w-5 h-5 text-primary-foreground" />
+    <>
+      <style jsx>{animationStyles}</style>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 animate-gradient">
+        <div className="w-full max-w-none">
+          <TooltipProvider>
+            <div className="pt-12 flex flex-col min-h-screen">
+              <header className="relative backdrop-blur-lg bg-white/70 border border-white/20 shadow-xl rounded-none mb-0 overflow-hidden hover-scale mx-4">
+                {/* Animated background gradient */}
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-indigo-600/10 animate-pulse"></div>
+                
+                <div className="relative container mx-auto px-8 py-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="relative group animate-float">
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl opacity-75 group-hover:opacity-100 transition-opacity duration-300 animate-pulse"></div>
+                        <div className="relative flex items-center justify-center w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg transform group-hover:scale-105 transition-transform duration-300">
+                          <Settings className="w-6 h-6 text-white" />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                          CertBuilder
+                        </h1>
+                        <p className="text-sm text-slate-600 font-medium">Professional Certificate Designer & Blockchain Deployer</p>
+                      </div>
                     </div>
-                    <div>
-                      <h1 className="text-2xl font-bold text-foreground">CertBuilder</h1>
-                      <p className="text-sm text-muted-foreground">Professional Certificate Designer</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    {!account ? (
-                      <Badge variant="outline" className="gap-2 text-yellow-600 border-yellow-300">
-                        <AlertCircle className="w-4 h-4" />
-                        Wallet not connected
-                      </Badge>
-                    ) : WALLET_CONTRACT_MAPPING[account.address] ? (
-                      <Badge variant="default" className="gap-2 text-green-600 border-green-300 bg-green-50">
-                        <Shield className="w-4 h-4" />
-                        Valid Organization
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="gap-2 text-red-600 border-red-300">
-                        <AlertCircle className="w-4 h-4" />
-                        Invalid Organization
-                      </Badge>
-                    )}
-                    <Button onClick={downloadCertificate} variant="outline" className="gap-2 text-black">
-                      <Download className="w-4 h-4" />
-                      Download Only
-                    </Button>
-                    <Button 
-                      onClick={downloadAndProcess} 
-                      disabled={processingState.isProcessing || (!account || !WALLET_CONTRACT_MAPPING[account?.address])}
-                      className="gap-2"
-                    >
-                      {processingState.isProcessing ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          {processingState.step === "generating" && "Generating..."}
-                          {processingState.step === "converting" && "Converting..."}
-                          {processingState.step === "extracting" && "Extracting..."}
-                          {processingState.step === "hashing" && "Hashing..."}
-                          {processingState.step === "blockchain" && "Deploying to Blockchain..."}
-                        </>
+                    <div className="flex gap-4 items-center">
+                      {!account ? (
+                        <Badge variant="outline" className="gap-2 text-amber-700 border-amber-300 bg-amber-50 px-4 py-2 rounded-full shadow-sm hover:shadow-md transition-all duration-300 hover-scale">
+                          <AlertCircle className="w-4 h-4" />
+                          Wallet not connected
+                        </Badge>
+                      ) : WALLET_CONTRACT_MAPPING[account.address] ? (
+                        <Badge variant="default" className="gap-2 text-emerald-700 border-emerald-300 bg-emerald-50 px-4 py-2 rounded-full shadow-sm hover:shadow-md transition-all duration-300 hover-scale">
+                          <Shield className="w-4 h-4" />
+                          Valid Organization
+                        </Badge>
                       ) : (
-                        <>
-                          <Upload className="w-4 h-4" />
-                          Download & Deploy to Blockchain
-                        </>
+                        <Badge variant="outline" className="gap-2 text-red-700 border-red-300 bg-red-50 px-4 py-2 rounded-full shadow-sm hover:shadow-md transition-all duration-300 hover-scale">
+                          <AlertCircle className="w-4 h-4" />
+                          Invalid Organization
+                        </Badge>
                       )}
-                    </Button>
+                      <Button 
+                        onClick={downloadCertificate} 
+                        variant="outline" 
+                        className="gap-2 bg-white/70 backdrop-blur-sm border-slate-200 hover:bg-white hover:border-slate-300 hover:shadow-lg transition-all duration-300 rounded-xl px-6 py-2.5 hover-scale"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download Only
+                      </Button>
+                      <Button 
+                        onClick={downloadAndProcess} 
+                        disabled={processingState.isProcessing || (!account || !WALLET_CONTRACT_MAPPING[account?.address])}
+                        className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed hover-scale"
+                      >
+                        {processingState.isProcessing ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            {processingState.step === "generating" && "Generating..."}
+                            {processingState.step === "converting" && "Converting..."}
+                            {processingState.step === "extracting" && "Extracting..."}
+                            {processingState.step === "hashing" && "Hashing..."}
+                            {processingState.step === "blockchain" && "Deploying to Blockchain..."}
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            Download & Deploy to Blockchain
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </header>
+              </header>
 
-            <div className="flex flex-1 overflow-hidden">
-              <aside className="w-80 border-r bg-card overflow-y-auto">
-                <div className="p-6 space-y-6">
+            <div className="flex flex-1 overflow-hidden h-screen">
+              <aside className="w-64 border-r border-white/20 bg-white/30 backdrop-blur-lg overflow-y-auto flex-shrink-0">
+                <div className="p-3 space-y-3">
                   {/* Blockchain Status Card */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Shield className="w-5 h-5" />
-                        Blockchain Status
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-blue-50/80 to-indigo-100/80 border-white/40 shadow-xl backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5"></div>
+                    <CardHeader className="pb-3 relative">
+                      <CardTitle className="text-lg flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+                          <Shield className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-bold">
+                          Blockchain Status
+                        </span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium">Wallet Status:</span>
-                          <Badge variant={account ? "default" : "secondary"}>
+                    <CardContent className="space-y-4 relative">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center p-3 bg-white/50 rounded-xl border border-white/30">
+                          <span className="text-sm font-semibold text-slate-700">Wallet Status:</span>
+                          <Badge variant={account ? "default" : "secondary"} className={`rounded-full px-3 py-1 ${account ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                             {account ? "Connected" : "Not Connected"}
                           </Badge>
                         </div>
                         
                         {account && (
-                          <div className="text-xs text-muted-foreground">
-                            <code>{account.address}</code>
+                          <div className="text-xs text-slate-600 bg-white/40 p-3 rounded-xl border border-white/30">
+                            <code className="font-mono">{account.address}</code>
                           </div>
                         )}
                         
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium">Organization:</span>
-                          <Badge variant={account && WALLET_CONTRACT_MAPPING[account.address] ? "default" : "destructive"}>
+                        <div className="flex justify-between items-center p-3 bg-white/50 rounded-xl border border-white/30">
+                          <span className="text-sm font-semibold text-slate-700">Organization:</span>
+                          <Badge variant={account && WALLET_CONTRACT_MAPPING[account.address] ? "default" : "destructive"} className={`rounded-full px-3 py-1 ${account && WALLET_CONTRACT_MAPPING[account.address] ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
                             {account && WALLET_CONTRACT_MAPPING[account.address] ? "Valid" : "Invalid"}
                           </Badge>
                         </div>
                         
                         {account && WALLET_CONTRACT_MAPPING[account.address] && (
-                          <div className="text-xs text-muted-foreground">
-                            Contract: <code>{WALLET_CONTRACT_MAPPING[account.address]}</code>
+                          <div className="text-xs text-slate-600 bg-white/40 p-3 rounded-xl border border-white/30">
+                            Contract: <code className="font-mono">{WALLET_CONTRACT_MAPPING[account.address]}</code>
                           </div>
                         )}
                         
                         {(!account || !WALLET_CONTRACT_MAPPING[account?.address]) && (
-                          <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
-                            ⚠️ Blockchain deployment requires a valid organization wallet
+                          <div className="text-xs text-amber-700 bg-gradient-to-r from-amber-50 to-orange-50 p-3 rounded-xl border border-amber-200 shadow-sm">
+                            <div className="flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 text-amber-500" />
+                              <span className="font-medium">Blockchain deployment requires a valid organization wallet</span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -786,93 +848,115 @@ export default function CertificateBuilder() {
                   </Card>
 
                   {(processingState.isProcessing || processingState.extractionResult || processingState.error) && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          {processingState.error ? (
-                            <AlertCircle className="w-5 h-5 text-red-500" />
-                          ) : processingState.step === "complete" ? (
-                            <CheckCircle className="w-5 h-5 text-green-500" />
-                          ) : (
-                            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-                          )}
-                          Processing Status
+                    <Card className="relative overflow-hidden bg-gradient-to-br from-purple-50/80 to-pink-100/80 border-white/40 shadow-xl backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-pink-500/5"></div>
+                      <CardHeader className="pb-3 relative">
+                        <CardTitle className="text-lg flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${processingState.error ? 'bg-gradient-to-r from-red-500 to-red-600' : processingState.step === "complete" ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-blue-500 to-purple-600'}`}>
+                            {processingState.error ? (
+                              <AlertCircle className="w-5 h-5 text-white" />
+                            ) : processingState.step === "complete" ? (
+                              <CheckCircle className="w-5 h-5 text-white" />
+                            ) : (
+                              <Loader2 className="w-5 h-5 animate-spin text-white" />
+                            )}
+                          </div>
+                          <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-bold">
+                            Processing Status
+                          </span>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-3">
+                      <CardContent className="space-y-4 relative">
                         {processingState.isProcessing && (
-                          <div className="text-sm text-muted-foreground">
-                            {processingState.step === "generating" && "Generating certificate..."}
-                            {processingState.step === "converting" && "Converting to file..."}
-                            {processingState.step === "extracting" && "Extracting fields with AI..."}
-                            {processingState.step === "hashing" && "Generating cryptographic hashes..."}
-                            {processingState.step === "blockchain" && "Deploying to blockchain..."}
+                          <div className="text-sm text-slate-700 bg-white/50 p-4 rounded-xl border border-white/30">
+                            <div className="flex items-center gap-3">
+                              <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-pulse"></div>
+                              <span className="font-medium">
+                                {processingState.step === "generating" && "Generating certificate..."}
+                                {processingState.step === "converting" && "Converting to file..."}
+                                {processingState.step === "extracting" && "Extracting fields with AI..."}
+                                {processingState.step === "hashing" && "Generating cryptographic hashes..."}
+                                {processingState.step === "blockchain" && "Deploying to blockchain..."}
+                              </span>
+                            </div>
                           </div>
                         )}
                         
                         {processingState.error && (
-                          <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
-                            <div className="font-semibold mb-1">Error Details:</div>
-                            <div>{processingState.error}</div>
-                            <div className="mt-2 text-xs">
-                              <div>API Endpoint: {apiConfig.extractionUrl}</div>
-                              <div>Check console for detailed logs</div>
+                          <div className="bg-gradient-to-r from-red-50 to-red-100 p-4 rounded-xl border border-red-200 shadow-sm">
+                            <div className="flex items-start gap-3">
+                              <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                              <div className="space-y-2">
+                                <div className="font-semibold text-red-800">Error Details:</div>
+                                <div className="text-red-700 text-sm">{processingState.error}</div>
+                                <div className="text-xs text-red-600 bg-red-100/50 p-2 rounded-lg">
+                                  <div>API Endpoint: {apiConfig.extractionUrl}</div>
+                                  <div>Check console for detailed logs</div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         )}
 
                         {processingState.extractionResult && (
-                          <div className="space-y-3">
-                            <div className="text-sm font-medium text-green-600">
-                              ✅ Certificate deployed successfully!
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-3 text-sm font-medium text-emerald-700 bg-gradient-to-r from-emerald-50 to-green-50 p-3 rounded-xl border border-emerald-200">
+                              <CheckCircle className="w-5 h-5 text-emerald-600" />
+                              Certificate deployed successfully!
                             </div>
                             
                             {/* Blockchain Information */}
                             {(processingState.certID || processingState.fileHash || processingState.dataHash || processingState.blockchainTxHash) && (
-                              <div className="bg-blue-50 p-3 rounded-lg space-y-2">
+                              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200 space-y-3 shadow-sm">
                                 <div className="font-semibold text-blue-800 flex items-center gap-2">
                                   <Shield className="w-4 h-4" />
                                   Blockchain Deployment
                                 </div>
                                 {processingState.certID && (
-                                  <div className="text-xs">
-                                    <span className="font-medium">Certificate ID:</span> 
-                                    <code className="ml-1 bg-blue-100 px-1 rounded">{processingState.certID}</code>
+                                  <div className="bg-white/60 p-3 rounded-lg border border-blue-100">
+                                    <span className="font-medium text-blue-700">Certificate ID:</span> 
+                                    <code className="ml-2 bg-blue-100 px-2 py-1 rounded text-xs font-mono">{processingState.certID}</code>
                                   </div>
                                 )}
                                 {processingState.fileHash && (
-                                  <div className="text-xs">
-                                    <span className="font-medium">File Hash:</span> 
-                                    <code className="ml-1 bg-blue-100 px-1 rounded text-xs break-all">{processingState.fileHash}</code>
+                                  <div className="bg-white/60 p-3 rounded-lg border border-blue-100">
+                                    <span className="font-medium text-blue-700">File Hash:</span> 
+                                    <code className="ml-2 bg-blue-100 px-2 py-1 rounded text-xs font-mono break-all">{processingState.fileHash}</code>
                                   </div>
                                 )}
                                 {processingState.dataHash && (
-                                  <div className="text-xs">
-                                    <span className="font-medium">Data Hash:</span> 
-                                    <code className="ml-1 bg-blue-100 px-1 rounded text-xs break-all">{processingState.dataHash}</code>
+                                  <div className="bg-white/60 p-3 rounded-lg border border-blue-100">
+                                    <span className="font-medium text-blue-700">Data Hash:</span> 
+                                    <code className="ml-2 bg-blue-100 px-2 py-1 rounded text-xs font-mono break-all">{processingState.dataHash}</code>
                                   </div>
                                 )}
                                 {processingState.blockchainTxHash && (
-                                  <div className="text-xs">
-                                    <span className="font-medium">Transaction:</span> 
-                                    <code className="ml-1 bg-blue-100 px-1 rounded text-xs break-all">{processingState.blockchainTxHash}</code>
+                                  <div className="bg-white/60 p-3 rounded-lg border border-blue-100">
+                                    <span className="font-medium text-blue-700">Transaction:</span> 
+                                    <code className="ml-2 bg-blue-100 px-2 py-1 rounded text-xs font-mono break-all">{processingState.blockchainTxHash}</code>
                                   </div>
                                 )}
                               </div>
                             )}
                             
                             {/* OCR Results */}
-                            <div className="text-xs bg-green-50 p-2 rounded max-h-32 overflow-y-auto">
-                              <div className="font-semibold mb-1">Extracted Fields:</div>
-                              {Object.keys(processingState.extractionResult.fields || {}).length > 0 ? (
-                                Object.entries(processingState.extractionResult.fields).map(([key, value]) => (
-                                  <div key={key} className="mb-1">
-                                    <span className="font-medium">{key}:</span> {value}
-                                  </div>
-                                ))
-                              ) : (
-                                <div className="text-gray-500">No fields found</div>
-                              )}
+                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200 shadow-sm">
+                              <div className="font-semibold mb-3 text-green-800 flex items-center gap-2">
+                                <Hash className="w-4 h-4" />
+                                Extracted Fields:
+                              </div>
+                              <div className="max-h-32 overflow-y-auto space-y-2">
+                                {Object.keys(processingState.extractionResult.fields || {}).length > 0 ? (
+                                  Object.entries(processingState.extractionResult.fields).map(([key, value]) => (
+                                    <div key={key} className="bg-white/60 p-2 rounded-lg border border-green-100">
+                                      <span className="font-medium text-green-700">{key}:</span> 
+                                      <span className="ml-2 text-green-800">{value}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-gray-500 text-center py-4">No fields found</div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         )}
@@ -881,33 +965,38 @@ export default function CertificateBuilder() {
                   )}
 
                   {uploadedImages.length > 0 && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <ImageIcon className="w-5 h-5" />
-                          Uploaded Images
+                    <Card className="relative overflow-hidden bg-gradient-to-br from-teal-50/80 to-cyan-100/80 border-white/40 shadow-xl backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
+                      <div className="absolute inset-0 bg-gradient-to-r from-teal-500/5 to-cyan-500/5"></div>
+                      <CardHeader className="pb-3 relative">
+                        <CardTitle className="text-lg flex items-center gap-3">
+                          <div className="p-2 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-lg">
+                            <ImageIcon className="w-5 h-5 text-white" />
+                          </div>
+                          <span className="bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent font-bold">
+                            Uploaded Images
+                          </span>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
+                      <CardContent className="space-y-4 relative">
+                        <div className="grid grid-cols-2 gap-4">
                           {uploadedImages.map((img) => (
                             <div key={img.id} className="group relative">
                               <div 
                                 onClick={() => addImage(img.src)}
-                                className="cursor-pointer rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-colors"
+                                className="cursor-pointer rounded-xl overflow-hidden border-2 border-white/40 hover:border-teal-300 transition-all duration-300 bg-white/30 backdrop-blur-sm hover:shadow-lg transform hover:scale-105"
                               >
                                 <img 
                                   src={img.src} 
                                   alt={img.name}
                                   className="w-full aspect-square object-cover"
                                 />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-primary text-primary-foreground rounded-full p-2">
-                                    <ImageIcon className="w-4 h-4" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                  <div className="bg-white/90 backdrop-blur-sm text-teal-700 rounded-full p-3 shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                                    <ImageIcon className="w-5 h-5" />
                                   </div>
                                 </div>
                               </div>
-                              <p className="text-xs text-center mt-1 truncate" title={img.name}>
+                              <p className="text-xs text-center mt-2 truncate text-slate-700 font-medium" title={img.name}>
                                 {img.name}
                               </p>
                             </div>
@@ -917,48 +1006,54 @@ export default function CertificateBuilder() {
                     </Card>
                   )}
 
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Settings className="w-5 h-5" />
-                        Certificate Hash
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-orange-50/80 to-amber-100/80 border-white/40 shadow-xl backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
+                    <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 to-amber-500/5"></div>
+                    <CardHeader className="pb-3 relative">
+                      <CardTitle className="text-lg flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-r from-orange-500 to-amber-600 rounded-lg">
+                          <Hash className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent font-bold">
+                          Certificate Hash
+                        </span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium">Auto-add hash on download</Label>
+                    <CardContent className="space-y-4 relative">
+                      <div className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-white/30">
+                        <Label className="text-sm font-semibold text-slate-700">Auto-add hash on download</Label>
                         <Button
                           variant={showHashOnDownload ? "default" : "outline"}
                           size="sm"
                           onClick={() => setShowHashOnDownload(!showHashOnDownload)}
+                          className={`rounded-full px-4 transition-all duration-300 ${showHashOnDownload ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white border-0 shadow-lg hover:shadow-xl' : 'bg-white/70 border-orange-200 text-orange-700 hover:bg-orange-50'}`}
                         >
                           {showHashOnDownload ? "Enabled" : "Disabled"}
                         </Button>
                       </div>
                       
                       {showHashOnDownload && (
-                        <div className="space-y-3 pt-2 border-t">
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">Hash Prefix</Label>
+                        <div className="space-y-4 pt-2 border-t border-white/30">
+                          <div className="space-y-3">
+                            <Label className="text-sm font-semibold text-slate-700">Hash Prefix</Label>
                             <Input
                               value={hashSettings.prefix}
                               onChange={(e) => setHashSettings(prev => ({ ...prev, prefix: e.target.value }))}
                               placeholder="CERT-"
-                              className="text-sm"
+                              className="bg-white/70 border-white/40 focus:border-orange-300 focus:ring-orange-200 rounded-xl"
                             />
                           </div>
                           
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium">Font Size</Label>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <Label className="text-sm font-semibold text-slate-700">Font Size</Label>
                               <Select
                                 value={hashSettings.fontSize.toString()}
                                 onValueChange={(value) => setHashSettings(prev => ({ ...prev, fontSize: parseInt(value) }))}
                               >
-                                <SelectTrigger>
+                                <SelectTrigger className="bg-white/70 border-white/40 focus:border-orange-300 rounded-xl">
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="bg-white/95 backdrop-blur-sm border-white/40">
                                   <SelectItem value="10">10px</SelectItem>
                                   <SelectItem value="12">12px</SelectItem>
                                   <SelectItem value="14">14px</SelectItem>
@@ -968,8 +1063,8 @@ export default function CertificateBuilder() {
                               </Select>
                             </div>
                             
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium">Color</Label>
+                            <div className="space-y-3">
+                              <Label className="text-sm font-semibold text-slate-700">Color</Label>
                               <div className="flex gap-2">
                                 {["#666666", "#333333", "#999999", "#cccccc"].map((color) => (
                                   <Button
@@ -977,7 +1072,7 @@ export default function CertificateBuilder() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setHashSettings(prev => ({ ...prev, color }))}
-                                    className="w-6 h-6 p-0 rounded-full"
+                                    className="w-8 h-8 p-0 rounded-full border-2 border-white/40 hover:border-orange-300 transition-all duration-300 hover:scale-110"
                                     style={{ backgroundColor: color }}
                                   />
                                 ))}
@@ -985,28 +1080,44 @@ export default function CertificateBuilder() {
                             </div>
                           </div>
                           
-                          <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                            <strong>Preview:</strong> {hashSettings.prefix}1A2B3C4D-5E6F7890
+                          <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-xl border border-orange-200">
+                            <div className="text-xs text-orange-800">
+                              <strong className="font-semibold">Preview:</strong> 
+                              <code className="ml-2 bg-orange-100 px-2 py-1 rounded font-mono">
+                                {hashSettings.prefix}1A2B3C4D-5E6F7890
+                              </code>
+                            </div>
                           </div>
                         </div>
                       )}
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Type className="w-5 h-5" />
-                        Elements
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-green-50/80 to-emerald-100/80 border-white/40 shadow-xl backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 to-emerald-500/5"></div>
+                    <CardHeader className="pb-3 relative">
+                      <CardTitle className="text-lg flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg">
+                          <Type className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent font-bold">
+                          Elements
+                        </span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
+                    <CardContent className="space-y-4 relative">
+                      <div className="grid grid-cols-2 gap-4">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button variant="outline" onClick={addText} className="h-16 flex-col gap-2 bg-transparent">
-                              <Type className="w-6 h-6" />
-                              <span className="text-xs">Add Text</span>
+                            <Button 
+                              variant="outline" 
+                              onClick={addText} 
+                              className="h-20 flex-col gap-3 bg-white/50 backdrop-blur-sm border-white/40 hover:bg-white/70 hover:border-green-300 hover:shadow-lg transition-all duration-300 rounded-xl group"
+                            >
+                              <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                                <Type className="w-5 h-5 text-white" />
+                              </div>
+                              <span className="text-xs font-semibold text-slate-700">Add Text</span>
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>Add a new text element</TooltipContent>
@@ -1014,26 +1125,34 @@ export default function CertificateBuilder() {
 
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button variant="outline" onClick={triggerFileUpload} className="h-16 flex-col gap-2 bg-transparent">
-                              <ImageIcon className="w-6 h-6" />
-                              <span className="text-xs">Add Image</span>
+                            <Button 
+                              variant="outline" 
+                              onClick={triggerFileUpload} 
+                              className="h-20 flex-col gap-3 bg-white/50 backdrop-blur-sm border-white/40 hover:bg-white/70 hover:border-green-300 hover:shadow-lg transition-all duration-300 rounded-xl group"
+                            >
+                              <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                                <ImageIcon className="w-5 h-5 text-white" />
+                              </div>
+                              <span className="text-xs font-semibold text-slate-700">Add Image</span>
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>Upload and add an image</TooltipContent>
                         </Tooltip>
                       </div>
                       
-                      <div className="grid grid-cols-1 gap-3 mt-3">
+                      <div className="grid grid-cols-1 gap-3 mt-4">
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               variant="outline"
                               onClick={deleteSelected}
                               disabled={!selectedId}
-                              className="h-12 flex gap-2 text-destructive hover:text-destructive bg-transparent"
+                              className="h-14 flex gap-3 text-red-600 hover:text-red-700 bg-white/50 backdrop-blur-sm border-white/40 hover:bg-red-50 hover:border-red-300 hover:shadow-lg transition-all duration-300 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed group"
                             >
-                              <Trash2 className="w-4 h-4" />
-                              <span className="text-sm">Delete Selected</span>
+                              <div className="p-1.5 bg-gradient-to-r from-red-500 to-red-600 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                                <Trash2 className="w-4 h-4 text-white" />
+                              </div>
+                              <span className="text-sm font-semibold">Delete Selected</span>
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>Delete selected element</TooltipContent>
@@ -1050,33 +1169,40 @@ export default function CertificateBuilder() {
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Palette className="w-5 h-5" />
-                        Templates
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-violet-50/80 to-purple-100/80 border-white/40 shadow-xl backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/5 to-purple-500/5"></div>
+                    <CardHeader className="pb-3 relative">
+                      <CardTitle className="text-lg flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg">
+                          <Palette className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent font-bold">
+                          Templates
+                        </span>
                       </CardTitle>
                     </CardHeader>
 
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-6 relative">
                       <div
                         onClick={() => loadBackgroundImage("/diploma.png")}
                         className="group cursor-pointer"
                       >
-                        <div className="relative overflow-hidden rounded-lg border-2 border-border hover:border-primary transition-colors">
+                        <div className="relative overflow-hidden rounded-xl border-2 border-white/40 hover:border-violet-300 transition-all duration-300 bg-white/30 backdrop-blur-sm hover:shadow-lg transform hover:scale-105">
                           <img
                             src="/diploma.png"
                             alt="Classic Diploma"
                             className="w-full aspect-video object-cover"
                           />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-primary text-primary-foreground rounded-full p-2">
-                              <Type className="w-4 h-4" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-violet-500/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                            <div className="bg-white/90 backdrop-blur-sm text-violet-700 rounded-full p-3 shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                              <Type className="w-5 h-5" />
                             </div>
                           </div>
                         </div>
-                        <div className="mt-2 text-center">
-                          <Badge variant="secondary">Classic Diploma</Badge>
+                        <div className="mt-3 text-center">
+                          <Badge variant="secondary" className="bg-gradient-to-r from-violet-100 to-purple-100 text-violet-700 border-violet-200 rounded-full px-3 py-1">
+                            Classic Diploma
+                          </Badge>
                         </div>
                       </div>
 
@@ -1084,28 +1210,30 @@ export default function CertificateBuilder() {
                         onClick={() => loadBackgroundImage("/award.png")}
                         className="group cursor-pointer"
                       >
-                        <div className="relative overflow-hidden rounded-lg border-2 border-border hover:border-primary transition-colors">
+                        <div className="relative overflow-hidden rounded-xl border-2 border-white/40 hover:border-violet-300 transition-all duration-300 bg-white/30 backdrop-blur-sm hover:shadow-lg transform hover:scale-105">
                           <img
                             src="/award.png"
                             alt="Modern Award"
                             className="w-full aspect-video object-cover"
                           />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-primary text-primary-foreground rounded-full p-2">
-                              <Type className="w-4 h-4" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-violet-500/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                            <div className="bg-white/90 backdrop-blur-sm text-violet-700 rounded-full p-3 shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                              <Type className="w-5 h-5" />
                             </div>
                           </div>
                         </div>
-                        <div className="mt-2 text-center">
-                          <Badge variant="secondary">Modern Award</Badge>
+                        <div className="mt-3 text-center">
+                          <Badge variant="secondary" className="bg-gradient-to-r from-violet-100 to-purple-100 text-violet-700 border-violet-200 rounded-full px-3 py-1">
+                            Modern Award
+                          </Badge>
                         </div>
                       </div>
                       
-                      <div className="mt-4 text-center">
+                      <div className="mt-6 text-center">
                         <Button
                           onClick={() => loadBackgroundImage(null)}
                           variant="outline"
-                          className="w-full"
+                          className="w-full bg-white/50 backdrop-blur-sm border-white/40 hover:bg-white/70 hover:border-violet-300 hover:shadow-lg transition-all duration-300 rounded-xl text-slate-700 font-semibold"
                         >
                           Remove Background
                         </Button>
@@ -1117,17 +1245,28 @@ export default function CertificateBuilder() {
                 </div>
               </aside>
 
-              <main className="flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 overflow-auto p-8 flex items-center justify-center bg-muted/30">
-                  <Card className="shadow-2xl">
-                    <CardContent className="p-0">
+              <main className="flex-1 flex flex-col overflow-hidden min-w-0 bg-gradient-to-br from-slate-100/50 via-blue-50/30 to-indigo-100/50">
+                <div className="flex-1 overflow-hidden p-2 flex items-center justify-center relative">
+                  {/* Background Pattern */}
+                  <div className="absolute inset-0 opacity-20">
+                    <div className="absolute inset-0" style={{
+                      backgroundImage: `radial-gradient(circle at 25px 25px, rgba(59, 130, 246, 0.1) 2px, transparent 0)`,
+                      backgroundSize: '50px 50px'
+                    }}></div>
+                  </div>
+                  
+                  <div className="relative z-10 bg-white/80 backdrop-blur-sm border border-white/40 shadow-2xl hover:shadow-3xl transition-all duration-500 rounded-xl overflow-hidden">
+                    {/* Subtle glow effect around canvas */}
+                    <div className="absolute -inset-2 bg-gradient-to-r from-blue-400/20 via-purple-400/20 to-indigo-400/20 rounded-2xl blur-lg opacity-60"></div>
+                    
+                    <div className="p-1 relative">
                       <Stage
                         width={canvasSize.width}
                         height={canvasSize.height}
                         onMouseDown={checkDeselect}
                         onTouchStart={checkDeselect}
                         ref={stageRef}
-                        style={{ position: 'relative' }}
+                        style={{ position: 'relative', display: 'block', background: 'white' }}
                       >
                         <Layer>
                           {backgroundImage ? (
@@ -1170,22 +1309,25 @@ export default function CertificateBuilder() {
                           })}
                         </Layer>
                       </Stage>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="border-t bg-card p-6">
-                  <div className="flex flex-wrap gap-6 items-end">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Background Color</Label>
-                      <div className="flex gap-2">
+                <div className="border-t border-white/20 bg-white/70 backdrop-blur-lg p-3">
+                  <div className="flex flex-wrap gap-4 items-end overflow-x-auto">
+                    <div className="space-y-2 min-w-0 flex-shrink-0">
+                      <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                        <Palette className="w-4 h-4" />
+                        Background Color
+                      </Label>
+                      <div className="flex gap-3">
                         {["#ffffff", "#f0f9ff", "#f0fdf4", "#fffbeb"].map((color) => (
                           <Button
                             key={color}
                             variant="outline"
                             size="sm"
                             onClick={() => setBackgroundColor(color)}
-                            className="w-8 h-8 p-0 rounded-full"
+                            className="w-10 h-10 p-0 rounded-full border-2 border-white/40 hover:border-slate-300 hover:scale-110 transition-all duration-300 shadow-lg"
                             style={{ backgroundColor: color }}
                           />
                         ))}
@@ -1193,21 +1335,24 @@ export default function CertificateBuilder() {
                           type="color"
                           value={backgroundColor}
                           onChange={(e) => setBackgroundColor(e.target.value)}
-                          className="w-8 h-8 p-0 border-0 rounded-full cursor-pointer"
+                          className="w-10 h-10 p-0 border-2 border-white/40 rounded-full cursor-pointer hover:border-slate-300 hover:scale-110 transition-all duration-300 shadow-lg"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Text Color</Label>
-                      <div className="flex gap-2">
+                    <div className="space-y-3 min-w-0 flex-shrink-0">
+                      <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                        <Type className="w-4 h-4" />
+                        Text Color
+                      </Label>
+                      <div className="flex gap-3">
                         {["#000000", "#2563eb", "#4b5563"].map((color) => (
                           <Button
                             key={color}
                             variant="outline"
                             size="sm"
                             onClick={() => setTextSettings({ ...textSettings, fill: color })}
-                            className="w-8 h-8 p-0 rounded-full"
+                            className="w-10 h-10 p-0 rounded-full border-2 border-white/40 hover:border-slate-300 hover:scale-110 transition-all duration-300 shadow-lg"
                             style={{ backgroundColor: color }}
                           />
                         ))}
@@ -1215,21 +1360,21 @@ export default function CertificateBuilder() {
                           type="color"
                           value={textSettings.fill}
                           onChange={(e) => setTextSettings({ ...textSettings, fill: e.target.value })}
-                          className="w-8 h-8 p-0 border-0 rounded-full cursor-pointer"
+                          className="w-10 h-10 p-0 border-2 border-white/40 rounded-full cursor-pointer hover:border-slate-300 hover:scale-110 transition-all duration-300 shadow-lg"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Font Family</Label>
+                    <div className="space-y-3 min-w-0 flex-shrink-0">
+                      <Label className="text-sm font-semibold text-slate-700">Font Family</Label>
                       <Select
                         value={textSettings.fontFamily}
                         onValueChange={(value) => setTextSettings({ ...textSettings, fontFamily: value })}
                       >
-                        <SelectTrigger className="w-40">
+                        <SelectTrigger className="w-36 bg-white/70 border-white/40 focus:border-blue-300 focus:ring-blue-200 rounded-xl">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-white/95 backdrop-blur-sm border-white/40">
                           <SelectItem value="Arial">Arial</SelectItem>
                           <SelectItem value="Times New Roman">Times New Roman</SelectItem>
                           <SelectItem value="Verdana">Verdana</SelectItem>
@@ -1239,16 +1384,16 @@ export default function CertificateBuilder() {
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Font Size</Label>
+                    <div className="space-y-3 min-w-0 flex-shrink-0">
+                      <Label className="text-sm font-semibold text-slate-700">Font Size</Label>
                       <Select
                         value={textSettings.fontSize.toString()}
                         onValueChange={(value) => setTextSettings({ ...textSettings, fontSize: Number.parseInt(value) })}
                       >
-                        <SelectTrigger className="w-24">
+                        <SelectTrigger className="w-28 bg-white/70 border-white/40 focus:border-blue-300 focus:ring-blue-200 rounded-xl">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-white/95 backdrop-blur-sm border-white/40">
                           <SelectItem value="12">12px</SelectItem>
                           <SelectItem value="16">16px</SelectItem>
                           <SelectItem value="18">18px</SelectItem>
@@ -1259,9 +1404,9 @@ export default function CertificateBuilder() {
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Style</Label>
-                      <div className="flex gap-2">
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold text-slate-700">Style</Label>
+                      <div className="flex gap-3">
                         <Button
                           variant={textSettings.fontStyle.includes("bold") ? "default" : "outline"}
                           size="sm"
@@ -1272,7 +1417,7 @@ export default function CertificateBuilder() {
                               fontStyle: isBold ? textSettings.fontStyle.replace("bold", "").trim() || "normal" : "bold",
                             })
                           }}
-                          className="w-8 h-8 p-0 font-bold"
+                          className={`w-10 h-10 p-0 font-bold rounded-xl transition-all duration-300 ${textSettings.fontStyle.includes("bold") ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 shadow-lg' : 'bg-white/70 border-white/40 text-slate-700 hover:bg-blue-50'}`}
                         >
                           B
                         </Button>
@@ -1288,7 +1433,7 @@ export default function CertificateBuilder() {
                                 : "italic",
                             })
                           }}
-                          className="w-8 h-8 p-0 italic"
+                          className={`w-10 h-10 p-0 italic rounded-xl transition-all duration-300 ${textSettings.fontStyle.includes("italic") ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 shadow-lg' : 'bg-white/70 border-white/40 text-slate-700 hover:bg-blue-50'}`}
                         >
                           I
                         </Button>
@@ -1296,7 +1441,10 @@ export default function CertificateBuilder() {
                     </div>
 
                     {selectedId && (
-                      <Button onClick={applyTextSettings} className="gap-2">
+                      <Button 
+                        onClick={applyTextSettings} 
+                        className="gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 py-2.5"
+                      >
                         <Settings className="w-4 h-4" />
                         Apply to Selected
                       </Button>
@@ -1305,88 +1453,111 @@ export default function CertificateBuilder() {
                 </div>
               </main>
 
-              <aside className="w-80 border-l bg-card overflow-y-auto">
-                <div className="p-6">
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Move className="w-5 h-5" />
-                        Properties
+              <aside className="w-64 border-l border-white/20 bg-white/30 backdrop-blur-lg overflow-y-auto flex-shrink-0">
+                <div className="p-3">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-rose-50/80 to-pink-100/80 border-white/40 shadow-xl backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
+                    <div className="absolute inset-0 bg-gradient-to-r from-rose-500/5 to-pink-500/5"></div>
+                    <CardHeader className="pb-3 relative">
+                      <CardTitle className="text-lg flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-r from-rose-500 to-pink-600 rounded-lg">
+                          <Move className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="bg-gradient-to-r from-rose-600 to-pink-600 bg-clip-text text-transparent font-bold">
+                          Properties
+                        </span>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="relative">
                       {selectedElement ? (
                         <div className="space-y-6">
-                          <div className="space-y-3">
-                            <Label className="text-sm font-medium">Position</Label>
-                            <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-4">
+                            <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                              <Move className="w-4 h-4" />
+                              Position
+                            </Label>
+                            <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">X</Label>
+                                <Label className="text-xs text-slate-600 font-medium">X Coordinate</Label>
                                 <Input
                                   type="number"
                                   value={Math.round(selectedElement.x || 0)}
                                   onChange={(e) => updateElement(selectedId, { x: Number.parseInt(e.target.value) || 0 })}
+                                  className="bg-white/70 border-white/40 focus:border-rose-300 focus:ring-rose-200 rounded-xl"
                                 />
                               </div>
                               <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">Y</Label>
+                                <Label className="text-xs text-slate-600 font-medium">Y Coordinate</Label>
                                 <Input
                                   type="number"
                                   value={Math.round(selectedElement.y || 0)}
                                   onChange={(e) => updateElement(selectedId, { y: Number.parseInt(e.target.value) || 0 })}
+                                  className="bg-white/70 border-white/40 focus:border-rose-300 focus:ring-rose-200 rounded-xl"
                                 />
                               </div>
                             </div>
                           </div>
 
-                          <Separator />
+                          <Separator className="bg-white/40" />
 
-                          <div className="space-y-3">
-                            <Label className="text-sm font-medium">Dimensions</Label>
-                            <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-4">
+                            <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                              <Settings className="w-4 h-4" />
+                              Dimensions
+                            </Label>
+                            <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">Width</Label>
+                                <Label className="text-xs text-slate-600 font-medium">Width</Label>
                                 <Input
                                   type="number"
                                   value={Math.round(selectedElement.width || 0)}
                                   onChange={(e) => updateElement(selectedId, { width: Number.parseInt(e.target.value) || 0 })}
+                                  className="bg-white/70 border-white/40 focus:border-rose-300 focus:ring-rose-200 rounded-xl"
                                 />
                               </div>
                               <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">Height</Label>
+                                <Label className="text-xs text-slate-600 font-medium">Height</Label>
                                 <Input
                                   type="number"
                                   value={Math.round(selectedElement.height || 0)}
                                   onChange={(e) => updateElement(selectedId, { height: Number.parseInt(e.target.value) || 0 })}
+                                  className="bg-white/70 border-white/40 focus:border-rose-300 focus:ring-rose-200 rounded-xl"
                                 />
                               </div>
                             </div>
                           </div>
 
-                          <Separator />
+                          <Separator className="bg-white/40" />
 
                           {selectedElement.type === "text" && (
                             <>
-                              <div className="space-y-3">
-                                <Label className="text-sm font-medium">Font Size</Label>
+                              <div className="space-y-4">
+                                <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                                  <Type className="w-4 h-4" />
+                                  Font Size
+                                </Label>
                                 <Input
                                   type="number"
                                   value={selectedElement.fontSize || 24}
                                   onChange={(e) =>
                                     updateElement(selectedId, { fontSize: Number.parseInt(e.target.value) || 24 })
                                   }
+                                  className="bg-white/70 border-white/40 focus:border-rose-300 focus:ring-rose-200 rounded-xl"
                                 />
                               </div>
 
-                              <Separator />
+                              <Separator className="bg-white/40" />
                               
-                              <div className="space-y-3">
-                                <Label className="text-sm font-medium">Text Content</Label>
+                              <div className="space-y-4">
+                                <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                                  <Type className="w-4 h-4" />
+                                  Text Content
+                                </Label>
                                 <Textarea
                                   value={selectedElement.text || ""}
                                   onChange={(e) => updateElement(selectedId, { text: e.target.value })}
-                                  rows={3}
+                                  rows={4}
                                   placeholder="Enter your text here..."
+                                  className="bg-white/70 border-white/40 focus:border-rose-300 focus:ring-rose-200 rounded-xl resize-none"
                                 />
                               </div>
                             </>
@@ -1394,39 +1565,51 @@ export default function CertificateBuilder() {
 
                           {selectedElement.type === "image" && (
                             <>
-                              <div className="space-y-3">
-                                <Label className="text-sm font-medium">Image Source</Label>
-                                <div className="p-3 bg-muted rounded-lg">
+                              <div className="space-y-4">
+                                <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                                  <ImageIcon className="w-4 h-4" />
+                                  Image Preview
+                                </Label>
+                                <div className="p-4 bg-white/50 rounded-xl border border-white/30">
                                   <img 
                                     src={selectedElement.src} 
                                     alt="Selected" 
-                                    className="w-full h-20 object-cover rounded"
+                                    className="w-full h-24 object-cover rounded-lg shadow-sm"
                                   />
                                 </div>
                               </div>
                             </>
                           )}
 
-                          <Separator />
+                          <Separator className="bg-white/40" />
 
-                          <Button variant="destructive" onClick={deleteSelected} className="w-full gap-2">
-                            <Trash2 className="w-4 h-4" />
-                            Delete Element
-                          </Button>
-                          
-                          <Button
-                            onClick={() => setSelectedId(null)}
-                            variant="outline"
-                            className="w-full"
-                          >
-                            Deselect
-                          </Button>
+                          <div className="space-y-3">
+                            <Button 
+                              variant="destructive" 
+                              onClick={deleteSelected} 
+                              className="w-full gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete Element
+                            </Button>
+                            
+                            <Button
+                              onClick={() => setSelectedId(null)}
+                              variant="outline"
+                              className="w-full bg-white/50 backdrop-blur-sm border-white/40 hover:bg-white/70 hover:border-rose-300 hover:shadow-lg transition-all duration-300 rounded-xl text-slate-700 font-semibold"
+                            >
+                              Deselect
+                            </Button>
+                          </div>
 
                         </div>
                       ) : (
-                        <div className="text-center py-8">
-                          <Move className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                          <p className="text-muted-foreground text-sm">Select an element to edit its properties</p>
+                        <div className="text-center py-12">
+                          <div className="p-4 bg-gradient-to-r from-rose-500 to-pink-600 rounded-2xl w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                            <Move className="w-8 h-8 text-white" />
+                          </div>
+                          <p className="text-slate-600 text-sm font-medium">Select an element to edit its properties</p>
+                          <p className="text-slate-500 text-xs mt-2">Click on any text or image element on the canvas</p>
                         </div>
                       )}
                     </CardContent>
@@ -1441,5 +1624,6 @@ export default function CertificateBuilder() {
         <ChatbotSidebar onImageGenerated={handleGeneratedImage} />
       </div>
     </div>
+    </>
   )
 }
