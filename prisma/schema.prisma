@@ -10,23 +10,22 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
+
 }
 
 model Admin {
-  id       Int    @id @default(autoincrement())
-  username String @unique
-
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  username       String       @unique
   hashedPassword String
   name           String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime     @default(now())
 }
 
 model Organisation {
-  id       Int    @id @default(autoincrement())
-  username String @unique
-
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
+  username       String        @unique
   hashedPassword String
   name           String        @unique
   certificates   Certificate[]
@@ -34,7 +33,7 @@ model Organisation {
 }
 
 model Certificate {
-  id             Int          @id @default(autoincrement())
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
   name           String
   url            String
   degree         String?
@@ -44,5 +43,5 @@ model Certificate {
   rollNo         String?
   grade          String?
   organisation   Organisation @relation(fields: [organisationId], references: [id])
-  organisationId Int
+  organisationId String       @db.ObjectId
 }
