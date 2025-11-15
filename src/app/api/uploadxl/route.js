@@ -27,7 +27,7 @@ export async function POST(request) {
     // Receive Excel file as base64 string in JSON body
     const { excelBase64 } = await request.json();
 
-    console.log("📊 Processing Excel file upload...");
+    console.log(" Processing Excel file upload...");
 
     // Send Excel file to Python OCR server
     const ocrResponse = await fetch("http://localhost:5001/upload/excel", {
@@ -50,7 +50,7 @@ export async function POST(request) {
     }
 
     const excelData = await ocrResponse.json();
-    console.log("📋 Excel Data received:", excelData);
+    console.log(" Excel Data received:", excelData);
 
     // Check if we got valid data
     if (!excelData.success || !excelData.data) {
@@ -100,10 +100,10 @@ export async function POST(request) {
           certificateId: createdCert.certificateId,
         });
 
-        console.log(`✅ Certificate ${i + 1} created successfully`);
+        console.log(` Certificate ${i + 1} created successfully`);
 
       } catch (error) {
-        console.error(`❌ Error creating certificate ${i + 1}:`, error);
+        console.error(` Error creating certificate ${i + 1}:`, error);
         // Continue with next certificate instead of failing completely
         continue;
       }
@@ -124,7 +124,7 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error("❌ Upload Excel error:", error);
+    console.error(" Upload Excel error:", error);
     return new Response(JSON.stringify({ error: "Upload failed" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
