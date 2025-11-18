@@ -1,0 +1,11 @@
+{
+  "Navbar": {
+    "admin": "प्रशासक",
+    "organizations": "संगठन",
+    "verifier": "सत्यापनकर्ता",
+    "certificate_playground": "प्रमाणपत्र जनरेटर",
+    "login": "लॉगिन",
+    "logout": "लॉगआउट",
+    "connect_wallet": "वॉलेट जोड़ू"
+  }
+}

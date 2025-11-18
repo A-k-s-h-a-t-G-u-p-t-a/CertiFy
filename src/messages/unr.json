@@ -1,0 +1,11 @@
+{
+  "Navbar": {
+    "admin": "Admi",
+    "organizations": "Sorgot",
+    "verifier": "Checker",
+    "certificate_playground": "Certificate Generator",
+    "login": "Login",
+    "logout": "Logout",
+    "connect_wallet": "Wallet Connect"
+  }
+}

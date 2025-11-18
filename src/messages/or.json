@@ -1,0 +1,11 @@
+{
+  "Navbar": {
+    "admin": "ପ୍ରଶାସକ",
+    "organizations": "ସଂଗଠନ",
+    "verifier": "ସତ୍ୟାପକ",
+    "certificate_playground": "ସର୍ଟିଫିକେଟ୍ ଜେନେରେଟର୍",
+    "login": "ଲଗଇନ୍",
+    "logout": "ଲଗଆଉଟ୍",
+    "connect_wallet": "ୱାଲେଟ୍ ଯୋଡନ୍ତୁ"
+  }
+}

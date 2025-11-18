@@ -1,0 +1,11 @@
+{
+  "Navbar": {
+    "admin": "Admin",
+    "organizations": "Sangatan",
+    "verifier": "Pariksha",
+    "certificate_playground": "Certificate Generator",
+    "login": "Login",
+    "logout": "Logout",
+    "connect_wallet": "Wallet Connect"
+  }
+}
