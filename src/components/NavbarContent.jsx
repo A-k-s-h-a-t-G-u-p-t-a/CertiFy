@@ -1,4 +1,9 @@
-"use client"
+"use client";
+import { useState } from "react"
+import { ConnectButton } from "thirdweb/react"
+import { client } from "../lib/client"
+import { useSession, signOut } from "next-auth/react"
+import GoogleTranslate from "./google-translate"
 import {
   Navbar,
   NavBody,
@@ -9,16 +14,19 @@ import {
   MobileNavHeader,
   MobileNavToggle,
   MobileNavMenu,
-} from "@/components/ui/navbar"
-import { useState } from "react"
-import { ConnectButton } from "thirdweb/react"
-import { client } from "../lib/client"
-import { useSession, signOut } from "next-auth/react"
-import GoogleTranslate from "./google-translate"
-
+} from "@/components/ui/navbar";
+import { useState } from "react";
+import { client } from "../lib/client";
+import { ConnectButton } from "thirdweb/react";
 export function NavbarDemo() {
   const { data: session } = useSession() // get session
+  const { data: session } = useSession() // get session
   const navItems = [
+    { name: "Admin", link: "/admin" },
+    { name: "Organizations", link: "/organizations" },
+    { name: "Verifier", link: "/verifier" },
+    { name: "Certificate Playground", link: "/certificate-generator" },
+  ]
     { name: "Admin", link: "/admin" },
     { name: "Organizations", link: "/organizations" },
     { name: "Verifier", link: "/verifier" },
@@ -130,6 +138,5 @@ export function NavbarDemo() {
         </MobileNav>
       </Navbar>
     </div>
-  )
+  );
 }
-

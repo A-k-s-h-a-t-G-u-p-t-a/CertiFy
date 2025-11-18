@@ -1,0 +1,11 @@
+{
+  "Navbar": {
+    "admin": "ᱯᱨᱟᱥᱟᱥᱠ",
+    "organizations": "ᱚᱠᱟᱱᱟᱞ",
+    "verifier": "ᱥᱟᱴᱭᱟᱯᱟᱜ",
+    "certificate_playground": "ᱥᱟᱨᱴᱤᱯᱤᱠᱮᱴ ᱡᱮᱱᱮᱨᱮᱴᱚᱨ",
+    "login": "ᱞᱚᱜᱤᱱ",
+    "logout": "ᱞᱚᱜᱚᱣᱚᱴ",
+    "connect_wallet": "ᱣᱟᱞᱮᱴ ᱠᱚᱱᱮᱠᱴ"
+  }
+}
