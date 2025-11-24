@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { ConnectButton } from "thirdweb/react"
 import { client } from "../lib/client"
 import { useSession, signOut } from "next-auth/react"
@@ -15,9 +15,12 @@ import {
   MobileNavToggle,
   MobileNavMenu,
 } from "@/components/ui/navbar";
+import { User, LogOut } from "lucide-react";
 
 export function NavbarDemo() {
   const { data: session } = useSession() // get session
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const dropdownRef = useRef(null)
   const navItems = [
     { name: "Admin", link: "/admin" },
     { name: "Organizations", link: "/organizations" },
@@ -26,6 +29,21 @@ export function NavbarDemo() {
   ]
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen)
+  }
 
   return (
     <div className="relative w-full z-50 mt-[42px]">
@@ -38,14 +56,35 @@ export function NavbarDemo() {
             <GoogleTranslate />
 
             {session ? (
-              <>
-                <span className="text-sm text-muted-foreground hidden md:inline">
-                  {session.user?.name || session.user?.username}
-                </span>
-                <NavbarButton variant="secondary" onClick={() => signOut()}>
-                  Logout
-                </NavbarButton>
-              </>
+              <div className="relative" ref={dropdownRef}>
+                <button 
+                  onClick={toggleDropdown}
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-[#a7d7b8] text-white hover:bg-[#66b2a0] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#66b2a0] focus:ring-offset-2"
+                >
+                  <User className="w-5 h-5" />
+                </button>
+                
+                {isDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                    <div className="py-1">
+                      <div className="px-4 py-2 text-sm font-medium text-[#4e796b] border-b border-gray-100 flex items-center">
+                        <User className="w-4 h-4 mr-2" />
+                        {session.user?.name || session.user?.username || "User"}
+                      </div>
+                      <button
+                        onClick={() => {
+                          signOut()
+                          setIsDropdownOpen(false)
+                        }}
+                        className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center transition-colors duration-150"
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <NavbarButton variant="secondary" href="/signin">
                 Login
