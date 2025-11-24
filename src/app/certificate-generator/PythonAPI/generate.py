@@ -2,12 +2,14 @@
 Advanced Certificate Image Generator
 Uses multiple AI APIs to generate professional certificate elements
 """
+
+import os
+import sys
+import json
+import base64
+import io
+import time
 try:
-    import os
-    import sys
-    import json
-    import base64
-    import time
     import requests
 except ImportError:
     print(json.dumps({"error": "requests library not installed. Run: pip install requests"}))
@@ -26,8 +28,10 @@ def load_env_file():
         with open(env_path, 'r') as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#'):
+                if line and not line.startswith('#') and '=' in line:
                     key, value = line.split('=', 1)
+                    # Remove quotes if present
+                    value = value.strip('"').strip("'")
                     os.environ[key] = value
 
 def create_professional_certificate_svg(prompt):
@@ -109,7 +113,7 @@ def create_professional_certificate_svg(prompt):
     <circle cx="{width//2}" cy="140" r="50" fill="{primary_color}" stroke="{accent_color}" stroke-width="4" filter="url(#shadow)" />
     <circle cx="{width//2}" cy="140" r="35" fill="none" stroke="{accent_color}" stroke-width="2" />
     <text x="{width//2}" y="150" text-anchor="middle" fill="white" font-size="20" font-weight="bold" font-family="serif">SEAL</text>
-    <text x="{width//2}" y="165" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-size="10" font-family="serif">OFFICIAL</text>'''
+    <text x="{width//2}" y="165" text-anchor="middle" fill="{accent_color}" font-size="10" font-family="serif">OFFICIAL</text>'''
 
     # Main certificate content
     title_y = 220 if elements['logo'] else 160
@@ -208,11 +212,16 @@ def generate_with_pollinations(prompt):
         
         for url in endpoints:
             try:
-                response = requests.get(url, headers=headers, timeout=30)
-                if response.status_code == 200 and len(response.content) > 1000:
-                    base64_data = base64.b64encode(response.content).decode('utf-8')
-                    print("Successfully generated image with Pollinations AI", file=sys.stderr)
-                    return { "url": f"data:image/png;base64,{base64_data}" }
+                response = requests.get(url, headers=headers, timeout=15)
+                
+                if response.status_code == 200:
+                    image_data = response.content
+                    
+                    if len(image_data) > 1000:
+                        base64_data = base64.b64encode(image_data).decode('utf-8')
+                        print("Successfully generated image with Pollinations AI", file=sys.stderr)
+                        return f"data:image/png;base64,{base64_data}"
+                        
             except Exception as e:
                 print(f"Endpoint failed: {e}", file=sys.stderr)
                 continue
@@ -221,7 +230,7 @@ def generate_with_pollinations(prompt):
         
     except Exception as e:
         if "timeout" in str(e).lower():
-            print("Pollinations API timeout", file=sys.stderr)
+            raise Exception("Pollinations API timeout - please try again")
         raise e
 
 def main():
@@ -230,13 +239,11 @@ def main():
         load_env_file()
         
         if len(sys.argv) < 2:
-            print(json.dumps({"error": "No prompt provided"}))
-            sys.exit(1)
+            raise Exception("No prompt provided")
         
         prompt = sys.argv[1].strip()
         if not prompt:
-            print(json.dumps({"error": "Empty prompt provided"}))
-            sys.exit(1)
+            raise Exception("Empty prompt provided")
         
         # Try different generation methods
         result = None
@@ -244,16 +251,18 @@ def main():
         # Method 1: Try Pollinations AI
         try:
             result = generate_with_pollinations(prompt)
+            if result:
+                print(json.dumps({"url": result}))
+                return
         except Exception as e:
-            print(f"Pollinations failed, trying SVG fallback: {e}", file=sys.stderr)
+            print(f"Pollinations failed: {e}", file=sys.stderr)
         
         # Method 2: Fallback to SVG template
-        if not result:
-            svg_content = create_professional_certificate_svg(prompt)
-            svg_base64 = base64.b64encode(svg_content.encode('utf-8')).decode('utf-8')
-            result = { "url": f"data:image/svg+xml;base64,{svg_base64}" }
+        svg_content = create_professional_certificate_svg(prompt)
+        svg_base64 = base64.b64encode(svg_content.encode('utf-8')).decode('utf-8')
+        result = f"data:image/svg+xml;base64,{svg_base64}"
         
-        print(json.dumps(result))
+        print(json.dumps({"url": result}))
         
     except Exception as e:
         print(json.dumps({"error": str(e)}))
