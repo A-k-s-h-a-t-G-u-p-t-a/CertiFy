@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { prisma } from '../../../lib/prisma';
 // Using the shared prisma instance instead of creating a new one
