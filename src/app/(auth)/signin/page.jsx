@@ -23,7 +23,14 @@ export default function SignInPage() {
     if (res?.error) {
       setError("Invalid credentials");
     } else {
-      router.push(role === "admin" ? "/admin" : "/upload");
+      // Route based on role
+      if (role === "admin") {
+        router.push("/admin");
+      } else if (role === "organisation") {
+        router.push("/upload");
+      } else if (role === "user") {
+        router.push("/"); // Redirect users to homepage or user dashboard
+      }
     }
   };
 
@@ -34,13 +41,14 @@ export default function SignInPage() {
 
         {error && <p className="text-red-500 mb-4">{error}</p>}
 
-        <label>Username</label>
+        <label>{role === "user" ? "Apaar ID" : "Username"}</label>
         <input
           type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
           className="w-full mb-4 p-2 border rounded"
+          placeholder={role === "user" ? "Enter your Apaar ID" : "Enter your username"}
         />
 
         <label>Password</label>
@@ -56,9 +64,14 @@ export default function SignInPage() {
         <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full mb-4 p-2 border rounded">
           <option value="admin">Admin</option>
           <option value="organisation">Organisation</option>
+          <option value="user">User</option>
         </select>
 
         <button type="submit" className="w-full p-2 bg-blue-600 text-white rounded">Sign In</button>
+        
+        <div className="mt-4 text-center text-sm text-gray-600">
+          New user? <a href="/signup" className="text-blue-600 hover:underline">Create an account</a>
+        </div>
       </form>
     </div>
   );

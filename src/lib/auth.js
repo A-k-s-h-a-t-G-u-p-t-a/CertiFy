@@ -10,7 +10,7 @@ export const authOptions = {
       credentials: {
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
-        role: { label: "Role", type: "text" }, // "admin" or "organisation"
+        role: { label: "Role", type: "text" }, // "admin", "organisation", or "user"
       },
       async authorize(credentials) {
         console.log("=== AUTH DEBUG ===");
@@ -37,6 +37,11 @@ export const authOptions = {
             console.log("🔍 Looking for organisation user...");
             user = await prisma.organisation.findUnique({
               where: { username: credentials.username },
+            });
+          } else if (credentials.role === "user") {
+            console.log("🔍 Looking for user...");
+            user = await prisma.user.findUnique({
+              where: { apaarId: credentials.username }, // For users, username field contains apaarId
             });
           } else {
             console.log("❌ Invalid role:", credentials.role);
@@ -69,8 +74,8 @@ export const authOptions = {
           console.log("✅ Authentication successful");
           return {
             id: user.id,
-            username: user.username,
-            name: user.name,
+            username: credentials.role === "user" ? user.apaarId : user.username,
+            name: user.name || user.apaarId, // For users, use apaarId as fallback for name
             role: credentials.role,
           };
         } catch (error) {
