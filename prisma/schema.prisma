@@ -47,9 +47,9 @@ model Certificate {
   organisationId String       @db.ObjectId
 }
 model User {
-  id           String        @id @default(auto()) @map("_id") @db.ObjectId
-  apaarId      String        @unique
-  
-  certificates Certificate[]
-  createdAt    DateTime      @default(now())
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
+  apaarId        String        @unique
+  hashedPassword String
+  certificates   Certificate[]
+  createdAt      DateTime      @default(now())
 }
