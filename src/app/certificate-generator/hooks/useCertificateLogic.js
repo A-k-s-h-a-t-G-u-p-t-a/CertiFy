@@ -44,8 +44,28 @@ export const useCertificateLogic = () => {
   })
   const stageRef = useRef(null)
 
+  // ======== CRYPTO FUNCTIONS ========
 
-  // Enhanced extraction function matching your working code exactly
+  // Generate crypto hash for data
+  const generateCryptoHash = async (data) => {
+    const encoder = new TextEncoder();
+    const dataBuffer = encoder.encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return `0x${hashHex}`;
+  };
+
+  // Generate crypto hash for file
+  const generateFileHash = async (file) => {
+    const arrayBuffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return `0x${hashHex}`;
+  };
+
+  // ======== EXTRACTION FUNCTIONS ========
   const extractFieldsFromImage = async (file) => {
     try {
       console.log("Starting extraction for file:", file.name)

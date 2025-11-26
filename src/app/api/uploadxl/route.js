@@ -61,7 +61,7 @@ export async function POST(request) {
       });
     }
 
-    const certificatesData = excelData.data; // Array of certificate objects
+    let certificatesData = excelData.data; // Array of certificate objects
 
     const json_certificates_data={
       certificates:certificatesData
