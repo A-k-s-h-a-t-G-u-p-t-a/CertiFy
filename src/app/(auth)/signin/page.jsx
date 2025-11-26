@@ -29,7 +29,7 @@ export default function SignInPage() {
       } else if (role === "organisation") {
         router.push("/upload");
       } else if (role === "user") {
-        router.push("/"); // Redirect users to homepage or user dashboard
+        router.push("/userportal"); // Redirect users to user portal
       }
     }
   };

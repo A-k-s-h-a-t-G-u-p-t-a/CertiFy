@@ -91,11 +91,16 @@ export async function POST(request) {
 
       const ext = entry.entryName.split('.').pop().toLowerCase();
       let resourceType = "raw";
+      let fileName = entry.entryName;
+      
       if (["jpg", "jpeg", "png"].includes(ext)) {
         resourceType = "image";
+        // For images, we can remove extension from public_id
+        fileName = entry.entryName.replace(/\.(jpg|jpeg|png)$/i, "");
       }
+      // For PDFs and other raw files, keep the full filename with extension
 
-      const publicId = `${name}/${entry.entryName.replace(/\.(pdf|jpg|jpeg|png)$/i, "")}`;
+      const publicId = `${name}/${fileName}`;
 
       // Check if file exists
       let exists = false;
@@ -120,9 +125,9 @@ export async function POST(request) {
         cloudinary.uploader.upload_stream(
           {
             resource_type: resourceType,
-            folder:name,
-            public_id: entry.entryName.replace(/\.(pdf|jpg|jpeg|png)$/i, ""),
-            unique_filename: "false",
+            folder: name,
+            public_id: fileName,
+            unique_filename: false,
           },
           (error, result) => {
             if (error) reject(error);
