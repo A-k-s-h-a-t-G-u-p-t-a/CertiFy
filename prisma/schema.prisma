@@ -41,12 +41,15 @@ model Certificate {
   honors         String?
   rollNo         String?
   grade          String?
+  apaarId        String?
+  user           User?        @relation(fields: [apaarId], references: [apaarId])
   organisation   Organisation @relation(fields: [organisationId], references: [id])
   organisationId String       @db.ObjectId
 }
 model User {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  apaarId   String   @unique
-  email     String   @unique
-  createdAt DateTime @default(now())
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  apaarId      String        @unique
+  email        String        @unique
+  certificates Certificate[]
+  createdAt    DateTime      @default(now())
 }
