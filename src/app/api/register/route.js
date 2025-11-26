@@ -1,23 +1,26 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from '../../../lib/prisma';
-// Using the shared prisma instance instead of creating a new one
-export async function POST(req) {
-  const { email, password } = await req.json();
 
-  if (!email || !password ) {
+export async function POST(req) {
+  const { apaarId, password } = await req.json();
+
+  if (!apaarId || !password) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
-  const existingUser = await prisma.user.findUnique({ where: { email } });
+  const existingUser = await prisma.user.findUnique({ where: { apaarId } });
   if (existingUser) {
-    return NextResponse.json({ error: "Email already used" }, { status: 409 });
+    return NextResponse.json({ error: "Apaar ID already registered" }, { status: 409 });
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
-    data: { email, hashedPassword },
+    data: { apaarId, hashedPassword },
   });
 
-  return NextResponse.json({ user }, { status: 201 });
+  return NextResponse.json({ 
+    message: "User created successfully",
+    user: { id: user.id, apaarId: user.apaarId } 
+  }, { status: 201 });
 }
