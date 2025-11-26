@@ -15,7 +15,7 @@ import {
   MobileNavToggle,
   MobileNavMenu,
 } from "@/components/ui/navbar";
-import { User, LogOut, ChevronDown, LogIn, UserPlus } from "lucide-react";
+import { User, LogOut, ChevronDown, LogIn, UserPlus, Award } from "lucide-react";
 
 export function NavbarDemo() {
   const { data: session } = useSession() // get session
@@ -76,6 +76,16 @@ export function NavbarDemo() {
                         <User className="w-4 h-4 mr-2" />
                         {session.user?.name || session.user?.username || "User"}
                       </div>
+                      {session.user?.role === "user" && (
+                        <a
+                          href="/userportal"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="w-full px-4 py-2 text-sm text-[#4e796b] hover:bg-gray-50 flex items-center transition-colors duration-150"
+                        >
+                          <Award className="w-4 h-4 mr-2" />
+                          My Certificates
+                        </a>
+                      )}
                       <button
                         onClick={() => {
                           signOut()
