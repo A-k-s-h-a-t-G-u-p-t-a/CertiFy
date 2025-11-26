@@ -15,12 +15,14 @@ import {
   MobileNavToggle,
   MobileNavMenu,
 } from "@/components/ui/navbar";
-import { User, LogOut } from "lucide-react";
+import { User, LogOut, ChevronDown, LogIn, UserPlus } from "lucide-react";
 
 export function NavbarDemo() {
   const { data: session } = useSession() // get session
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isEnterDropdownOpen, setIsEnterDropdownOpen] = useState(false)
   const dropdownRef = useRef(null)
+  const enterDropdownRef = useRef(null)
   const navItems = [
     { name: "Admin", link: "/admin" },
     { name: "Organizations", link: "/organizations" },
@@ -35,6 +37,9 @@ export function NavbarDemo() {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false)
+      }
+      if (enterDropdownRef.current && !enterDropdownRef.current.contains(event.target)) {
+        setIsEnterDropdownOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -86,9 +91,38 @@ export function NavbarDemo() {
                 )}
               </div>
             ) : (
-              <NavbarButton variant="secondary" href="/signin">
-                Login
-              </NavbarButton>
+              <div className="relative" ref={enterDropdownRef}>
+                <button
+                  onClick={() => setIsEnterDropdownOpen(!isEnterDropdownOpen)}
+                  className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#4e796b] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#66b2a0] focus:ring-offset-2 rounded-md"
+                >
+                  Enter
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isEnterDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isEnterDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                    <div className="py-1">
+                      <a
+                        href="/signin"
+                        onClick={() => setIsEnterDropdownOpen(false)}
+                        className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-150"
+                      >
+                        <LogIn className="w-4 h-4 mr-2" />
+                        Login
+                      </a>
+                      <a
+                        href="/signup"
+                        onClick={() => setIsEnterDropdownOpen(false)}
+                        className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-150"
+                      >
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Signup
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             <NavbarButton variant="primary">
               <ConnectButton
@@ -152,14 +186,26 @@ export function NavbarDemo() {
                   </NavbarButton>
                 </>
               ) : (
-                <NavbarButton
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  variant="secondary"
-                  className="w-full"
-                  href="/signin"
-                >
-                  Login
-                </NavbarButton>
+                <>
+                  <NavbarButton
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    variant="secondary"
+                    className="w-full"
+                    href="/signin"
+                  >
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Login
+                  </NavbarButton>
+                  <NavbarButton
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    variant="secondary"
+                    className="w-full"
+                    href="/signup"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Signup
+                  </NavbarButton>
+                </>
               )}
               <NavbarButton onClick={() => setIsMobileMenuOpen(false)} variant="primary" className="w-full">
                 Connect Wallet
