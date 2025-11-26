@@ -265,59 +265,139 @@ const OcrComparer = () => {
         </MaskContainer>
       </div>
 
-      <div className="bg-[#e1eae5] rounded-2xl shadow-lg p-8 w-full max-w-3xl">
-        {/* Year Input */}
-        <div className="mb-4">
-          <label className="block font-semibold text-[#4e796b] mb-2">Year</label>
-          <input
-            type="number"
-            value={year}
-            onChange={(e) => setYear(e.target.value.slice(0, 4))}
-            className="w-full px-3 py-2 rounded-lg border border-[#a7d7b8] bg-[#f8f6f1] outline-none"
-            placeholder="Enter year"
-          />
+      <div className="bg-gradient-to-br from-[#e1eae5] to-[#d4ecd9] rounded-3xl shadow-2xl border border-[#a7d7b8]/30 p-8 w-full max-w-3xl backdrop-blur-lg">
+        {/* Form Header */}
+        <div className="mb-8 text-center">
+          <div className="w-12 h-12 mx-auto mb-4 bg-gradient-to-r from-[#4e796b] to-[#66b2a0] rounded-xl flex items-center justify-center shadow-lg">
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-[#4e796b] to-[#2d5a47] bg-clip-text text-transparent">
+            Certificate Information
+          </h2>
+          <p className="text-[#4e796b]/70 text-sm mt-2">
+            Please provide the following details to verify your certificate
+          </p>
         </div>
 
-        {/* Organization */}
-        <div className="mb-4">
-          <label className="block font-semibold text-[#4e796b] mb-2">
-            Organization
-          </label>
-          <input
-            type="text"
-            value={organization}
-            onChange={(e) => setOrganization(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-[#a7d7b8] bg-[#f8f6f1] outline-none"
-            placeholder="Enter organization name"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* Year Input */}
+          <div className="space-y-2">
+            <label className="block font-semibold text-[#4e796b] text-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-4 h-4 text-[#66b2a0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Certificate Year
+              </div>
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                value={year}
+                onChange={(e) => setYear(e.target.value.slice(0, 4))}
+                className="w-full px-4 py-3 rounded-xl border-2 border-[#a7d7b8]/50 bg-[#f8f6f1]/80 backdrop-blur-sm outline-none transition-all duration-300 focus:border-[#66b2a0] focus:ring-4 focus:ring-[#a7d7b8]/20 focus:bg-[#f8f6f1] placeholder:text-[#4e796b]/50 text-[#4e796b] font-medium"
+                placeholder="e.g., 2023"
+                min="1900"
+                max="2030"
+              />
+            </div>
+          </div>
+
+          {/* Organization */}
+          <div className="space-y-2">
+            <label className="block font-semibold text-[#4e796b] text-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-4 h-4 text-[#66b2a0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                Organization Name
+              </div>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={organization}
+                onChange={(e) => setOrganization(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border-2 border-[#a7d7b8]/50 bg-[#f8f6f1]/80 backdrop-blur-sm outline-none transition-all duration-300 focus:border-[#66b2a0] focus:ring-4 focus:ring-[#a7d7b8]/20 focus:bg-[#f8f6f1] placeholder:text-[#4e796b]/50 text-[#4e796b] font-medium"
+                placeholder="Enter organization name"
+              />
+            </div>
+          </div>
         </div>
 
         {/* File Input */}
-        <div className="mb-6">
-          <label className="block font-semibold text-[#4e796b] mb-2">
-            Upload Certificate
+        <div className="mb-8 space-y-2">
+          <label className="block font-semibold text-[#4e796b] text-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-4 h-4 text-[#66b2a0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              Upload Certificate
+            </div>
           </label>
-          <input
-            type="file"
-            accept="image/*,.pdf"
-            onChange={handleFileChange}
-            className="block w-full px-3 py-2 rounded-lg border border-[#a7d7b8] bg-[#f8f6f1] outline-none"
-          />
-          {selectedImage && (
-            <img
-              src={URL.createObjectURL(selectedImage)}
-              alt="Certificate"
-              className="mt-3 rounded-lg border-2 border-[#a7d7b8] shadow-md max-w-xs"
+          <div className="relative">
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              onChange={handleFileChange}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
             />
+            <div className="border-2 border-dashed border-[#a7d7b8]/60 rounded-xl bg-[#f8f6f1]/50 p-6 text-center hover:border-[#66b2a0] hover:bg-[#f8f6f1]/80 transition-all duration-300">
+              <div className="flex flex-col items-center space-y-3">
+                <div className="w-12 h-12 bg-[#a7d7b8]/20 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-[#66b2a0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[#4e796b] font-medium">
+                    {selectedImage ? selectedImage.name : "Choose certificate file"}
+                  </p>
+                  <p className="text-[#4e796b]/60 text-sm mt-1">
+                    PNG, JPG, or PDF up to 10MB
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {selectedImage && (
+            <div className="mt-4 p-4 bg-[#f8f6f1]/80 rounded-xl border border-[#a7d7b8]/30">
+              <div className="flex items-center space-x-4">
+                <img
+                  src={URL.createObjectURL(selectedImage)}
+                  alt="Certificate Preview"
+                  className="w-24 h-24 object-cover rounded-lg border-2 border-[#a7d7b8]/50 shadow-md"
+                />
+                <div className="flex-1">
+                  <p className="font-medium text-[#4e796b]">Selected File:</p>
+                  <p className="text-[#4e796b]/70 text-sm">{selectedImage.name}</p>
+                  <p className="text-[#4e796b]/60 text-xs">
+                    {(selectedImage.size / (1024 * 1024)).toFixed(2)} MB
+                  </p>
+                </div>
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
         {/* Extract Button */}
         <button
           onClick={readImageText}
-          className="w-full py-3 rounded-xl bg-[#a7d7b8] text-white font-semibold text-lg transition-colors hover:bg-[#66b2a0]"
+          disabled={!selectedImage || !year || !organization}
+          className="w-full py-4 rounded-xl bg-gradient-to-r from-[#a7d7b8] to-[#66b2a0] text-white font-semibold text-lg transition-all duration-300 hover:from-[#66b2a0] hover:to-[#4e796b] hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg flex items-center justify-center space-x-2"
         >
-          Extract & Verify
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Extract & Verify Certificate</span>
         </button>
 
         {/* Status & Errors */}
