@@ -7,6 +7,7 @@
     "build": "next build --turbopack",
     "build:turbo": "next build --turbopack",
     "start": "next start",
+    "bs": "npm run build && npm run start",
     "lint": "eslint"
   },
   "dependencies": {
