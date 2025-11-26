@@ -62,6 +62,23 @@ export async function POST(request) {
     }
 
     const certificatesData = excelData.data; // Array of certificate objects
+
+    const json_certificates_data={
+      certificates:certificatesData
+    };
+    
+    const finalResponse=await fetch("http://localhost:3000/certificate/generate", {
+      method:"POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(json_certificates_data),
+    });
+    
+    const finalResponseData=await finalResponse.json();
+
+    console.log(" Final Certificate Generation Response:", finalResponseData);
+
+    certificatesData=finalResponseData.certificates;
+
     const createdCertificates = [];
 
     console.log(`Processing ${certificatesData.length} certificates from Excel...`);
@@ -109,7 +126,7 @@ export async function POST(request) {
       }
     }
 
-    console.log(`🎉 Successfully processed ${createdCertificates.length} certificates`);
+    console.log(` Successfully processed ${createdCertificates.length} certificates`);
 
     return new Response(JSON.stringify({ 
       success: true,
