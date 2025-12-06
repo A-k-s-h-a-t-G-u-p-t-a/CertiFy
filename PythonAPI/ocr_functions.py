@@ -10,12 +10,15 @@ import base64
 from pdf2image import convert_from_bytes  
 import os
 import json
-import google.generativeai as genai
 from dotenv import load_dotenv
 from flask_cors import CORS
 import pandas as pd  # For Excel processing
+import google.generativeai as genai
+from google.genai import types
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' # Adjust this path(where tesseract is donwlaoded in your local system)
+
+#r'D:\ocr downloaded\tesseract.exe'  
 
 # ------------------- Flask App -------------------
 app = Flask(__name__)
@@ -66,6 +69,42 @@ def clean_json(text):
     text = re.sub(r"\s*```$", "", text, flags=re.MULTILINE)
     return text.strip()
 
+def backfill_fields(text, fields):
+    """
+    If Gemini missed any field, try to extract it from OCR text directly.
+    Example: certificateId often has patterns like 'ID: ABC123' or 'CERT-4567'
+    """
+    # Backfill certificateId if missing
+    if not fields.get("certificateId"):
+        cleaned_text = " ".join(text.split())
+        # Keywords that usually indicate certificate ID
+        # "Certificate ID"
+        # "Certificate No."
+        # "Verification Code"
+        # "Verification No."
+        patterns = [
+            r'\bCertificate\s+ID\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
+            r'\bCertificate\s+No\.?\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
+            r'\bVerification\s+Code\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
+            r'\bVerification\s+No\.?\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
+            r'\bVerification\s+Cade\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
+        ]
+        cid_found = None
+        for pat in patterns:
+            match = re.search(pat, text, re.IGNORECASE)
+            if match:
+                cid_found = match.group(1)
+                break
+
+        fields["certificateId"] = cid_found if cid_found else None
+        # # If still not found, set null explicitly
+        # if "certificateId" not in fields or not fields["certificateId"]:
+        #     fields["certificateId"] = None
+
+    # You can add similar backfill logic for other fields if needed
+    return fields
+
+
 def extract_fields_with_gemini(text):
     prompt = f"""
 You are an AI trained to extract information from certificates. 
@@ -87,15 +126,24 @@ If a field is not found, use null for that field.
 Certificate Text:
 \"\"\"{text}\"\"\"
 """
-    
+
     model = genai.GenerativeModel("gemini-2.0-flash")
-    response = model.generate_content(prompt)
+
+    response = model.generate_content(
+    contents=prompt,
+    generation_config={
+        "temperature": 0.0
+    }
+)
+
 
     output_text = response.text.strip()
     cleaned_text = clean_json(output_text)
 
     try:
         extracted_fields = json.loads(cleaned_text)
+        #if extracted_fields.get("certificateId") is None:
+        extracted_fields = backfill_fields(text,extracted_fields)
     except json.JSONDecodeError:
         extracted_fields = {"error": "Failed to parse JSON", "raw_output": output_text}
     
