@@ -122,10 +122,8 @@ const OcrComparer = () => {
       // Fields to compare
       const keys = [
         "name",
-        "degree",
-        "honors",
-        "rollNo",
-        "grade",
+        "courseName",
+        "courseId",
         "year",
         "certificateId",
       ];

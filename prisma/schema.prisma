@@ -15,11 +15,11 @@ datasource db {
 }
 
 model Admin {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
-  username       String       @unique
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  username       String   @unique
   hashedPassword String
   name           String?
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime @default(now())
 }
 
 model Organisation {
@@ -33,19 +33,19 @@ model Organisation {
 
 model Certificate {
   id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  certificateId  String // your certificate unique ID
   name           String
-  url            String
-  degree         String?
-  certificateId  String?
-  year           String?
-  honors         String?
-  rollNo         String?
-  grade          String?
+  courseId       String? // the NQR Code
+  courseName     String?
+  organisationId String       @db.ObjectId
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
   apaarId        String?
   user           User?        @relation(fields: [apaarId], references: [apaarId])
-  organisation   Organisation @relation(fields: [organisationId], references: [id])
-  organisationId String       @db.ObjectId
+  year           String?
+  url            String
+  createdAt      DateTime     @default(now())
 }
+
 model User {
   id             String        @id @default(auto()) @map("_id") @db.ObjectId
   apaarId        String        @unique

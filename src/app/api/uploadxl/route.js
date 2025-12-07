@@ -93,12 +93,10 @@ export async function POST(request) {
         // Adjust these field names based on your Excel columns
         const finalFields = {
           name: String(certData.Name || certData.name || ""),
-          degree: String(certData.Degree || certData.degree || null),
-          certificateId: String(certData.CertificateId || certData.certificateId || certData['Certificate ID'] || null),
-          rollNo: String(certData.RollNo || certData.rollNo || certData['Roll Number'] || null),
+          certificateId: String(certData.CertificateId || certData.certificateId || certData['Certificate ID'] || ""),
+          courseName: String(certData.CourseName || certData.courseName || certData['Course Name'] || null),
+          courseId: String(certData.CourseId || certData.courseId || certData['Course ID'] || null),
           year: String(certData.Year || certData.year || null),
-          honors: String(certData.Honors || certData.honors || certData.Honours || null),
-          grade: String(certData.Grade || certData.grade || null),
           url: String(certData.URL || certData.url || null), // If Excel contains URLs
           organisation: {
             connect: { id: org.id }
@@ -113,7 +111,7 @@ export async function POST(request) {
         createdCertificates.push({
           id: createdCert.id,
           name: createdCert.name,
-          degree: createdCert.degree,
+          courseName: createdCert.courseName,
           certificateId: createdCert.certificateId,
         });
 
