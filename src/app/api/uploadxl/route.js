@@ -19,9 +19,24 @@ export async function POST(request) {
   // Access user data securely
   const { id, username, role, name } = session.user;
 
+  // Validate user role
+  if (role !== 'organisation') {
+    return new Response(JSON.stringify({ error: "Only organizations can upload certificates" }), { 
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const org = await prisma.organisation.findUnique({
     where: { id: id }
   });
+
+  if (!org) {
+    return new Response(JSON.stringify({ error: "Organization not found" }), { 
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   try {
     // Receive Excel file as base64 string in JSON body
@@ -34,16 +49,22 @@ export async function POST(request) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        filename: `${name}/certificates.xlsx`, // You can make this dynamic
+        filename: `${name}/certificates.xlsx`,
         b64: excelBase64,
       }),
+    }).catch(err => {
+      console.error("Failed to connect to Python OCR service:", err);
+      throw new Error("OCR service unavailable. Please ensure Python service is running on port 5001.");
     });
 
     console.log(`OCR Response Status: ${ocrResponse.status}`);
 
     if (!ocrResponse.ok) {
-      console.error("Excel processing failed:", ocrResponse.status);
-      return new Response(JSON.stringify({ error: "Excel processing failed" }), {
+      const errorText = await ocrResponse.text();
+      console.error("Excel processing failed:", ocrResponse.status, errorText);
+      return new Response(JSON.stringify({ 
+        error: `Excel processing failed: ${errorText || 'Unknown error'}` 
+      }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       });
@@ -71,13 +92,26 @@ export async function POST(request) {
       method:"POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(json_certificates_data),
+    }).catch(err => {
+      console.error("Failed to call certificate generation API:", err);
+      throw new Error("Certificate generation service unavailable.");
     });
     
-    const finalResponseData=await finalResponse.json();
+    if (!finalResponse.ok) {
+      const errorText = await finalResponse.text();
+      console.error("Certificate generation failed:", finalResponse.status, errorText);
+      throw new Error(`Certificate generation failed: ${errorText}`);
+    }
+    
+    const finalResponseData = await finalResponse.json();
 
     console.log(" Final Certificate Generation Response:", finalResponseData);
 
-    certificatesData=finalResponseData.certificates;
+    if (!finalResponseData.success) {
+      throw new Error(finalResponseData.error || "Certificate generation failed");
+    }
+
+    certificatesData = finalResponseData.certificates;
 
     const createdCertificates = [];
 
@@ -89,15 +123,27 @@ export async function POST(request) {
       console.log(`Processing certificate ${i + 1}:`, certData);
 
       try {
+        // Validate required fields
+        const name = String(certData.Name || certData.name || "").trim();
+        if (!name) {
+          console.error(`Certificate ${i + 1}: Missing name`);
+          continue;
+        }
+
+        // Generate certificateId if not provided
+        let certificateId = String(certData.CertificateId || certData.certificateId || certData['Certificate ID'] || "").trim();
+        if (!certificateId) {
+          certificateId = `CERT_${Date.now()}_${i + 1}`; // Generate unique ID
+        }
+
         // Map Excel columns to your certificate schema
-        // Adjust these field names based on your Excel columns
         const finalFields = {
-          name: String(certData.Name || certData.name || ""),
-          certificateId: String(certData.CertificateId || certData.certificateId || certData['Certificate ID'] || ""),
+          name: name,
+          certificateId: certificateId,
           courseName: String(certData.CourseName || certData.courseName || certData['Course Name'] || null),
           nqrCode: String(certData.CourseId || certData.courseId || certData['Course ID'] || null),
           year: String(certData.Year || certData.year || null),
-          url: String(certData.URL || certData.url || null), // If Excel contains URLs
+          url: String(certData.URL || certData.url || null),
           organisation: {
             connect: { id: org.id }
           }
@@ -140,7 +186,10 @@ export async function POST(request) {
 
   } catch (error) {
     console.error(" Upload Excel error:", error);
-    return new Response(JSON.stringify({ error: "Upload failed" }), {
+    return new Response(JSON.stringify({ 
+      error: error.message || "Upload failed",
+      details: error.stack 
+    }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

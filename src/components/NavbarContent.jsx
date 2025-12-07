@@ -15,7 +15,7 @@ import {
   MobileNavToggle,
   MobileNavMenu,
 } from "@/components/ui/navbar";
-import { User, LogOut, ChevronDown, LogIn, UserPlus, Award } from "lucide-react";
+import { User, LogOut, ChevronDown, LogIn, UserPlus, Award, FileSpreadsheet } from "lucide-react";
 
 export function NavbarDemo() {
   const { data: session } = useSession() // get session
@@ -86,6 +86,16 @@ export function NavbarDemo() {
                           My Certificates
                         </a>
                       )}
+                      {session.user?.role === "organisation" && (
+                        <a
+                          href="/upload-certificates"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="w-full px-4 py-2 text-sm text-[#4e796b] hover:bg-gray-50 flex items-center transition-colors duration-150"
+                        >
+                          <FileSpreadsheet className="w-4 h-4 mr-2" />
+                          Upload Certificates
+                        </a>
+                      )}
                       <button
                         onClick={() => {
                           signOut()
@@ -104,31 +114,51 @@ export function NavbarDemo() {
               <div className="relative" ref={enterDropdownRef}>
                 <button
                   onClick={() => setIsEnterDropdownOpen(!isEnterDropdownOpen)}
-                  className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 hover:text-[#4e796b] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#66b2a0] focus:ring-offset-2 rounded-md"
+                  className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#4e796b] to-[#66b2a0] hover:from-[#3d5f55] hover:to-[#559089] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#66b2a0] focus:ring-offset-2 rounded-lg shadow-md"
                 >
-                  Enter
+                  <LogIn className="w-4 h-4" />
+                  Login/Signup
                   <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isEnterDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
                 
                 {isEnterDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                    <div className="py-1">
-                      <a
-                        href="/signin"
-                        onClick={() => setIsEnterDropdownOpen(false)}
-                        className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-150"
-                      >
-                        <LogIn className="w-4 h-4 mr-2" />
-                        Login
-                      </a>
-                      <a
-                        href="/signup"
-                        onClick={() => setIsEnterDropdownOpen(false)}
-                        className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-150"
-                      >
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        Signup
-                      </a>
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden">
+                    <div className="py-2">
+                      {/* Student Option */}
+                      <div className="px-3 py-1">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1 mb-2">Student</p>
+                        <a
+                          href="/user-signin"
+                          onClick={() => setIsEnterDropdownOpen(false)}
+                          className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center transition-colors duration-150 rounded"
+                        >
+                          <LogIn className="w-4 h-4 mr-2 text-blue-500" />
+                          Student Login
+                        </a>
+                        <a
+                          href="/signup"
+                          onClick={() => setIsEnterDropdownOpen(false)}
+                          className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center transition-colors duration-150 rounded"
+                        >
+                          <UserPlus className="w-4 h-4 mr-2 text-blue-500" />
+                          Student Signup
+                        </a>
+                      </div>
+
+                      <div className="h-px bg-gray-100 my-2"></div>
+
+                      {/* Admin/Organization Option */}
+                      <div className="px-3 py-1">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1 mb-2">Admin & Organization</p>
+                        <a
+                          href="/signin"
+                          onClick={() => setIsEnterDropdownOpen(false)}
+                          className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-slate-50 hover:text-slate-700 flex items-center transition-colors duration-150 rounded"
+                        >
+                          <LogIn className="w-4 h-4 mr-2 text-slate-600" />
+                          Admin/Org Login
+                        </a>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -197,24 +227,42 @@ export function NavbarDemo() {
                 </>
               ) : (
                 <>
-                  <NavbarButton
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    variant="secondary"
-                    className="w-full"
-                    href="/signin"
-                  >
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Login
-                  </NavbarButton>
-                  <NavbarButton
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    variant="secondary"
-                    className="w-full"
-                    href="/signup"
-                  >
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Signup
-                  </NavbarButton>
+                  {/* Student Login/Signup Section */}
+                  <div className="border-b pb-3 mb-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 mb-2">Student</p>
+                    <NavbarButton
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      variant="secondary"
+                      className="w-full justify-start"
+                      href="/user-signin"
+                    >
+                      <LogIn className="w-4 h-4 mr-2" />
+                      Student Login
+                    </NavbarButton>
+                    <NavbarButton
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      variant="secondary"
+                      className="w-full justify-start mt-2"
+                      href="/signup"
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Student Signup
+                    </NavbarButton>
+                  </div>
+
+                  {/* Admin/Organization Login Section */}
+                  <div className="border-b pb-3 mb-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 mb-2">Admin & Organization</p>
+                    <NavbarButton
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      variant="secondary"
+                      className="w-full justify-start"
+                      href="/signin"
+                    >
+                      <LogIn className="w-4 h-4 mr-2" />
+                      Admin/Org Login
+                    </NavbarButton>
+                  </div>
                 </>
               )}
               <NavbarButton onClick={() => setIsMobileMenuOpen(false)} variant="primary" className="w-full">
