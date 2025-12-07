@@ -30,14 +30,28 @@ export default function SignUpPage() {
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError('❌ Passwords do not match. Please enter matching passwords.');
       setLoading(false);
       return;
     }
 
     // Validate mobile number (10 digits)
     if (!/^\d{10}$/.test(formData.mobile)) {
-      setError('Mobile number must be 10 digits');
+      setError('❌ Mobile number must be exactly 10 digits (numbers only).');
+      setLoading(false);
+      return;
+    }
+
+    // Validate password length
+    if (formData.password.length < 6) {
+      setError('❌ Password must be at least 6 characters long.');
+      setLoading(false);
+      return;
+    }
+
+    // Validate all fields are filled
+    if (!formData.apaarId || !formData.name || !formData.dob) {
+      setError('❌ Please fill in all required fields.');
       setLoading(false);
       return;
     }
@@ -56,13 +70,25 @@ export default function SignUpPage() {
       });
 
       if (res.ok) {
-        router.push('/signin');
+        // Success - redirect to login page
+        router.push('/user-signin');
       } else {
         const data = await res.json();
-        setError(data.error || 'Something went wrong');
+        // Format backend error messages
+        let errorMsg = data.error || 'Failed to create account. Please try again.';
+        if (errorMsg.includes('already registered')) {
+          errorMsg = '❌ This APAAR ID is already registered. Please use a different APAAR ID or sign in.';
+        } else if (errorMsg.includes('at least 6')) {
+          errorMsg = '❌ Password must be at least 6 characters long.';
+        } else if (errorMsg.includes('10 digits')) {
+          errorMsg = '❌ Mobile number must be exactly 10 digits.';
+        } else if (errorMsg.includes('required')) {
+          errorMsg = '❌ ' + errorMsg;
+        }
+        setError(errorMsg);
       }
-    } catch {
-      setError('Failed to register');
+    } catch (err) {
+      setError('❌ Network error. Please check your connection and try again.');
     }
 
     setLoading(false);
@@ -85,8 +111,13 @@ export default function SignUpPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200">
-              <p className="text-sm text-red-600">{error}</p>
+            <div className="p-4 rounded-xl bg-red-50 border border-red-200">
+              <p className="text-sm text-red-600 flex items-center gap-2">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{error}</span>
+              </p>
             </div>
           )}
 

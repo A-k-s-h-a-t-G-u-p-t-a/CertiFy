@@ -50,7 +50,12 @@ export default function UserSignInPage() {
       if (result?.ok) {
         router.push('/userportal');
       } else {
-        setError(result?.error || 'Invalid credentials');
+        // Show specific error messages
+        if (result?.error === "CredentialsSignin") {
+          setError(`Invalid ${loginMethod === 'mobile' ? 'mobile number' : 'APAAR ID'} or password. Please try again.`);
+        } else {
+          setError(result?.error || 'Invalid credentials');
+        }
       }
     } catch (err) {
       setError('Sign in failed. Please try again.');
