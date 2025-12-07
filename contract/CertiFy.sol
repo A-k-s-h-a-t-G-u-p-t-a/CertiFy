@@ -1,43 +1,176 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-/*
-  Permission model changed:
-  - Anyone can call addOrganization(...) on CertificateFactory to register an org.
-  - Factory will deploy a CertificateContract for the org and store mapping.
-  - notifyCertificateIssued still requires the call to come from the stored certContract for that org.
-  - NOTE: allowing anyone to add organizations is intentionally permissive and may be insecure
-    for production. Consider adding off-chain verification, owner gating, or a moderation flow.
-*/
+/* ----------------------- CertificateFactory ----------------------- */
+contract CertificateFactory {
+    address public owner;
+    uint256 public organizationCount;
+
+    struct Organization {
+        address orgWallet;
+        address certContract;
+        string name;
+        string meta;
+        bool isActive;
+        bool isFlagged;
+        uint256 issuedCertCount;
+    }
+
+    mapping(address => Organization) private organizations; // key = org wallet
+    address[] private orgList;
+
+    event OrganizationAdded(address indexed orgWallet, address certContract, string name);
+    event OrganizationRegistered(address indexed orgWallet, address certContract, string name); // for existing contracts
+    event OrganizationUpdated(address indexed orgWallet, string name, bool isActive, bool isFlagged);
+    event OrganizationFlagged(address indexed orgWallet, bool flagged);
+    event NotifiedCertificateIssued(address indexed orgWallet);
+    event NotifiedCertificatesIssuedBatch(address indexed orgWallet, uint256 count);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "only owner");
+        _;
+    }
+
+    constructor() {
+        owner = msg.sender;
+        organizationCount = 0;
+    }
+
+    /// Anyone can add an organization; factory deploys per-org contract (existing behavior).
+    function addOrganization(address orgWallet, string calldata name, string calldata meta) external {
+        require(orgWallet != address(0), "org zero");
+        require(organizations[orgWallet].orgWallet == address(0), "org exists");
+
+        CertificateContract cert = new CertificateContract(orgWallet, name, address(this));
+        address certAddr = address(cert);
+
+        organizations[orgWallet] = Organization({
+            orgWallet: orgWallet,
+            certContract: certAddr,
+            name: name,
+            meta: meta,
+            isActive: true,
+            isFlagged: false,
+            issuedCertCount: 0
+        });
+
+        orgList.push(orgWallet);
+        organizationCount += 1;
+
+        emit OrganizationAdded(orgWallet, certAddr, name);
+    }
+
+    /// Register an existing per-org CertificateContract that was deployed off-chain (e.g., via ThirdWeb).
+    /// Can be called by the factory owner or by the certContract itself (so the contract can self-register).
+    /// Note: certContract should implement the constructor signature (orgOwner, name, factory)
+    function registerExistingOrganization(address orgWallet, address certContract, string calldata name, string calldata meta) external {
+        require(orgWallet != address(0), "org zero");
+        require(certContract != address(0), "cert zero");
+        require(organizations[orgWallet].orgWallet == address(0), "org exists");
+
+        // allow either the owner to register or allow the certContract to call (self-registration)
+        require(msg.sender == owner || msg.sender == certContract, "not authorized to register");
+
+        organizations[orgWallet] = Organization({
+            orgWallet: orgWallet,
+            certContract: certContract,
+            name: name,
+            meta: meta,
+            isActive: true,
+            isFlagged: false,
+            issuedCertCount: 0
+        });
+
+        orgList.push(orgWallet);
+        organizationCount += 1;
+
+        emit OrganizationRegistered(orgWallet, certContract, name);
+    }
+
+    /// Owner can update organization metadata & status
+    function updateOrganization(address orgWallet, string calldata name, string calldata meta, bool isActive) external onlyOwner {
+        require(organizations[orgWallet].orgWallet != address(0), "not exists");
+        organizations[orgWallet].name = name;
+        organizations[orgWallet].meta = meta;
+        organizations[orgWallet].isActive = isActive;
+        emit OrganizationUpdated(orgWallet, name, isActive, organizations[orgWallet].isFlagged);
+    }
+
+    /// Flag/unflag organization (restricted to owner)
+    function flagOrganization(address orgWallet, bool flagged) external onlyOwner {
+        require(organizations[orgWallet].orgWallet != address(0), "not exists");
+        organizations[orgWallet].isFlagged = flagged;
+        emit OrganizationFlagged(orgWallet, flagged);
+    }
+
+    /// Single certificate notify (existing)
+    function notifyCertificateIssued(address orgWallet) external {
+        Organization storage o = organizations[orgWallet];
+        require(o.orgWallet != address(0), "org not registered");
+        require(msg.sender == o.certContract, "not authorized");
+        o.issuedCertCount += 1;
+        emit NotifiedCertificateIssued(orgWallet);
+    }
+
+    /// Batch notify: increments issuedCertCount by `count` in one call. Called by the org's cert contract.
+    function notifyCertificatesIssuedBatch(address orgWallet, uint256 count) external {
+        Organization storage o = organizations[orgWallet];
+        require(o.orgWallet != address(0), "org not registered");
+        require(msg.sender == o.certContract, "not authorized");
+        require(count > 0, "count 0");
+        o.issuedCertCount += count;
+        emit NotifiedCertificatesIssuedBatch(orgWallet, count);
+    }
+
+    /// Query functions
+    function getOrganizationCount() external view returns (uint256) {
+        return orgList.length;
+    }
+
+    function getAllOrganizations() external view returns (address[] memory) {
+        return orgList;
+    }
+
+    function getOrganization(address orgWallet) external view returns (
+        address _orgWallet,
+        address _certContract,
+        string memory _name,
+        string memory _meta,
+        bool _isActive,
+        bool _isFlagged,
+        uint256 _issuedCertCount
+    ) {
+        Organization memory o = organizations[orgWallet];
+        require(o.orgWallet != address(0), "not exists");
+        return (o.orgWallet, o.certContract, o.name, o.meta, o.isActive, o.isFlagged, o.issuedCertCount);
+    }
+}
 
 /* ----------------------- CertificateContract (per-organization) ----------------------- */
 contract CertificateContract {
-    address public orgOwner;          // organization wallet (can issue certs)
-    address public factory;           // factory that deployed this contract
+    address public orgOwner;
+    address public factory;
     string public organizationName;
 
     enum CertStatus { Unknown, Valid, Flagged, Revoked }
 
     struct Certificate {
         string certID;
-        bytes32 filePhash;       // perceptual hash of file (pHash) represented as bytes32
-        bytes32 dataHash;        // SHA-256 of canonicalized structured data (bytes32)
-        bytes   encryptedData;   // AES-256 ciphertext (opaque)
+        bytes32 filePhash;
+        bytes32 dataHash;
+        bytes   encryptedData;
         uint256 issuedAt;
         CertStatus status;
-        bytes32 adminDecryptedHash; // SHA-256(plaintext) recorded by admin (0 if not present)
+        bytes32 adminDecryptedHash;
     }
 
-    // certID => Certificate
     mapping(string => Certificate) private certs;
-    string[] private certIds; // enumeration
+    string[] private certIds;
 
-    // stats
     uint256 public totalIssued;
     uint256 public totalFlagged;
     uint256 public totalRevoked;
 
-    // events
     event CertificateIssued(string indexed certID, bytes32 filePhash, bytes32 dataHash, uint256 issuedAt);
     event CertificateFlagged(string indexed certID, string reason);
     event CertificateRevoked(string indexed certID, string reason);
@@ -61,10 +194,7 @@ contract CertificateContract {
         factory = _factory;
     }
 
-    /// Issue a certificate (called by org off-chain system)
-    /// filePhash: perceptual hash (pHash) represented as bytes32
-    /// dataHash: SHA-256 of canonical data (bytes32)
-    /// encryptedData: AES-256 ciphertext (bytes)
+    /// Single certificate issue (keeps original behavior)
     function issueCertificate(
         string calldata certID,
         bytes32 filePhash,
@@ -87,10 +217,47 @@ contract CertificateContract {
         certIds.push(certID);
         totalIssued += 1;
 
-        // notify factory so it can update org-level analytics
+        // notify factory of single issuance
         CertificateFactory(factory).notifyCertificateIssued(orgOwner);
 
         emit CertificateIssued(certID, filePhash, dataHash, block.timestamp);
+    }
+
+    /// Batch issue multiple certificates in a single transaction
+    /// WARNING: watch gas limits; split into chunks if many certificates.
+    function issueCertificatesBatch(
+        string[] calldata certIDList,
+        bytes32[] calldata filePhashList,
+        bytes32[] calldata dataHashList,
+        bytes[] calldata encryptedDataList
+    ) external onlyOrg {
+        uint256 n = certIDList.length;
+        require(n > 0, "empty list");
+        require(filePhashList.length == n && dataHashList.length == n && encryptedDataList.length == n, "array len mismatch");
+
+        for (uint256 i = 0; i < n; i++) {
+            string calldata certID = certIDList[i];
+            require(bytes(certID).length > 0, "empty certID");
+            require(certs[certID].issuedAt == 0, "already exists");
+
+            certs[certID] = Certificate({
+                certID: certID,
+                filePhash: filePhashList[i],
+                dataHash: dataHashList[i],
+                encryptedData: encryptedDataList[i],
+                issuedAt: block.timestamp,
+                status: CertStatus.Valid,
+                adminDecryptedHash: bytes32(0)
+            });
+
+            certIds.push(certID);
+            totalIssued += 1;
+
+            emit CertificateIssued(certID, filePhashList[i], dataHashList[i], block.timestamp);
+        }
+
+        // notify factory in a single call with the batch count (cheaper than n single calls)
+        CertificateFactory(factory).notifyCertificatesIssuedBatch(orgOwner, n);
     }
 
     /// Org can revoke its own certificate
@@ -122,13 +289,11 @@ contract CertificateContract {
         if (c.status != CertStatus.Revoked) {
             c.status = CertStatus.Revoked;
             totalRevoked += 1;
-            // if it was flagged previously we don't auto-decrement flagged count here
         }
         emit CertificateRevoked(certID, reason);
     }
 
-    /// Admin decrypts encryptedData off-chain (AES-256) and records SHA-256(plaintext) on-chain for audit.
-    /// decryptedHash must be SHA-256(plaintext) computed off-chain.
+    /// Admin records decrypted hash
     function adminRecordDecryptedHash(string calldata certID, bytes32 decryptedHash) external onlyFactory {
         Certificate storage c = certs[certID];
         require(c.issuedAt != 0, "not found");
@@ -137,7 +302,7 @@ contract CertificateContract {
         emit AdminRecordedDecryptedHash(certID, decryptedHash, matches);
     }
 
-    /// View a certificate (encryptedData is returned so Admin UI can fetch & decrypt off-chain).
+    /// View a certificate
     function getCertificate(string calldata certID) external view returns (
         string memory outCertID,
         bytes32 filePhash,
@@ -162,15 +327,10 @@ contract CertificateContract {
         return certIds[index];
     }
 
-    /// Stats summary
     function getStats() external view returns (uint256 _totalIssued, uint256 _totalFlagged, uint256 _totalRevoked) {
         return (totalIssued, totalFlagged, totalRevoked);
     }
 
-    /// verifyCertificateView: view-only verification. Returns:
-    /// code: 0 not found, 1 exact file+data match, 2 file match but data mismatch,
-    /// 3 data match only (file differs / scanned), 4 no match, 5 flagged, 6 revoked
-    /// adminMatch: whether adminRecordedDecryptedHash == dataHash (audit)
     function verifyCertificateView(string calldata certID, bytes32 recomputedFilePhash, bytes32 recomputedDataHash)
         external view returns (uint8 code, string memory message, bool adminMatch, bytes32 storedFilePhash, bytes32 storedDataHash)
     {
@@ -185,135 +345,20 @@ contract CertificateContract {
             return (5, "Certificate flagged - admin review required", (c.adminDecryptedHash == c.dataHash), c.filePhash, c.dataHash);
         }
 
-        // exact match both
         if (c.filePhash != bytes32(0) && recomputedFilePhash == c.filePhash && recomputedDataHash == c.dataHash) {
             return (1, "Exact file (pHash) & data (SHA-256) match", (c.adminDecryptedHash == c.dataHash), c.filePhash, c.dataHash);
         }
-        // file matches but data differs
         if (c.filePhash != bytes32(0) && recomputedFilePhash == c.filePhash && recomputedDataHash != c.dataHash) {
             return (2, "File pHash matches but data hash differs - possible metadata tamper", (c.adminDecryptedHash == c.dataHash), c.filePhash, c.dataHash);
         }
-        // data matches only (scan/re-export)
         if (recomputedDataHash == c.dataHash) {
             return (3, "Data hash matches (file differs) - likely scanned/re-exported copy", (c.adminDecryptedHash == c.dataHash), c.filePhash, c.dataHash);
         }
-        // no match
         return (4, "No match - certificate likely invalid or forged", (c.adminDecryptedHash == c.dataHash), c.filePhash, c.dataHash);
     }
 }
 
-/* ----------------------- CertificateFactory (permissionless addOrganization) ----------------------- */
-contract CertificateFactory {
-    // owner is kept for potential admin ops (update/flag) but addOrganization is permissionless.
-    address public owner;
-    uint256 public organizationCount;
-
-    struct Organization {
-        address orgWallet;
-        address certContract;
-        string name;
-        string meta;
-        bool isActive;
-        bool isFlagged;
-        uint256 issuedCertCount; // incremented by cert contract notify
-    }
-
-    mapping(address => Organization) private organizations; // key = org wallet
-    address[] private orgList;
-
-    event OrganizationAdded(address indexed orgWallet, address certContract, string name);
-    event OrganizationUpdated(address indexed orgWallet, string name, bool isActive, bool isFlagged);
-    event OrganizationFlagged(address indexed orgWallet, bool flagged);
-    event NotifiedCertificateIssued(address indexed orgWallet);
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "only owner");
-        _;
-    }
-
-    constructor() {
-        owner = msg.sender;
-        organizationCount = 0;
-    }
-
-    /// Anyone can add an organization. Factory will deploy a CertificateContract for it.
-    /// NOTE: This is intentionally permissionless.
-    function addOrganization(address orgWallet, string calldata name, string calldata meta) external {
-        require(orgWallet != address(0), "org zero");
-        require(organizations[orgWallet].orgWallet == address(0), "org exists");
-
-        // deploy per-org contract
-        CertificateContract cert = new CertificateContract(orgWallet, name, address(this));
-        address certAddr = address(cert);
-
-        organizations[orgWallet] = Organization({
-            orgWallet: orgWallet,
-            certContract: certAddr,
-            name: name,
-            meta: meta,
-            isActive: true,
-            isFlagged: false,
-            issuedCertCount: 0
-        });
-
-        orgList.push(orgWallet);
-        organizationCount += 1;
-
-        emit OrganizationAdded(orgWallet, certAddr, name);
-    }
-
-    /// Update organization metadata & status (restricted to owner)
-    function updateOrganization(address orgWallet, string calldata name, string calldata meta, bool isActive) external onlyOwner {
-        require(organizations[orgWallet].orgWallet != address(0), "not exists");
-        organizations[orgWallet].name = name;
-        organizations[orgWallet].meta = meta;
-        organizations[orgWallet].isActive = isActive;
-        emit OrganizationUpdated(orgWallet, name, isActive, organizations[orgWallet].isFlagged);
-    }
-
-    /// Flag/unflag organization (restricted to owner)
-    function flagOrganization(address orgWallet, bool flagged) external onlyOwner {
-        require(organizations[orgWallet].orgWallet != address(0), "not exists");
-        organizations[orgWallet].isFlagged = flagged;
-        emit OrganizationFlagged(orgWallet, flagged);
-    }
-
-    /// Called by CertificateContract to notify Factory of issued certificate
-    /// cert contract will call: notifyCertificateIssued(orgOwner)
-    function notifyCertificateIssued(address orgWallet) external {
-        Organization storage o = organizations[orgWallet];
-        require(o.orgWallet != address(0), "org not registered");
-        // require caller is the registered certContract for this org
-        require(msg.sender == o.certContract, "not authorized");
-        o.issuedCertCount += 1;
-        emit NotifiedCertificateIssued(orgWallet);
-    }
-
-    /// Query functions
-    function getOrganizationCount() external view returns (uint256) {
-        return orgList.length;
-    }
-
-    function getAllOrganizations() external view returns (address[] memory) {
-        return orgList;
-    }
-
-    function getOrganization(address orgWallet) external view returns (
-        address _orgWallet,
-        address _certContract,
-        string memory _name,
-        string memory _meta,
-        bool _isActive,
-        bool _isFlagged,
-        uint256 _issuedCertCount
-    ) {
-        Organization memory o = organizations[orgWallet];
-        require(o.orgWallet != address(0), "not exists");
-        return (o.orgWallet, o.certContract, o.name, o.meta, o.isActive, o.isFlagged, o.issuedCertCount);
-    }
-}
-
-/* ------------------------ VerifierContract (view helper) ------------------------ */
+/* ------------------------ VerifierContract (unchanged) ------------------------ */
 contract VerifierContract {
     struct VerificationResult {
         uint8 code;
@@ -326,14 +371,12 @@ contract VerifierContract {
         bool adminDecryptedMatches;
     }
 
-    /// Verify by calling certContract.verifyCertificateView (staticcall -> gasless as eth_call)
     function verify(
         address certContract,
         string calldata certID,
         bytes32 recomputedFilePhash,
         bytes32 recomputedDataHash
     ) external view returns (VerificationResult memory result) {
-        // staticcall the verifyCertificateView function
         (bool ok, bytes memory resp) = certContract.staticcall(
             abi.encodeWithSignature(
                 "verifyCertificateView(string,bytes32,bytes32)",
@@ -352,7 +395,6 @@ contract VerifierContract {
             return result;
         }
 
-        // decode (uint8 code, string message, bool adminMatch, bytes32 storedFilePhash, bytes32 storedDataHash)
         (uint8 code, string memory message, bool adminMatch, bytes32 storedFilePhash, bytes32 storedDataHash) =
             abi.decode(resp, (uint8, string, bool, bytes32, bytes32));
 

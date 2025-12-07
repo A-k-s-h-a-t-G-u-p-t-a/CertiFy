@@ -13,58 +13,67 @@ import { Textarea } from "@/components/ui/textarea";
 import { Building2, Users, Loader2, Plus, FileText, CheckCircle, XCircle, AlertCircle, Shield, Award, Hash, Flag, X, Search, BarChart3 } from "lucide-react";
 
 export default function Org() {
-  // Wallet to contract mapping
-  const WALLET_CONTRACT_MAPPING = {
-    "0x7e14929d682236d3Cb02B6E2aCC779ca9b255E78": "0x1627fb0cc3e87E22648C05Db23c4638B0B881e3E",
-    "0x5b2E5aB341743706cFae342A05df91E018838F59": "0xE13FB895ce3Bc12b61Ff725a32b44585DD0ACc2e", 
-    "0x8e6a18B80bDbdF6422dA06BA04daCe8D832Fea98": "0xD2722d58332c42f27d1242D5Bb8D19e9DBFDB4eD"
-  };
-
   const account = useActiveAccount();
   const [orgContract, setOrgContract] = useState(null);
   const [isValidOrg, setIsValidOrg] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [orgInfo, setOrgInfo] = useState(null);
 
-  // Form states
-  const [certificateData, setCertificateData] = useState({
-    recipientName: "",
-    courseName: "",
-    issueDate: "",
-    certificateHash: ""
-  });
-  const [isIssuing, setIsIssuing] = useState(false);
-
-  // Check if connected wallet is a valid organization
+  // Check if connected wallet is a valid organization by fetching from database
   useEffect(() => {
-    setIsLoading(true);
-    
-    if (account?.address) {
-      const contractAddress = WALLET_CONTRACT_MAPPING[account.address];
-      if (contractAddress) {
+    const fetchOrganization = async () => {
+      setIsLoading(true);
+      
+      if (account?.address) {
         try {
-          // Create custom contract for this organization
-          const customContract = getContract({
-            client,
-            chain: defineChain(11155111),
-            address: contractAddress,
-          });
-          setOrgContract(customContract);
-          setIsValidOrg(true);
+          // Fetch organization from database by wallet address
+          const response = await fetch(`/api/organizations?wallet=${account.address}`);
+          const data = await response.json();
+          
+          if (data.success && data.organization) {
+            const org = data.organization;
+            console.log("Organization found:", org);
+            
+            // Check if organization is active and has a contract address
+            if (org.contractAddress && org.isActive && !org.isFlagged) {
+              // Create custom contract for this organization
+              const customContract = getContract({
+                client,
+                chain: defineChain(11155111),
+                address: org.contractAddress,
+              });
+              
+              setOrgContract(customContract);
+              setOrgInfo(org);
+              setIsValidOrg(true);
+            } else {
+              console.warn("Organization exists but is not active or missing contract:", org);
+              setIsValidOrg(false);
+              setOrgContract(null);
+              setOrgInfo(org);
+            }
+          } else {
+            console.warn("Organization not found for wallet:", account.address);
+            setIsValidOrg(false);
+            setOrgContract(null);
+            setOrgInfo(null);
+          }
         } catch (error) {
-          console.error("Error creating contract:", error);
+          console.error("Error fetching organization:", error);
           setIsValidOrg(false);
           setOrgContract(null);
+          setOrgInfo(null);
         }
       } else {
         setIsValidOrg(false);
         setOrgContract(null);
+        setOrgInfo(null);
       }
-    } else {
-      setIsValidOrg(false);
-      setOrgContract(null);
-    }
-    
-    setIsLoading(false);
+      
+      setIsLoading(false);
+    };
+
+    fetchOrganization();
   }, [account?.address]);
 
   if (isLoading || !account) {
@@ -84,20 +93,34 @@ export default function Org() {
         <div className="text-center space-y-6 mt-20">
           <XCircle className="h-24 w-24 text-red-400 mx-auto" />
           <div className="space-y-4">
-            <h1 className="text-3xl font-bold text-red-600">Invalid Organization</h1>
+            <h1 className="text-3xl font-bold text-red-600">
+              {orgInfo && orgInfo.isFlagged 
+                ? "Organization Flagged" 
+                : orgInfo && !orgInfo.isActive 
+                ? "Organization Inactive" 
+                : "Invalid Organization"}
+            </h1>
             <p className="text-gray-600 max-w-md mx-auto">
-              Your wallet address is not registered as a valid organization. Please contact the administrator.
+              {orgInfo && orgInfo.isFlagged 
+                ? "Your organization has been flagged by the administrator. Please contact support." 
+                : orgInfo && !orgInfo.isActive 
+                ? "Your organization is currently inactive. Please contact the administrator." 
+                : "Your wallet address is not registered as a valid organization. Please contact the administrator."}
             </p>
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md mx-auto">
               <p className="text-sm text-red-700">
                 <strong>Connected Address:</strong> {account.address}
               </p>
-            </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-w-lg mx-auto">
-              <p className="text-sm text-gray-700 mb-2"><strong>Valid Organization Addresses:</strong></p>
-              {Object.keys(WALLET_CONTRACT_MAPPING).map((address, index) => (
-                <p key={index} className="text-xs font-mono text-gray-600">{address}</p>
-              ))}
+              {orgInfo && (
+                <>
+                  <p className="text-sm text-red-700 mt-2">
+                    <strong>Organization Name:</strong> {orgInfo.name}
+                  </p>
+                  <p className="text-sm text-red-700 mt-2">
+                    <strong>Status:</strong> {orgInfo.isFlagged ? "Flagged" : orgInfo.isActive ? "Active" : "Inactive"}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -106,11 +129,11 @@ export default function Org() {
   }
 
   // Only render the dashboard when we have a valid contract
-  return <OrgDashboard orgContract={orgContract} account={account} WALLET_CONTRACT_MAPPING={WALLET_CONTRACT_MAPPING} />;
+  return <OrgDashboard orgContract={orgContract} account={account} orgInfo={orgInfo} />;
 }
 
 // Separate component that only renders when contract is ready
-function OrgDashboard({ orgContract, account, WALLET_CONTRACT_MAPPING }) {
+function OrgDashboard({ orgContract, account, orgInfo }) {
   const [certificateData, setCertificateData] = useState({
     certID: "",
     filePhash: "",
@@ -182,14 +205,6 @@ function OrgDashboard({ orgContract, account, WALLET_CONTRACT_MAPPING }) {
     method: "function verifyCertificateView(string certID, bytes32 recomputedFilePhash, bytes32 recomputedDataHash) view returns (uint8 code, string message, bool adminMatch, bytes32 storedFilePhash, bytes32 storedDataHash)",
     params: [verificationData.certID, verificationData.recomputedFilePhash, verificationData.recomputedDataHash],
     enabled: !!orgContract && shouldVerify && verificationData.certID && verificationData.recomputedFilePhash && verificationData.recomputedDataHash,
-  });
-
-  // Get issued certificates - using simpler enabled pattern  
-  const { data: certificates, isPending: certsPending, refetch: refetchCerts } = useReadContract({
-    contract: orgContract,
-    method: "function getAllCertificates() view returns (tuple(string recipientName, string courseName, string issueDate, string certificateHash, bool isValid)[])",
-    params: [],
-    enabled: !!orgContract,
   });
 
   const { mutate: sendTransaction } = useSendTransaction();
@@ -285,11 +300,6 @@ function OrgDashboard({ orgContract, account, WALLET_CONTRACT_MAPPING }) {
         dataHash: "",
         encryptedData: ""
       });
-      
-      // Refetch certificates
-      setTimeout(() => {
-        refetchCerts();
-      }, 2000);
       
     } catch (error) {
       console.error("Error issuing certificate:", error);
@@ -463,7 +473,7 @@ function OrgDashboard({ orgContract, account, WALLET_CONTRACT_MAPPING }) {
           </Button>
           <Badge variant="outline" className="px-4 py-2 text-sm">
             <Award className="h-4 w-4 mr-2" />
-            Contract: {WALLET_CONTRACT_MAPPING[account.address]}
+            Contract: {orgInfo?.contractAddress || "N/A"}
           </Badge>
         </div>
       </div>
@@ -957,47 +967,19 @@ function OrgDashboard({ orgContract, account, WALLET_CONTRACT_MAPPING }) {
           Issued Certificates
         </h2>
         
-        {certsPending ? (
+        {countPending ? (
           <div className="flex items-center justify-center p-8">
             <Loader2 className="h-6 w-6 animate-spin mr-3" />
             <span>Loading certificates...</span>
           </div>
-        ) : certificates && certificates.length > 0 ? (
+        ) : certificateCount && Number(certificateCount) > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {certificates.map((cert, index) => (
-              <Card key={index} className="hover:shadow-lg transition-all duration-200 border-2 hover:border-green-200">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Award className="h-5 w-5 text-green-600" />
-                      Certificate #{index + 1}
-                    </CardTitle>
-                    <Badge variant={cert[4] ? "default" : "destructive"} className="text-xs">
-                      {cert[4] ? "Valid" : "Invalid"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Recipient:</Label>
-                    <p className="text-sm font-semibold text-gray-900">{cert[0]}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Course:</Label>
-                    <p className="text-sm text-gray-800">{cert[1]}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Issue Date:</Label>
-                    <p className="text-sm text-gray-600">{cert[2]}</p>
-                  </div>
-                  {cert[3] && (
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Hash:</Label>
-                      <p className="text-xs font-mono text-gray-500 break-all">{cert[3]}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+            {Array.from({ length: Number(certificateCount) }, (_, index) => (
+              <CertificateCard 
+                key={index} 
+                index={index} 
+                orgContract={orgContract} 
+              />
             ))}
           </div>
         ) : (
@@ -1011,5 +993,51 @@ function OrgDashboard({ orgContract, account, WALLET_CONTRACT_MAPPING }) {
         )}
       </div>
     </div>
+  );
+}
+
+// Certificate Card Component with ID fetching
+function CertificateCard({ index, orgContract }) {
+  const { data: certificateId, isPending: certIdPending } = useReadContract({
+    contract: orgContract,
+    method: "function getCertificateIdByIndex(uint256 index) view returns (string)",
+    params: [BigInt(index)],
+    enabled: !!orgContract,
+  });
+
+  return (
+    <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-green-200">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Award className="h-5 w-5 text-green-600" />
+            Certificate #{index + 1}
+          </CardTitle>
+          <Badge variant="default" className="text-xs">
+            Active
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div>
+          <Label className="text-sm font-medium text-gray-700">Certificate ID:</Label>
+          {certIdPending ? (
+            <div className="flex items-center mt-1">
+              <Loader2 className="h-3 w-3 animate-spin mr-2" />
+              <span className="text-xs text-gray-500">Loading...</span>
+            </div>
+          ) : (
+            <p className="text-sm font-semibold text-gray-900 break-all mt-1">
+              {certificateId || "N/A"}
+            </p>
+          )}
+        </div>
+        <div className="pt-2 border-t border-gray-200">
+          <p className="text-xs text-gray-500">
+            Index: {index}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -27,8 +27,15 @@ model Organisation {
   username       String        @unique
   hashedPassword String
   name           String        @unique
+  walletAddress  String?       @unique // Organization wallet address from blockchain
+  contractAddress String?      @unique // Certificate contract address from blockchain
+  metadata       String?       // Additional metadata from blockchain
+  isActive       Boolean       @default(true)
+  isFlagged      Boolean       @default(false)
+  issuedCertCount Int          @default(0)
   certificates   Certificate[]
   createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 }
 
 model Certificate {

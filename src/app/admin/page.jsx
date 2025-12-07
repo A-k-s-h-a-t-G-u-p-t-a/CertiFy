@@ -246,7 +246,33 @@ const adminUsername = session?.user?.username || "Unknown"; // ✅ Logged-in use
         });
       });
       
-      alert("Organization added successfully!");
+      console.log("Blockchain transaction completed, now syncing to database...");
+      
+      // Wait a bit for blockchain state to update
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Sync organizations from blockchain to database
+      try {
+        const syncResponse = await fetch("/api/organizations/sync", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        
+        const syncResult = await syncResponse.json();
+        console.log("Database sync result:", syncResult);
+        
+        if (syncResult.success) {
+          alert(`Organization added successfully! Synced ${syncResult.synced} new and updated ${syncResult.updated} existing organizations.`);
+        } else {
+          alert("Organization added to blockchain, but database sync failed. Please contact admin.");
+          console.error("Sync error:", syncResult.error);
+        }
+      } catch (syncError) {
+        console.error("Error syncing to database:", syncError);
+        alert("Organization added to blockchain, but database sync failed. Please contact admin.");
+      }
       
       // Reset form
       setFormData({ orgWallet: "", name: "", meta: "" });
