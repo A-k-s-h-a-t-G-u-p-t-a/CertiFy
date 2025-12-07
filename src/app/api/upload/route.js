@@ -77,12 +77,10 @@ export async function POST(request) {
 
       const finalFields = {
         name: String(fields.name || ""),                  // required
-        degree: fields.degree ? String(fields.degree) : null,
-        certificateId: fields.certificateId ? String(fields.certificateId) : null,
-        rollNo: fields.roll_no ? String(fields.roll_no) : null,
+        certificateId: fields.certificateId ? String(fields.certificateId) : "",  // required in new schema
+        courseName: fields.courseName ? String(fields.courseName) : null,
+        courseId: fields.courseId ? String(fields.courseId) : null,
         year: fields.year ? String(fields.year) : null,
-        honors: fields.honors ? String(fields.honors) : null,
-        grade: fields.grade ? String(fields.grade) : null,
         organisation: {
           connect: { id: org.id }  // keep as is
         }

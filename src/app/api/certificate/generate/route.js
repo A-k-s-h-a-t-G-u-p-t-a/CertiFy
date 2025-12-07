@@ -6,7 +6,7 @@ import fs from "fs";
 
 // Helper function to generate a single certificate
 async function generateSingleCertificate(certData) {
-  const { name, degree, year, honors, rollNo, grade } = certData;
+  const { name, courseName, year, certificateId } = certData;
 
   if (!name) {
     throw new Error("Name is required");
@@ -30,11 +30,9 @@ async function generateSingleCertificate(certData) {
 
   // Build the certificate sentence
   let sentence = `This is to certify that ${name}`;
-  if (rollNo) sentence += `, bearing roll number ${rollNo}`;
-  if (degree) sentence += `, has successfully completed the ${degree} degree`;
-  if (honors) sentence += ` with ${honors}`;
+  if (certificateId) sentence += `, bearing certificate ID ${certificateId}`;
+  if (courseName) sentence += `, has successfully completed the ${courseName} course`;
   if (year) sentence += ` in the year ${year}`;
-  if (grade) sentence += `, achieving a grade of ${grade}`;
   sentence += ".";
 
   // --- TEXT WRAPPING FUNCTION ---
@@ -103,11 +101,8 @@ export async function POST(req) {
         try {
           const result = await generateSingleCertificate({
             name: certData.Name || certData.name || "",
-            degree: certData.Degree || certData.degree || null,
+            courseName: certData.CourseName || certData.courseName || certData['Course Name'] || null,
             year: certData.Year || certData.year || null,
-            honors: certData.Honors || certData.honors || certData.Honours || null,
-            rollNo: certData.RollNo || certData.rollNo || certData['Roll Number'] || null,
-            grade: certData.Grade || certData.grade || null,
             certificateId: certData.CertificateId || certData.certificateId || certData['Certificate ID'] || null,
           });
 
@@ -148,13 +143,13 @@ export async function POST(req) {
     }
 
     // Single certificate processing (backward compatibility)
-    const { name, degree, year, honors, rollNo, grade } = body;
+    const { name, courseName, year, certificateId } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    const result = await generateSingleCertificate({ name, degree, year, honors, rollNo, grade });
+    const result = await generateSingleCertificate({ name, courseName, year, certificateId });
 
     return NextResponse.json(
       {

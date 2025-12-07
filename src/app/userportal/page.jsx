@@ -233,35 +233,20 @@ export default function UserPortalPage() {
                           </div>
                         )}
                         
-                        {certificate.degree && (
+                        {certificate.courseName && (
                           <div className="flex items-center text-sm text-gray-600">
-                            <span className="font-semibold mr-2">Degree:</span>
-                            <span>{certificate.degree}</span>
+                            <span className="font-semibold mr-2">Course:</span>
+                            <span>{certificate.courseName}</span>
                           </div>
                         )}
                         
-                        {certificate.rollNo && (
+                        {certificate.courseId && (
                           <div className="flex items-center text-sm text-gray-600">
-                            <span className="font-semibold mr-2">Roll No:</span>
-                            <span>{certificate.rollNo}</span>
+                            <span className="font-semibold mr-2">Course ID:</span>
+                            <span>{certificate.courseId}</span>
                           </div>
                         )}
                       </div>
-                      
-                      {(certificate.grade || certificate.honors) && (
-                        <div className="flex gap-3 mb-4">
-                          {certificate.grade && (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#a7d7b8] text-white">
-                              Grade: {certificate.grade}
-                            </span>
-                          )}
-                          {certificate.honors && (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#66b2a0] text-white">
-                              {certificate.honors}
-                            </span>
-                          )}
-                        </div>
-                      )}
                     </div>
                     
                     <div className="flex flex-col space-y-2 ml-6">
