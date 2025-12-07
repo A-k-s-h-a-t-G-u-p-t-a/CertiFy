@@ -35,21 +35,22 @@ model Certificate {
   id             String       @id @default(auto()) @map("_id") @db.ObjectId
   certificateId  String // your certificate unique ID
   name           String
-  courseId       String? // the NQR Code
+  nqrCode       String? // the NQR Code(courseId to be specific)
   courseName     String?
   organisationId String       @db.ObjectId
   organisation   Organisation @relation(fields: [organisationId], references: [id])
-  apaarId        String?
-  user           User?        @relation(fields: [apaarId], references: [apaarId])
+  apaarId        String? // Simple string field to link to user when they exist
   year           String?
   url            String
   createdAt      DateTime     @default(now())
 }
 
 model User {
-  id             String        @id @default(auto()) @map("_id") @db.ObjectId
-  apaarId        String        @unique
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  apaarId        String   @unique
+  name           String
+  mobile         String
+  dob            DateTime
   hashedPassword String
-  certificates   Certificate[]
-  createdAt      DateTime      @default(now())
+  createdAt      DateTime @default(now())
 }
