@@ -88,11 +88,8 @@ export async function POST(request) {
       certificates:certificatesData
     };
     
-    // Get the base URL for the API call
-    const baseUrl = process.env.NEXTAUTH_URL || `${request.headers.get('x-forwarded-proto') || 'http'}://${request.headers.get('host') || 'localhost:3000'}`;
-    
-    const finalResponse = await fetch(`${baseUrl}/api/certificate/generate`, {
-      method: "POST",
+    const finalResponse=await fetch("http://localhost:3000/api/certificate/generate", {
+      method:"POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(json_certificates_data),
     }).catch(err => {
@@ -144,7 +141,7 @@ export async function POST(request) {
           name: name,
           certificateId: certificateId,
           courseName: String(certData.CourseName || certData.courseName || certData['Course Name'] || null),
-          courseId: String(certData.CourseId || certData.courseId || certData['Course ID'] || null),
+          nqrCode: String(certData.CourseId || certData.courseId || certData['Course ID'] || null),
           year: String(certData.Year || certData.year || null),
           url: String(certData.URL || certData.url || null),
           organisation: {
