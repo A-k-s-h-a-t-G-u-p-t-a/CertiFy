@@ -25,7 +25,12 @@ export default function SignInPage() {
     });
 
     if (res?.error) {
-      setError("Invalid credentials");
+      // Show specific error messages based on what failed
+      if (res.error === "CredentialsSignin") {
+        setError("Invalid username or password. Please try again.");
+      } else {
+        setError(res.error || "Invalid credentials");
+      }
       setLoading(false);
     } else {
       // Route based on role
