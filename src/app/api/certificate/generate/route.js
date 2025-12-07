@@ -6,10 +6,14 @@ import fs from "fs";
 
 // Helper function to generate a single certificate
 async function generateSingleCertificate(certData) {
-  const { name, courseName, year, certificateId } = certData;
+  const { name, courseName, year, certificateId, courseId, apaarId } = certData;
 
   if (!name) {
     throw new Error("Name is required");
+  }
+
+  if (!certificateId) {
+    throw new Error("Certificate ID is required");
   }
 
   const templatePath = path.join(process.cwd(), "public", "cert.png");
@@ -31,8 +35,10 @@ async function generateSingleCertificate(certData) {
   // Build the certificate sentence
   let sentence = `This is to certify that ${name}`;
   if (certificateId) sentence += `, bearing certificate ID ${certificateId}`;
+  if (courseId) sentence += ` (Course Code: ${courseId})`;
   if (courseName) sentence += `, has successfully completed the ${courseName} course`;
   if (year) sentence += ` in the year ${year}`;
+  if (apaarId) sentence += `. APAAR ID: ${apaarId}`;
   sentence += ".";
 
   // --- TEXT WRAPPING FUNCTION ---
@@ -101,9 +107,11 @@ export async function POST(req) {
         try {
           const result = await generateSingleCertificate({
             name: certData.Name || certData.name || "",
+            certificateId: certData.CertificateId || certData.certificateId || certData['Certificate ID'] || "",
             courseName: certData.CourseName || certData.courseName || certData['Course Name'] || null,
+            courseId: certData.CourseId || certData.courseId || certData['Course ID'] || certData['Course Code'] || null,
             year: certData.Year || certData.year || null,
-            certificateId: certData.CertificateId || certData.certificateId || certData['Certificate ID'] || null,
+            apaarId: certData.ApaarId || certData.apaarId || certData['APAAR ID'] || null,
           });
 
           // Append URL to original certificate data
@@ -143,13 +151,17 @@ export async function POST(req) {
     }
 
     // Single certificate processing (backward compatibility)
-    const { name, courseName, year, certificateId } = body;
+    const { name, courseName, year, certificateId, courseId, apaarId } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    const result = await generateSingleCertificate({ name, courseName, year, certificateId });
+    if (!certificateId) {
+      return NextResponse.json({ error: "Certificate ID is required" }, { status: 400 });
+    }
+
+    const result = await generateSingleCertificate({ name, courseName, year, certificateId, courseId, apaarId });
 
     return NextResponse.json(
       {
