@@ -25,7 +25,7 @@ model Admin {
 model Organisation {
   id             String        @id @default(auto()) @map("_id") @db.ObjectId
   username       String        @unique
-  password String
+  hashedPassword String
   name           String        @unique
   walletAddress  String?       @unique // Organization wallet address from blockchain
   contractAddress String?      @unique // Certificate contract address from blockchain
