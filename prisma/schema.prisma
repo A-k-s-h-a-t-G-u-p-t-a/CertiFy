@@ -25,7 +25,7 @@ model Admin {
 model Organisation {
   id             String        @id @default(auto()) @map("_id") @db.ObjectId
   username       String        @unique
-  hashedPassword String
+  password String
   name           String        @unique
   certificates   Certificate[]
   courses        Course[]
