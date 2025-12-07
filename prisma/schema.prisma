@@ -28,6 +28,7 @@ model Organisation {
   hashedPassword String
   name           String        @unique
   certificates   Certificate[]
+  courses        Course[]
   createdAt      DateTime      @default(now())
 }
 
@@ -54,3 +55,15 @@ model User {
   hashedPassword String
   createdAt      DateTime @default(now())
 }
+
+model Course {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  nqrCode        String       @unique
+  name           String
+  duration       Int // duration in hours
+  credits        Int
+  organisationId String       @db.ObjectId
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  createdAt      DateTime     @default(now())
+}
+
