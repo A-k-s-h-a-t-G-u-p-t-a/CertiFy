@@ -67,7 +67,7 @@ export async function POST(request) {
       certificates:certificatesData
     };
     
-    const finalResponse=await fetch("http://localhost:3000/certificate/generate", {
+    const finalResponse=await fetch("http://localhost:3000/api/certificate/generate", {
       method:"POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(json_certificates_data),
@@ -95,7 +95,7 @@ export async function POST(request) {
           name: String(certData.Name || certData.name || ""),
           certificateId: String(certData.CertificateId || certData.certificateId || certData['Certificate ID'] || ""),
           courseName: String(certData.CourseName || certData.courseName || certData['Course Name'] || null),
-          courseId: String(certData.CourseId || certData.courseId || certData['Course ID'] || null),
+          nqrCode: String(certData.CourseId || certData.courseId || certData['Course ID'] || null),
           year: String(certData.Year || certData.year || null),
           url: String(certData.URL || certData.url || null), // If Excel contains URLs
           organisation: {
