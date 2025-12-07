@@ -97,20 +97,41 @@ export default function UserPortalPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-gradient-to-r from-[#4e796b] to-[#66b2a0] shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="bg-[#4e796b] p-2 rounded-full">
-                <User className="w-6 h-6 text-white" />
+            <div className="flex items-center space-x-4">
+              <div className="bg-white/20 backdrop-blur-sm p-3 rounded-2xl border border-white/30">
+                <User className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">User Portal</h1>
-                <p className="text-gray-600">Welcome, {userDetails?.apaarId}</p>
+                <h1 className="text-3xl font-bold text-white">User Portal</h1>
+                <p className="text-white/90 text-sm mt-1">Manage your certificates</p>
               </div>
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-white/80">
               Member since {userDetails ? formatDate(userDetails.createdAt) : ''}
+            </div>
+          </div>
+
+          {/* User Info Box */}
+          <div className="mt-6 bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/50">
+            <div className="flex items-center gap-4">
+              <div className="bg-gradient-to-br from-[#4e796b] to-[#66b2a0] p-4 rounded-xl shadow-lg">
+                <User className="w-8 h-8 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-baseline gap-3">
+                  <h2 className="text-2xl font-bold text-gray-900">{session?.user?.name || userDetails?.name}</h2>
+                  <span className="text-sm text-[#4e796b] font-semibold bg-[#a7d7b8]/30 px-2 py-1 rounded-md">Student</span>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-600">APAAR ID:</span>
+                  <span className="text-base font-mono font-bold text-[#4e796b] bg-[#a7d7b8]/20 px-3 py-1 rounded-lg border border-[#66b2a0]/30">
+                    {session?.user?.username || userDetails?.apaarId}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -149,11 +170,16 @@ export default function UserPortalPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="bg-[#4e796b] p-3 rounded-full">
-                <User className="w-6 h-6 text-white" />
+                <Calendar className="w-6 h-6 text-white" />
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-semibold text-gray-900">Apaar ID</h3>
-                <p className="text-lg font-medium text-[#4e796b]">{userDetails?.apaarId}</p>
+                <h3 className="text-lg font-semibold text-gray-900">Latest Certificate</h3>
+                <p className="text-base font-medium text-[#4e796b]">
+                  {certificates.length > 0 
+                    ? formatDate(certificates[0]?.dateIssued || certificates[0]?.createdAt)
+                    : 'N/A'
+                  }
+                </p>
               </div>
             </div>
           </div>
