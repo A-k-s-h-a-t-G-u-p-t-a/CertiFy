@@ -108,7 +108,7 @@ const OrganizationCard = ({ orgAddress, index, onViewDetails }) => {
 };
 
 export default function AdminPage() {
-  const ADMIN_ADDRESS = "0x0408e64385FA3E98b86b55b8998B94Ecb771EF1D";
+  const ADMIN_ADDRESS = process.env.NEXT_PUBLIC_ADMIN_ADDRESS;
   const account = useActiveAccount();
   const { data: session } = useSession();
   const adminUsername = session?.user?.username || "Unknown";
