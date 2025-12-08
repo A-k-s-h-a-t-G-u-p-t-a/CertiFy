@@ -6,75 +6,86 @@ import fs from "fs";
 
 // Helper function to generate a single certificate
 async function generateSingleCertificate(certData) {
-  const { name, courseName, year, certificateId, courseId, apaarId } = certData;
+  const {
+    name,
+    courseName,
+    year,
+    certificateId,
+    courseId,
+    apaarId,
+    organisation,
+    nqrCode,
+  } = certData;
 
-  if (!name) {
-    throw new Error("Name is required");
-  }
+  if (!name) throw new Error("Name is required");
+  if (!certificateId) throw new Error("Certificate ID is required");
 
-  if (!certificateId) {
-    throw new Error("Certificate ID is required");
-  }
-
-  const templatePath = path.join(process.cwd(), "public", "cert.png");
-
-  if (!fs.existsSync(templatePath)) {
-    throw new Error("Template not found");
-  }
+  const templatePath = path.join(process.cwd(), "public", "cert-template.png");
+  if (!fs.existsSync(templatePath)) throw new Error("Template not found");
 
   const template = await loadImage(templatePath);
-
-  const canvas = createCanvas(template.width, template.height);
+  
+  // Standardized canvas dimensions
+  const CANVAS_WIDTH = 1200;
+  const CANVAS_HEIGHT = 900;
+  
+  const canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
   const ctx = canvas.getContext("2d");
-  ctx.drawImage(template, 0, 0);
 
-  ctx.fillStyle = "#000";
-  ctx.textAlign = "center";
-  ctx.font = "32px Serif";
+  // Fill with white background
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-  // Build the certificate sentence
-  let sentence = `This is to certify that ${name}`;
-  if (certificateId) sentence += `, bearing certificate ID ${certificateId}`;
-  if (courseId) sentence += ` (Course Code: ${courseId})`;
-  if (courseName) sentence += `, has successfully completed the ${courseName} course`;
-  if (year) sentence += ` in the year ${year}`;
-  if (apaarId) sentence += `. APAAR ID: ${apaarId}`;
-  sentence += ".";
-
-  // --- TEXT WRAPPING FUNCTION ---
-  function wrapText(text, x, y, maxWidth, lineHeight) {
-    const words = text.split(" ");
-    let line = "";
-
-    for (let n = 0; n < words.length; n++) {
-      const testLine = line + words[n] + " ";
-      const testWidth = ctx.measureText(testLine).width;
-
-      if (testWidth > maxWidth) {
-        ctx.fillText(line, x, y);
-        line = words[n] + " ";
-        y += lineHeight;
-      } else {
-        line = testLine;
-      }
-    }
-    ctx.fillText(line, x, y);
-    return y;
+  // Calculate scaling and positioning to fit template while maintaining aspect ratio
+  const templateAspectRatio = template.width / template.height;
+  const canvasAspectRatio = CANVAS_WIDTH / CANVAS_HEIGHT;
+  
+  let drawWidth, drawHeight, drawX, drawY;
+  
+  if (templateAspectRatio > canvasAspectRatio) {
+    // Template is wider, fit to width
+    drawWidth = CANVAS_WIDTH;
+    drawHeight = CANVAS_WIDTH / templateAspectRatio;
+    drawX = 0;
+    drawY = (CANVAS_HEIGHT - drawHeight) / 2;
+  } else {
+    // Template is taller, fit to height
+    drawHeight = CANVAS_HEIGHT;
+    drawWidth = CANVAS_HEIGHT * templateAspectRatio;
+    drawX = (CANVAS_WIDTH - drawWidth) / 2;
+    drawY = 0;
   }
 
-  // DRAW MULTI-LINE TEXT
-  const centerX = template.width / 2;
-  const startY = 450;
-  const maxTextWidth = template.width * 0.75; // 75% width area
-  const lineHeight = 40;
+  // Draw template image centered and scaled
+  ctx.drawImage(template, drawX, drawY, drawWidth, drawHeight);
 
-  wrapText(sentence, centerX, startY, maxTextWidth, lineHeight);
+  // REUSABLE TEXT DRAWER
+  function drawText(txt, x, y, font = "32px Serif", align = "center") {
+    ctx.fillStyle = "#2A2A2A";
+    ctx.font = font;
+    ctx.textAlign = align;
+    ctx.fillText(txt, x, y);
+  }
+
+  const centerX = CANVAS_WIDTH / 2;
+
+  // STANDARDIZED POSITIONS FOR 1200x900 CANVAS
+  drawText(name, centerX, 350, "38px 'Times New Roman'", "center");
+  drawText(courseName || "", centerX, 450);
+  drawText(year || "", centerX, 565);
+
+  // LEFT SIDE
+  drawText(`${organisation || ""}`, 200, 700, "28px Serif", "left");
+  drawText(`${certificateId}`, 200, 800, "28px Serif", "left");
+
+  // RIGHT SIDE
+  drawText(`${courseId || nqrCode || ""}`, 800, 700, "28px Serif", "left");
+  drawText(`${apaarId || ""}`, 800, 800, "28px Serif", "left");
 
   // Upload to Cloudinary
   const base64 = canvas.toDataURL("image/png");
-
   const upload = await cloudinary.uploader.upload(base64, {
-    folder: "certificates",
+    folder: "certificates",     
     unique_filename: true,
   });
 
@@ -112,6 +123,8 @@ export async function POST(req) {
             courseId: certData.CourseId || certData.courseId || certData['Course ID'] || certData['Course Code'] || null,
             year: certData.Year || certData.year || null,
             apaarId: certData.ApaarId || certData.apaarId || certData['APAAR ID'] || null,
+            organisation: certData.Organisation || certData.organisation || certData['Organisation'] || null,
+            nqrCode: certData.NqrCode || certData.nqrCode || certData['NQR Code'] || null,
           });
 
           // Append URL to original certificate data
@@ -151,7 +164,7 @@ export async function POST(req) {
     }
 
     // Single certificate processing (backward compatibility)
-    const { name, courseName, year, certificateId, courseId, apaarId } = body;
+    const { name, courseName, year, certificateId, courseId, apaarId, organisation, nqrCode } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -161,7 +174,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "Certificate ID is required" }, { status: 400 });
     }
 
-    const result = await generateSingleCertificate({ name, courseName, year, certificateId, courseId, apaarId });
+    const result = await generateSingleCertificate({ name, courseName, year, certificateId, courseId, apaarId, organisation, nqrCode });
 
     return NextResponse.json(
       {
