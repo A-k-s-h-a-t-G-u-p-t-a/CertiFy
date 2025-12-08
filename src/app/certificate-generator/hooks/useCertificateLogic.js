@@ -54,6 +54,11 @@ export const useCertificateLogic = () => {
     fontStyle: "normal",
   })
   const stageRef = useRef(null)
+  const [saveState, setSaveState] = useState({
+    isSaving: false,
+    error: null,
+    success: false,
+  })
 
   // ======== CRYPTO FUNCTIONS ========
 
@@ -435,6 +440,78 @@ export const useCertificateLogic = () => {
     setElements(newElements);
   };
 
+  // ======== SAVE CERTIFICATE TO DATABASE ========
+  const saveCertificateToDatabase = async () => {
+    console.log("Saving certificate to database...")
+    
+    setSaveState({
+      isSaving: true,
+      error: null,
+      success: false,
+    })
+
+    try {
+      // Step 1: Convert canvas to file
+      console.log("Step 1: Converting canvas to file...")
+      const certificateFile = await getCanvasAsFile()
+
+      // Step 2: Extract data with OCR
+      console.log("Step 2: Extracting data with OCR...")
+      const extractionResult = await extractFieldsFromImage(certificateFile)
+
+      if (!extractionResult.success) {
+        throw new Error("OCR extraction failed")
+      }
+
+      // Step 3: Generate certificate URL (optional - upload to storage)
+      const dataURL = stageRef.current.toDataURL({
+        pixelRatio: 2,
+        quality: 0.9
+      })
+
+      // Step 4: Save to database
+      console.log("Step 3: Saving to database...")
+      const response = await fetch("/api/certificate/save-single", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          certificateData: extractionResult,
+          certificateUrl: dataURL, // or upload to Cloudinary first
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save certificate")
+      }
+
+      console.log("Certificate saved successfully:", data)
+
+      setSaveState({
+        isSaving: false,
+        error: null,
+        success: true,
+      })
+
+      // Reset success message after 3 seconds
+      setTimeout(() => {
+        setSaveState(prev => ({ ...prev, success: false }))
+      }, 3000)
+
+      return data
+
+    } catch (error) {
+      console.error("Save certificate error:", error)
+      setSaveState({
+        isSaving: false,
+        error: error.message,
+        success: false,
+      })
+      throw error
+    }
+  }
+
 
   return {
     account,
@@ -472,6 +549,8 @@ export const useCertificateLogic = () => {
     moveLayer,
     downloadCertificate,
     downloadAndProcess,
+    saveCertificateToDatabase,
+    saveState,
     stageRef
   }
 }

@@ -34,6 +34,8 @@ export default function CertificateBuilder() {
             processingState={logic.processingState}
             downloadCertificate={logic.downloadCertificate}
             downloadAndProcess={logic.downloadAndProcess}
+            saveCertificateToDatabase={logic.saveCertificateToDatabase}
+            saveState={logic.saveState}
           />
           <div className="flex flex-1 overflow-hidden">
             <SidebarLeft {...logic} />
