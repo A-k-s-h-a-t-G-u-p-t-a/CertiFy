@@ -139,6 +139,17 @@ export default function UserPortalPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Request Certificate Button */}
+        <div className="mb-6">
+          <a
+            href="/verifier1"
+            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-[#4e796b] to-[#66b2a0] text-white font-semibold rounded-lg shadow-lg hover:from-[#3d5f55] hover:to-[#559089] transition-all duration-200 transform hover:scale-105"
+          >
+            <Award className="w-5 h-5 mr-2" />
+            Request New Certificate
+          </a>
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
