@@ -15,9 +15,10 @@ import {
   ArrowRight,
   FileUp,
   Check,
+ AlertCircle, 
+  Shield,
 } from "lucide-react"
 import * as XLSX from "xlsx"
-import { useActiveAccount, useSendTransaction } from "thirdweb/react"
 import { getContract, prepareContractCall } from "thirdweb"
 import { defineChain } from "thirdweb/chains"
 import { client } from "@/lib/client"
@@ -25,6 +26,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { useActiveAccount, useSendTransaction, useReadContract } from "thirdweb/react";
+import { useRouter } from "next/navigation";
 
 // Step indicator component
 const StepIndicator = ({ currentStep, steps }) => (
