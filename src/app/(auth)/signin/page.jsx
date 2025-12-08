@@ -3,6 +3,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Shield, Lock, User, Building2, ArrowRight, CheckCircle, Loader2 } from "lucide-react";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -43,96 +44,161 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white/90 backdrop-blur-lg p-8 shadow-2xl border border-white/20">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-slate-700 to-slate-900 rounded-2xl flex items-center justify-center shadow-lg">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-          </div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-            Admin & Organization
-          </h2>
-          <p className="text-slate-600 text-sm mt-2">Secure login portal</p>
+    <div className="min-h-screen flex bg-[#f8f6f1]">
+      {/* Left Panel - Decorative & Branding */}
+      <div className="hidden lg:flex w-1/2 bg-[#4e796b] relative overflow-hidden items-center justify-center p-12">
+        {/* Abstract Background Shapes */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-[#66b2a0] rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob"></div>
+          <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-[#a7d7b8] rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000"></div>
+          <div className="absolute bottom-[-20%] left-[20%] w-96 h-96 bg-[#2d5a47] rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-4000"></div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {error && (
-            <div className="p-4 rounded-xl bg-red-50 border border-red-200">
-              <p className="text-sm text-red-600 flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {error}
-              </p>
+        <div className="relative z-10 text-center text-white max-w-lg">
+          <div className="mb-8 flex justify-center">
+            <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center border border-white/20 shadow-2xl">
+              <Shield className="w-12 h-12 text-white" />
             </div>
-          )}
-
-          {/* Role Selection */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Login as</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full rounded-xl border-2 border-slate-200 bg-white/50 px-4 py-3 shadow-sm focus:border-slate-400 focus:ring-4 focus:ring-slate-100 outline-none transition-all"
-            >
-              <option value="admin">Admin</option>
-              <option value="organisation">Organisation</option>
-            </select>
           </div>
-
-          {/* Username Input */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
-              required
-              className="w-full rounded-xl border-2 border-slate-200 bg-white/50 px-4 py-3 shadow-sm focus:border-slate-400 focus:ring-4 focus:ring-slate-100 outline-none transition-all"
-            />
-          </div>
-
-          {/* Password Input */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-              className="w-full rounded-xl border-2 border-slate-200 bg-white/50 px-4 py-3 shadow-sm focus:border-slate-400 focus:ring-4 focus:ring-slate-100 outline-none transition-all"
-            />
-          </div>
-
-          {/* Sign In Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 p-3 text-white font-semibold hover:from-slate-800 hover:to-slate-950 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98]"
-          >
-            {loading ? (
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Signing in...
+          <h1 className="text-5xl font-bold mb-6 tracking-tight">CertiFy</h1>
+          <p className="text-xl text-[#d4f4dd] mb-8 leading-relaxed">
+            The next generation of secure, blockchain-based certificate verification and management.
+          </p>
+          
+          <div className="grid grid-cols-2 gap-4 text-left">
+            <div className="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/10">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-[#a7d7b8]/20 rounded-lg">
+                  <Shield className="w-5 h-5 text-[#a7d7b8]" />
+                </div>
+                <span className="font-semibold">Secure</span>
               </div>
-            ) : (
-              'Sign In'
-            )}
-          </button>
-        </form>
+              <p className="text-sm text-white/70">Tamper-proof records on the blockchain</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/10">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-[#a7d7b8]/20 rounded-lg">
+                  <CheckCircle className="w-5 h-5 text-[#a7d7b8]" />
+                </div>
+                <span className="font-semibold">Verified</span>
+              </div>
+              <p className="text-sm text-white/70">Instant authenticity checks</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {/* Footer */}
-        <div className="mt-8 pt-6 border-t border-slate-200 space-y-4">
-          <div className="text-center">
-            <p className="text-slate-600 text-sm">
+      {/* Right Panel - Sign In Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 relative">
+        {/* Mobile Background Decoration */}
+        <div className="absolute inset-0 lg:hidden overflow-hidden pointer-events-none">
+          <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#a7d7b8]/20 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-[#4e796b]/10 rounded-full blur-3xl"></div>
+        </div>
+
+        <div className="w-full max-w-md bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-[#a7d7b8]/30 p-8 lg:p-10 relative z-10">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-[#2d5a47] mb-2">Welcome Back</h2>
+            <p className="text-[#4e796b]/80">Please sign in to your account</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="p-4 rounded-xl bg-red-50 border border-red-200 animate-shake">
+                <p className="text-sm text-red-600 flex items-center gap-2 font-medium">
+                  <Shield className="w-4 h-4" />
+                  {error}
+                </p>
+              </div>
+            )}
+
+            {/* Role Selection */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-[#4e796b] ml-1">Login as</label>
+              <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#4e796b]/50 pointer-events-none">
+                  {role === 'admin' ? <Shield className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
+                </div>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3.5 rounded-xl border-2 border-[#a7d7b8]/50 bg-white/50 text-[#2d5a47] font-medium focus:border-[#4e796b] focus:ring-4 focus:ring-[#4e796b]/10 outline-none transition-all appearance-none cursor-pointer hover:bg-white"
+                >
+                  <option value="admin">Admin</option>
+                  <option value="organisation">Organisation</option>
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-[#4e796b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Username Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-[#4e796b] ml-1">Username</label>
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#4e796b]/50 group-focus-within:text-[#4e796b] transition-colors">
+                  <User className="w-5 h-5" />
+                </div>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter your username"
+                  required
+                  className="w-full pl-12 pr-4 py-3.5 rounded-xl border-2 border-[#a7d7b8]/50 bg-white/50 text-[#2d5a47] placeholder-[#4e796b]/40 focus:border-[#4e796b] focus:ring-4 focus:ring-[#4e796b]/10 outline-none transition-all hover:bg-white"
+                />
+              </div>
+            </div>
+
+            {/* Password Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-[#4e796b] ml-1">Password</label>
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#4e796b]/50 group-focus-within:text-[#4e796b] transition-colors">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  className="w-full pl-12 pr-4 py-3.5 rounded-xl border-2 border-[#a7d7b8]/50 bg-white/50 text-[#2d5a47] placeholder-[#4e796b]/40 focus:border-[#4e796b] focus:ring-4 focus:ring-[#4e796b]/10 outline-none transition-all hover:bg-white"
+                />
+              </div>
+            </div>
+
+            {/* Sign In Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-gradient-to-r from-[#4e796b] to-[#66b2a0] text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:shadow-[#4e796b]/20 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 group"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Signing in...</span>
+                </>
+              ) : (
+                <>
+                  <span>Sign In</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Footer */}
+          <div className="mt-8 pt-6 border-t border-[#a7d7b8]/30 text-center">
+            <p className="text-[#4e796b]/80 text-sm">
               Looking for user login?{' '}
-              <Link href="/user-signin" className="text-blue-600 font-semibold hover:text-blue-700">
+              <Link 
+                href="/user-signin" 
+                className="text-[#2d5a47] font-bold hover:text-[#4e796b] hover:underline decoration-2 underline-offset-4 transition-all"
+              >
                 User Login
               </Link>
             </p>

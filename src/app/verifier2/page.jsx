@@ -15,6 +15,14 @@ const client = createThirdwebClient({
 const VERIFIER_CONTRACT_ADDRESS = "0x25aF0a1fCC9188303aEcc9Df8D64a4093e3Bf6d5";
 const CHAIN_ID = 11155111; // Sepolia testnet
 
+const ORGANIZATIONS = [
+  { name: "Org1", address: "0x0Ae905eAB69D11a85b38f2D99F9A60682d362d3b" },
+  { name: "AdminOrg", address: "0x035cEaF7eF32Bdb850866d7bb0d82F3397D466F9" },
+  { name: "IIT Bombay", address: "0x60E6de3b551bCb530f5f2ECaEbe98bfDF3902E99" },
+  {name : "IIT DELHI", address:"0x853BD0627eF73dF5283A070CC2ACFA99dbdFfeF9"},
+
+];
+
 // Main component wrapped in ThirdwebProvider
 export default function Verifier2Page() {
   return (
@@ -28,6 +36,7 @@ function VerifierContent() {
   const account = useActiveAccount();
   const [certificateId, setCertificateId] = useState("");
   const [certContractAddress, setCertContractAddress] = useState("");
+  const [selectedOrg, setSelectedOrg] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
@@ -40,6 +49,16 @@ function VerifierContent() {
     address: VERIFIER_CONTRACT_ADDRESS,
   });
 
+  // Handle organization selection
+  const handleOrgChange = (e) => {
+    const orgName = e.target.value;
+    setSelectedOrg(orgName);
+    const org = ORGANIZATIONS.find(o => o.name === orgName);
+    if (org) {
+      setCertContractAddress(org.address);
+    }
+  };
+
   // Handle file upload
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -47,15 +66,31 @@ function VerifierContent() {
       setSelectedFile(file);
       setVerificationResult(null);
       
-      // Compute SHA-256 hash of the file
+      // Convert file to base64 and compute hash
       try {
-        const hash = await computeFileHash(file);
+        const base64Data = await fileToBase64(file);
+        const hash = await computeFileHash(base64Data);
         setFileHash(hash);
-        console.log("File SHA-256 hash:", hash);
+        console.log("File base64 computed");
+        console.log("File pHash:", hash);
       } catch (error) {
         console.error("Error computing file hash:", error);
       }
     }
+  };
+
+  // Helper function to convert file to base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        // Get the base64 string without the data URL prefix
+        const base64String = reader.result.split(',')[1];
+        resolve(base64String);
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
   };
 
   // Handle verification
@@ -212,6 +247,25 @@ function VerifierContent() {
         {/* Main Card */}
         <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl border border-[#a7d7b8]/20 overflow-hidden">
           <div className="p-8">
+            {/* Organization Dropdown */}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-[#4e796b] mb-2">
+                Select Organization
+              </label>
+              <select
+                value={selectedOrg}
+                onChange={handleOrgChange}
+                className="w-full px-4 py-3 rounded-xl border-2 border-[#a7d7b8] focus:border-[#66b2a0] focus:outline-none transition-colors bg-white/50 backdrop-blur-sm text-[#4e796b]"
+              >
+                <option value="">Select an organization (Optional)</option>
+                {ORGANIZATIONS.map((org) => (
+                  <option key={org.name} value={org.name}>
+                    {org.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Certificate ID Input */}
             <div className="mb-6">
               <label className="block text-sm font-semibold text-[#4e796b] mb-2">
