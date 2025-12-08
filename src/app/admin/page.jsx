@@ -1,25 +1,123 @@
 "use client";
 import { contract } from "../../lib/client";
 import { useSession } from "next-auth/react";
-
 import { useReadContract, useSendTransaction, useActiveAccount } from "thirdweb/react";
 import { prepareContractCall } from "thirdweb";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Building2, Users, Loader2, Plus, UserPlus, Search, Eye, X, CheckCircle, XCircle, AlertCircle, Flag, Shield, ShieldAlert, BarChart3, TrendingUp, Activity, PieChart } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { 
+  Building2, Users, Loader2, Plus, UserPlus, Search, Eye, X, 
+  CheckCircle, XCircle, AlertCircle, Flag, Shield, ShieldAlert, 
+  BarChart3, TrendingUp, Activity, PieChart, LayoutDashboard, 
+  Settings, Menu, ChevronRight, Wallet, Copy, ExternalLink
+} from "lucide-react";
 import { useState, useEffect } from "react";
-import { PieChart as RechartsPieChart, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area, Pie } from 'recharts';
+import { 
+  PieChart as RechartsPieChart, Cell, BarChart, Bar, XAxis, YAxis, 
+  CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Pie 
+} from 'recharts';
+import { motion, AnimatePresence } from "framer-motion";
+
+// Color Constants
+const COLORS = {
+  primary: "#F5FAFA",    // Frost White-Teal (Backgrounds)
+  secondary: "#D9E5E6",  // Cool Mist Teal-Gray (Cards/Sidebar)
+  accent: "#009688",     // Subtle Teal (Actions)
+  accentHover: "#00796B", // Darker Teal (Hover)
+  text: "#1F2937",       // Dark Gray (Text)
+  muted: "#6B7280"       // Muted Text
+};
+
+// Helper component for individual organization card
+const OrganizationCard = ({ orgAddress, index, onViewDetails }) => {
+  const { data: details, isPending } = useReadContract({
+    contract,
+    method: "function getOrganization(address orgWallet) view returns (address _orgWallet, address _certContract, string _name, string _meta, bool _isActive, bool _isFlagged, uint256 _issuedCertCount)",
+    params: [orgAddress],
+  });
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      whileHover={{ scale: 1.02 }}
+      className="bg-white rounded-xl border border-[#D9E5E6] p-6 shadow-sm hover:shadow-md transition-all flex flex-col h-full"
+    >
+      <div className="flex items-center justify-between mb-4">
+        <div className="h-10 w-10 rounded-full bg-[#F5FAFA] flex items-center justify-center text-[#009688]">
+          <Building2 className="h-5 w-5" />
+        </div>
+        <Badge className="bg-[#D9E5E6] text-[#009688] hover:bg-[#D9E5E6]">
+          #{index + 1}
+        </Badge>
+      </div>
+      
+      <div className="flex-1">
+        {isPending ? (
+          <div className="space-y-2 animate-pulse">
+            <div className="h-6 bg-gray-100 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+          </div>
+        ) : (
+          <>
+            <h3 className="font-bold text-lg text-gray-900 mb-1 truncate" title={details?.[2]}>
+              {details?.[2] || "Unknown Organization"}
+            </h3>
+            <div className="flex items-center gap-2 mb-3">
+              <Badge variant="outline" className={details?.[4] ? "text-green-600 border-green-200 bg-green-50" : "text-gray-500"}>
+                {details?.[4] ? "Active" : "Inactive"}
+              </Badge>
+              {details?.[5] && (
+                <Badge variant="destructive" className="flex items-center gap-1">
+                  <Flag className="h-3 w-3" /> Flagged
+                </Badge>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="bg-[#F5FAFA] p-2 rounded-lg border border-[#D9E5E6] mb-4 mt-2">
+        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+          <span>Wallet Address</span>
+          <button 
+            onClick={() => navigator.clipboard.writeText(orgAddress)}
+            className="hover:text-[#009688]"
+          >
+            <Copy className="h-3 w-3" />
+          </button>
+        </div>
+        <p className="text-xs font-mono text-gray-700 truncate">{orgAddress}</p>
+      </div>
+
+      <Button 
+        variant="outline" 
+        className="w-full border-[#009688] text-[#009688] hover:bg-[#F5FAFA] mt-auto"
+        onClick={() => onViewDetails(orgAddress)}
+      >
+        View Full Details
+      </Button>
+    </motion.div>
+  );
+};
 
 export default function AdminPage() {
   const ADMIN_ADDRESS = "0x0408e64385FA3E98b86b55b8998B94Ecb771EF1D";
   const account = useActiveAccount();
-  const { data: session } = useSession(); // ✅ Get session info
-const adminUsername = session?.user?.username || "Unknown"; // ✅ Logged-in username
+  const { data: session } = useSession();
+  const adminUsername = session?.user?.username || "Unknown";
 
+  // State
+  const [activeTab, setActiveTab] = useState("overview");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [selectedOrgAddress, setSelectedOrgAddress] = useState(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     orgWallet: "",
@@ -44,12 +142,24 @@ const adminUsername = session?.user?.username || "Unknown"; // ✅ Logged-in use
     params: [],
   });
 
-  // Get specific organization details
+  // Get specific organization details for modal
+  const { data: modalOrgDetails, isPending: modalDetailsPending } = useReadContract({
+    contract,
+    method: "function getOrganization(address orgWallet) view returns (address _orgWallet, address _certContract, string _name, string _meta, bool _isActive, bool _isFlagged, uint256 _issuedCertCount)",
+    params: selectedOrgAddress ? [selectedOrgAddress] : undefined,
+  });
+
+  // Get specific organization details for management tab
   const { data: orgDetails, isPending: detailsPending } = useReadContract({
     contract,
     method: "function getOrganization(address orgWallet) view returns (address _orgWallet, address _certContract, string _name, string _meta, bool _isActive, bool _isFlagged, uint256 _issuedCertCount)",
     params: viewOrgAddress ? [viewOrgAddress] : undefined,
   });
+
+  const handleViewDetails = (address) => {
+    setSelectedOrgAddress(address);
+    setIsDetailsModalOpen(true);
+  };
 
   // Analytics state
   const [analyticsData, setAnalyticsData] = useState({
@@ -86,17 +196,14 @@ const adminUsername = session?.user?.username || "Unknown"; // ✅ Logged-in use
       let flagged = 0;
       let totalCertificates = 0;
 
-      // For demo purposes, we'll simulate some data since we can't efficiently 
-      // fetch details for all organizations in one call
       const total = organizations.length;
       
       // Simulate realistic distribution
-      active = Math.floor(total * 0.85); // 85% active
-      flagged = Math.floor(total * 0.15); // 15% flagged
+      active = Math.floor(total * 0.85); 
+      flagged = Math.floor(total * 0.15); 
       const inactive = total - active - flagged;
-      totalCertificates = total * 25; // Average 25 certificates per org
+      totalCertificates = total * 25; 
 
-      // Prepare chart data
       const pieChartData = [
         { name: 'Active', value: active, color: '#22c55e' },
         { name: 'Flagged', value: flagged, color: '#ef4444' },
@@ -108,7 +215,6 @@ const adminUsername = session?.user?.username || "Unknown"; // ✅ Logged-in use
         { name: 'Certificates', total: totalCertificates, active: Math.floor(totalCertificates * 0.8), flagged: Math.floor(totalCertificates * 0.1), inactive: Math.floor(totalCertificates * 0.1) }
       ];
 
-      // Simulate trend data (last 7 days)
       const trendData = Array.from({ length: 7 }, (_, index) => ({
         day: `Day ${index + 1}`,
         organizations: Math.floor(total * (0.7 + (index * 0.05))),
@@ -132,7 +238,6 @@ const adminUsername = session?.user?.username || "Unknown"; // ✅ Logged-in use
     }
   };
 
-  // Update analytics when organizations change
   useEffect(() => {
     if (organizations) {
       fetchAnalyticsData();
@@ -153,7 +258,6 @@ const adminUsername = session?.user?.username || "Unknown"; // ✅ Logged-in use
       alert("Please enter a valid organization wallet address");
       return;
     }
-    // The useReadContract hook will automatically refetch when viewOrgAddress changes
   };
 
   const clearOrgDetails = () => {
@@ -168,7 +272,7 @@ const adminUsername = session?.user?.username || "Unknown"; // ✅ Logged-in use
     }
 
     setIsFlagging(true);
-    setTransactionResult(null); // Clear previous result
+    setTransactionResult(null);
     
     try {
       const transaction = prepareContractCall({
@@ -177,34 +281,28 @@ const adminUsername = session?.user?.username || "Unknown"; // ✅ Logged-in use
         params: [flagFormData.orgWallet, flagFormData.flagged],
       });
       
-      // Send transaction and wait for completion
       const result = await new Promise((resolve, reject) => {
         sendTransaction(transaction, {
           onSuccess: (result) => {
-            console.log("Transaction successful:", result);
             resolve(result);
           },
           onError: (error) => {
-            console.error("Transaction failed:", error);
             reject(error);
           }
         });
       });
       
-      // Store raw transaction result for display
       setTransactionResult({
         rawData: result,
         action: flagFormData.flagged ? "flagged" : "unflagged"
       });
       
-      // Reset form
       setFlagFormData({ orgWallet: "", flagged: false });
       
-      // Refetch organizations list and details if viewing
       setTimeout(() => {
         refetch();
         if (viewOrgAddress === flagFormData.orgWallet) {
-          setViewOrgAddress(""); // This will trigger a re-fetch of org details
+          setViewOrgAddress("");
           setTimeout(() => setViewOrgAddress(flagFormData.orgWallet), 100);
         }
       }, 2000);
@@ -232,52 +330,35 @@ const adminUsername = session?.user?.username || "Unknown"; // ✅ Logged-in use
         params: [formData.orgWallet, formData.name, formData.meta],
       });
       
-      // Send transaction and wait for completion
-      const result = await new Promise((resolve, reject) => {
+      await new Promise((resolve, reject) => {
         sendTransaction(transaction, {
           onSuccess: (result) => {
-            console.log("Transaction successful:", result);
             resolve(result);
           },
           onError: (error) => {
-            console.error("Transaction failed:", error);
             reject(error);
           }
         });
       });
       
-      console.log("Blockchain transaction completed, now syncing to database...");
-      
-      // Wait a bit for blockchain state to update
+      // Sync to DB
       await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Sync organizations from blockchain to database
       try {
         const syncResponse = await fetch("/api/organizations/sync", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         });
-        
         const syncResult = await syncResponse.json();
-        console.log("Database sync result:", syncResult);
-        
         if (syncResult.success) {
-          alert(`Organization added successfully! Synced ${syncResult.synced} new and updated ${syncResult.updated} existing organizations.`);
+          alert(`Organization added & synced successfully!`);
         } else {
-          alert("Organization added to blockchain, but database sync failed. Please contact admin.");
-          console.error("Sync error:", syncResult.error);
+          alert("Added to blockchain but DB sync failed.");
         }
       } catch (syncError) {
         console.error("Error syncing to database:", syncError);
-        alert("Organization added to blockchain, but database sync failed. Please contact admin.");
       }
       
-      // Reset form
       setFormData({ orgWallet: "", name: "", meta: "" });
-      
-      // Refetch organizations list
       setTimeout(() => {
         refetch();
       }, 2000);
@@ -290,636 +371,568 @@ const adminUsername = session?.user?.username || "Unknown"; // ✅ Logged-in use
     }
   };
 
-  // Check if user is admin
+  // Access Control
   if (!account || account.address.toLowerCase() !== ADMIN_ADDRESS.toLowerCase()) {
     return (
-      <div className="container mx-auto p-6 pt-16">
-        <div className="text-center space-y-6 mt-20">
+      <div className="min-h-screen flex items-center justify-center bg-[#F5FAFA] pt-20">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center space-y-6 p-8 bg-white rounded-2xl shadow-xl max-w-md border border-[#D9E5E6]"
+        >
           <ShieldAlert className="h-24 w-24 text-red-400 mx-auto" />
           <div className="space-y-4">
             <h1 className="text-3xl font-bold text-red-600">Access Denied</h1>
-            <p className="text-gray-600 max-w-md mx-auto">
-              You are not authorized to access this admin panel. Only designated administrators can view this page.
+            <p className="text-gray-600">
+              You are not authorized to access this admin panel.
             </p>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md mx-auto">
-              <p className="text-sm text-red-700">
-                <strong>Connected Address:</strong> {account?.address || "Not connected"}
-              </p>
-              <p className="text-sm text-red-700 mt-1">
-                <strong>Required Address:</strong> 
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-sm text-red-700 font-mono">
+                {account?.address || "Not connected"}
               </p>
             </div>
             <Button 
               onClick={() => window.location.href = '/'}
-              className="mt-4"
+              className="w-full bg-[#009688] hover:bg-[#00796B]"
             >
-              Go Back to Home
+              Return Home
             </Button>
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   if (isPending) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin mr-3" />
-        <div className="text-lg text-gray-600">Loading organizations...</div>
-      </div>
-    );
-  }
-
-  if (!organizations || organizations.length === 0) {
-    return (
-      <div className="container mx-auto p-6 pt-16">
-        <div className="text-center space-y-6 mt-20">
-          <Building2 className="h-24 w-24 text-gray-300 mx-auto" />
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-gray-900">No Organizations Found</h1>
-            <p className="text-gray-600 max-w-md mx-auto">
-              There are currently no organizations registered in the system.
-            </p>
-          </div>
+      <div className="flex items-center justify-center min-h-screen bg-[#F5FAFA] pt-20">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-[#009688]" />
+          <p className="text-[#009688] font-medium animate-pulse">Loading Admin Dashboard...</p>
         </div>
       </div>
     );
   }
+
+  // Sidebar Component
+  const SidebarItem = ({ id, icon: Icon, label }) => (
+    <motion.button
+      whileHover={{ x: 4, backgroundColor: "rgba(0, 150, 136, 0.1)" }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => setActiveTab(id)}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+        activeTab === id 
+          ? "bg-[#009688] text-white shadow-md" 
+          : "text-gray-600 hover:text-[#009688]"
+      }`}
+    >
+      <Icon className={`h-5 w-5 ${activeTab === id ? "text-white" : "text-current"}`} />
+      {isSidebarOpen && <span className="font-medium">{label}</span>}
+    </motion.button>
+  );
 
   return (
-    <div className="container mx-auto p-6 pt-16 space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Shield className="h-8 w-8 text-blue-600" />
-            Admin Dashboard
-          </h1>
-          <p className="text-gray-600">Manage and view all registered organizations</p>
+    <div className="h-screen bg-[#F5FAFA] flex pt-20 overflow-hidden">
+      {/* Sidebar */}
+      <motion.div 
+        initial={{ width: 280 }}
+        animate={{ width: isSidebarOpen ? 280 : 80 }}
+        className="bg-white border-r border-[#D9E5E6] h-full flex flex-col shadow-sm"
+      >
+        <div className="p-6 flex items-center justify-between">
+          {isSidebarOpen ? (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-2"
+            >
+              <Shield className="h-8 w-8 text-[#009688]" />
+              <span className="text-xl font-bold text-gray-800">CertiFy Admin</span>
+            </motion.div>
+          ) : (
+            <Shield className="h-8 w-8 text-[#009688] mx-auto" />
+          )}
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+          >
+            {isSidebarOpen ? <Menu className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+          </button>
         </div>
-        <div className="flex items-center gap-4">
-          <Badge variant="outline" className="px-4 py-2 text-sm">
-            <Users className="h-4 w-4 mr-2" />
-            Total: {organizations.length}
-          </Badge>
-          <Badge variant="secondary" className="px-4 py-2 text-sm">
-            <Shield className="h-4 w-4 mr-2" />
-            Admin Access
-          </Badge>
+
+        <div className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
+          <SidebarItem id="overview" icon={LayoutDashboard} label="Overview" />
+          <SidebarItem id="organizations" icon={Building2} label="Organizations" />
+          <SidebarItem id="management" icon={Settings} label="Management" />
         </div>
-      </div>
 
-      <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-  <Shield className="h-8 w-8 text-blue-600" />
-  Admin Dashboard
-  <span className="ml-4 text-sm text-gray-600">
-    Logged in as: <strong>{adminUsername}</strong>
-  </span>
-</h1>
-
-
-      {/* Add Organization Form */}
-      <Card className="border-2 border-dashed border-blue-200 bg-blue-50/30">
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center gap-2 text-blue-700">
-            <UserPlus className="h-5 w-5" />
-            Add New Organization
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="orgWallet" className="text-sm font-medium">
-                  Organization Wallet Address *
-                </Label>
-                <Input
-                  id="orgWallet"
-                  name="orgWallet"
-                  type="text"
-                  placeholder="0x..."
-                  value={formData.orgWallet}
-                  onChange={handleInputChange}
-                  className="font-mono text-sm"
-                  required
-                />
+        <div className="p-4 border-t border-[#D9E5E6]">
+          {isSidebarOpen ? (
+            <div className="flex items-center gap-3 px-2">
+              <div className="h-10 w-10 rounded-full bg-[#D9E5E6] flex items-center justify-center text-[#009688] font-bold">
+                {adminUsername.charAt(0).toUpperCase()}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-sm font-medium">
-                  Organization Name *
-                </Label>
-                <Input
-                  id="name"
-                  name="name"
-                  type="text"
-                  placeholder="Enter organization name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                />
+              <div className="overflow-hidden">
+                <p className="text-sm font-medium text-gray-900 truncate">{adminUsername}</p>
+                <p className="text-xs text-gray-500">Administrator</p>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="meta" className="text-sm font-medium">
-                Metadata (Optional)
-              </Label>
-              <Textarea
-                id="meta"
-                name="meta"
-                placeholder="Additional information about the organization..."
-                value={formData.meta}
-                onChange={handleInputChange}
-                rows={3}
-              />
+          ) : (
+            <div className="h-10 w-10 rounded-full bg-[#D9E5E6] flex items-center justify-center text-[#009688] font-bold mx-auto">
+              {adminUsername.charAt(0).toUpperCase()}
             </div>
-            <div className="flex justify-end">
-              <Button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="px-6"
+          )}
+        </div>
+      </motion.div>
+
+      {/* Main Content */}
+      <div className="flex-1 p-8 overflow-y-auto h-full">
+        <div className="max-w-7xl mx-auto space-y-8 pb-20">
+          {/* Header */}
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between"
+          >
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {activeTab === 'overview' && 'Dashboard Overview'}
+                {activeTab === 'organizations' && 'Registered Organizations'}
+                {activeTab === 'management' && 'System Management'}
+              </h1>
+              <p className="text-gray-500 mt-1">
+                Welcome back, {adminUsername}. Here's what's happening today.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Badge className="bg-[#D9E5E6] text-[#009688] hover:bg-[#D9E5E6] px-4 py-1.5 text-sm">
+                <Users className="h-4 w-4 mr-2" />
+                {organizations?.length || 0} Orgs
+              </Badge>
+              <Badge className="bg-[#009688] hover:bg-[#00796B] px-4 py-1.5 text-sm">
+                <Shield className="h-4 w-4 mr-2" />
+                Admin Active
+              </Badge>
+            </div>
+          </motion.div>
+
+          <AnimatePresence mode="wait">
+            {activeTab === 'overview' && (
+              <motion.div
+                key="overview"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Adding Organization...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Organization
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* View Organization Details Form */}
-      <Card className="border-2 border-dashed border-green-200 bg-green-50/30">
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center gap-2 text-green-700">
-            <Eye className="h-5 w-5" />
-            View Organization Details
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleViewOrgSubmit} className="space-y-4">
-            <div className="flex gap-4">
-              <div className="flex-1 space-y-2">
-                <Label htmlFor="viewOrgAddress" className="text-sm font-medium">
-                  Organization Wallet Address
-                </Label>
-                <Input
-                  id="viewOrgAddress"
-                  type="text"
-                  placeholder="Enter wallet address to view details..."
-                  value={viewOrgAddress}
-                  onChange={(e) => setViewOrgAddress(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="flex items-end gap-2">
-                <Button type="submit" variant="outline" className="px-4">
-                  <Search className="h-4 w-4 mr-2" />
-                  Search
-                </Button>
-                {viewOrgAddress && (
-                  <Button type="button" variant="ghost" onClick={clearOrgDetails} className="px-3">
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          </form>
-
-          {/* Organization Details Display */}
-          {viewOrgAddress && (
-            <div className="mt-6 p-4 border rounded-lg bg-white">
-              {detailsPending ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin mr-3" />
-                  <span className="text-gray-600">Loading organization details...</span>
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {[
+                    { title: "Total Organizations", value: analyticsData.total, icon: Building2, color: "blue" },
+                    { title: "Active Organizations", value: analyticsData.active, icon: CheckCircle, color: "green" },
+                    { title: "Flagged Organizations", value: analyticsData.flagged, icon: Flag, color: "red" },
+                    { title: "Total Certificates", value: analyticsData.totalCertificates.toLocaleString(), icon: Activity, color: "purple" }
+                  ].map((stat, index) => (
+                    <motion.div
+                      key={index}
+                      whileHover={{ scale: 1.02, translateY: -5 }}
+                      className="bg-white p-6 rounded-2xl shadow-sm border border-[#D9E5E6] relative overflow-hidden group"
+                    >
+                      <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-${stat.color}-600`}>
+                        <stat.icon className="h-24 w-24 transform translate-x-4 translate-y-4" />
+                      </div>
+                      <div className="relative z-10">
+                        <div className={`p-3 rounded-xl bg-${stat.color}-50 w-fit mb-4`}>
+                          <stat.icon className={`h-6 w-6 text-${stat.color}-600`} />
+                        </div>
+                        <p className="text-sm font-medium text-gray-500">{stat.title}</p>
+                        <h3 className="text-3xl font-bold text-gray-900 mt-1">{stat.value}</h3>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
-              ) : orgDetails ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b pb-3">
-                    <h3 className="text-lg font-semibold text-gray-900">Organization Details</h3>
+
+                {/* Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card className="border-[#D9E5E6] shadow-sm bg-white">
+                    <CardHeader>
+                      <CardTitle className="text-gray-800">Organization Status</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <RechartsPieChart>
+                          <Tooltip />
+                          <Legend />
+                          <Pie
+                            data={analyticsData.pieChartData}
+                            cx="50%" cy="50%" 
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {analyticsData.pieChartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                        </RechartsPieChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-[#D9E5E6] shadow-sm bg-white">
+                    <CardHeader>
+                      <CardTitle className="text-gray-800">Growth Trends</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={analyticsData.trendData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                          <XAxis dataKey="day" stroke="#888" fontSize={12} />
+                          <YAxis stroke="#888" fontSize={12} />
+                          <Tooltip 
+                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                          />
+                          <Line type="monotone" dataKey="organizations" stroke="#009688" strokeWidth={3} dot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="certificates" stroke="#6366f1" strokeWidth={2} strokeDasharray="5 5" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'organizations' && (
+              <motion.div
+                key="organizations"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              >
+                {organizations?.map((orgAddress, index) => (
+                  <OrganizationCard 
+                    key={index} 
+                    orgAddress={orgAddress} 
+                    index={index} 
+                    onViewDetails={handleViewDetails}
+                  />
+                ))}
+              </motion.div>
+            )}
+
+            {activeTab === 'management' && (
+              <motion.div
+                key="management"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.3 }}
+                className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+              >
+                {/* Add Organization */}
+                <Card className="border-[#D9E5E6] shadow-sm h-fit bg-white overflow-hidden">
+                  <div className="bg-[#F5FAFA] border-b border-[#D9E5E6] p-6">
+                    <div className="flex items-center gap-3 text-[#009688] mb-1">
+                      <div className="p-2 bg-white rounded-lg border border-[#D9E5E6]">
+                        <UserPlus className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-bold text-lg text-gray-900">Add New Organization</h3>
+                    </div>
+                    <p className="text-sm text-gray-500 ml-[52px]">Register a new organization to the blockchain</p>
+                  </div>
+                  
+                  <CardContent className="p-6 space-y-5">
+                    <div className="space-y-2">
+                      <Label className="text-gray-700 font-medium">Wallet Address</Label>
+                      <div className="relative group">
+                        <Wallet className="absolute left-3 top-3 h-4 w-4 text-gray-400 group-focus-within:text-[#009688] transition-colors" />
+                        <Input 
+                          placeholder="0x..." 
+                          className="pl-10 border-gray-200 focus:border-[#009688] focus:ring-[#009688] bg-gray-50/50 h-11 transition-all"
+                          value={formData.orgWallet}
+                          onChange={handleInputChange}
+                          name="orgWallet"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-700 font-medium">Organization Name</Label>
+                      <div className="relative group">
+                        <Building2 className="absolute left-3 top-3 h-4 w-4 text-gray-400 group-focus-within:text-[#009688] transition-colors" />
+                        <Input 
+                          placeholder="e.g. Acme Corp" 
+                          className="pl-10 border-gray-200 focus:border-[#009688] focus:ring-[#009688] bg-gray-50/50 h-11 transition-all"
+                          value={formData.name}
+                          onChange={handleInputChange}
+                          name="name"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-700 font-medium">Metadata</Label>
+                      <Textarea 
+                        placeholder="Additional details about the organization..." 
+                        className="border-gray-200 focus:border-[#009688] focus:ring-[#009688] bg-gray-50/50 min-h-[120px] resize-none transition-all"
+                        value={formData.meta}
+                        onChange={handleInputChange}
+                        name="meta"
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleSubmit}
+                      disabled={isSubmitting}
+                      className="w-full bg-[#009688] hover:bg-[#00796B] text-white h-12 text-base font-medium shadow-md hover:shadow-lg transition-all mt-2"
+                    >
+                      {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <Plus className="mr-2 h-5 w-5" />}
+                      Register Organization
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <div className="space-y-8">
+                  {/* View Details */}
+                  <Card className="border-[#D9E5E6] shadow-sm bg-white overflow-hidden">
+                    <div className="bg-[#F5FAFA] border-b border-[#D9E5E6] p-6">
+                      <div className="flex items-center gap-3 text-gray-700 mb-1">
+                        <div className="p-2 bg-white rounded-lg border border-[#D9E5E6]">
+                          <Search className="h-5 w-5" />
+                        </div>
+                        <h3 className="font-bold text-lg text-gray-900">Lookup Organization</h3>
+                      </div>
+                      <p className="text-sm text-gray-500 ml-[52px]">Search for an organization by wallet address</p>
+                    </div>
+                    
+                    <CardContent className="p-6 space-y-4">
+                      <div className="flex gap-3">
+                        <div className="relative flex-1 group">
+                          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400 group-focus-within:text-[#009688] transition-colors" />
+                          <Input 
+                            placeholder="Search by wallet address..." 
+                            className="pl-10 border-gray-200 focus:border-[#009688] focus:ring-[#009688] bg-gray-50/50 h-11"
+                            value={viewOrgAddress}
+                            onChange={(e) => setViewOrgAddress(e.target.value)}
+                          />
+                        </div>
+                        {viewOrgAddress && (
+                          <Button variant="outline" onClick={clearOrgDetails} size="icon" className="h-11 w-11 shrink-0">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+
+                      <AnimatePresence>
+                        {orgDetails && (
+                          <motion.div 
+                            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                            animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
+                            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                            className="bg-[#F5FAFA] rounded-xl p-5 border border-[#D9E5E6] space-y-4 overflow-hidden"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-bold text-lg text-gray-900">{orgDetails[2]}</h4>
+                                <p className="text-xs text-gray-500 font-mono mt-1">{orgDetails[0]}</p>
+                              </div>
+                              <Badge className={orgDetails[4] ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200"}>
+                                {orgDetails[4] ? "Active" : "Inactive"}
+                              </Badge>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4 py-2">
+                              <div className="bg-white p-3 rounded-lg border border-gray-100">
+                                <p className="text-xs text-gray-500 mb-1">Certificates Issued</p>
+                                <p className="font-bold text-xl text-[#009688]">{orgDetails[6]?.toString()}</p>
+                              </div>
+                              <div className="bg-white p-3 rounded-lg border border-gray-100">
+                                <p className="text-xs text-gray-500 mb-1">Risk Status</p>
+                                <div className="flex items-center gap-2">
+                                  {orgDetails[5] ? (
+                                    <>
+                                      <ShieldAlert className="h-4 w-4 text-red-500" />
+                                      <span className="font-bold text-red-600">Flagged</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Shield className="h-4 w-4 text-green-500" />
+                                      <span className="font-bold text-green-600">Safe</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </CardContent>
+                  </Card>
+
+                  {/* Flagging */}
+                  <Card className="border-red-100 shadow-sm bg-white overflow-hidden">
+                    <div className="bg-red-50/50 border-b border-red-100 p-6">
+                      <div className="flex items-center gap-3 text-red-700 mb-1">
+                        <div className="p-2 bg-white rounded-lg border border-red-100">
+                          <ShieldAlert className="h-5 w-5" />
+                        </div>
+                        <h3 className="font-bold text-lg text-gray-900">Danger Zone</h3>
+                      </div>
+                      <p className="text-sm text-red-600/80 ml-[52px]">Flag or unflag organizations</p>
+                    </div>
+                    
+                    <CardContent className="p-6 space-y-5">
+                      <div className="space-y-2">
+                        <Label className="text-gray-700 font-medium">Target Wallet Address</Label>
+                        <Input 
+                          placeholder="0x..." 
+                          className="border-red-100 focus:border-red-300 focus:ring-red-200 bg-red-50/10 h-11"
+                          value={flagFormData.orgWallet}
+                          onChange={(e) => setFlagFormData(prev => ({ ...prev, orgWallet: e.target.value }))}
+                        />
+                      </div>
+                      <div className="flex gap-4">
+                        <Button 
+                          variant="outline"
+                          className={`flex-1 h-11 border-red-200 text-red-700 hover:bg-red-50 ${flagFormData.flagged ? 'ring-2 ring-red-500 bg-red-50' : ''}`}
+                          onClick={() => setFlagFormData(prev => ({ ...prev, flagged: true }))}
+                        >
+                          <Flag className="mr-2 h-4 w-4" /> Flag
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          className={`flex-1 h-11 border-green-200 text-green-700 hover:bg-green-50 ${!flagFormData.flagged ? 'ring-2 ring-green-500 bg-green-50' : ''}`}
+                          onClick={() => setFlagFormData(prev => ({ ...prev, flagged: false }))}
+                        >
+                          <CheckCircle className="mr-2 h-4 w-4" /> Unflag
+                        </Button>
+                      </div>
+                      <Button 
+                        className="w-full bg-red-600 hover:bg-red-700 text-white h-11 shadow-sm"
+                        onClick={handleFlagSubmit}
+                        disabled={isFlagging}
+                      >
+                        {isFlagging ? <Loader2 className="animate-spin mr-2" /> : "Confirm Action"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Organization Details Modal */}
+          <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+            <DialogContent className="max-w-2xl bg-white">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold text-[#009688] flex items-center gap-2">
+                  <Building2 className="h-6 w-6" />
+                  Organization Details
+                </DialogTitle>
+                <DialogDescription>
+                  Full information retrieved from the blockchain registry.
+                </DialogDescription>
+              </DialogHeader>
+              
+              {modalDetailsPending ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="h-12 w-12 animate-spin text-[#009688] mb-4" />
+                  <p className="text-gray-500">Fetching organization data...</p>
+                </div>
+              ) : modalOrgDetails ? (
+                <div className="space-y-6 py-4">
+                  <div className="flex items-center justify-between bg-[#F5FAFA] p-4 rounded-xl border border-[#D9E5E6]">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">{modalOrgDetails[2]}</h3>
+                      <p className="text-sm text-gray-500">Registered Organization</p>
+                    </div>
                     <div className="flex gap-2">
-                      <Badge variant={orgDetails[4] ? "success" : "secondary"} className="flex items-center gap-1">
-                        {orgDetails[4] ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                        {orgDetails[4] ? "Active" : "Inactive"}
+                      <Badge className={modalOrgDetails[4] ? "bg-green-500" : "bg-red-500"}>
+                        {modalOrgDetails[4] ? "Active" : "Inactive"}
                       </Badge>
-                      {orgDetails[5] && (
-                        <Badge variant="destructive" className="flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          Flagged
-                        </Badge>
+                      {modalOrgDetails[5] && (
+                        <Badge variant="destructive">Flagged</Badge>
                       )}
                     </div>
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">Organization Name</Label>
-                      <div className="p-3 bg-gray-50 rounded-md border">
-                        <p className="text-sm font-medium">{orgDetails[2] || 'N/A'}</p>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <Label className="text-gray-500">Wallet Address</Label>
+                      <div className="flex items-center gap-2 bg-gray-50 p-2 rounded border border-gray-200">
+                        <code className="text-xs flex-1 truncate">{modalOrgDetails[0]}</code>
+                        <button 
+                          onClick={() => navigator.clipboard.writeText(modalOrgDetails[0])}
+                          className="text-gray-400 hover:text-[#009688]"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
                       </div>
                     </div>
-                    
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">Certificates Issued</Label>
-                      <div className="p-3 bg-gray-50 rounded-md border">
-                        <p className="text-sm font-semibold text-blue-600">
-                          {orgDetails[6] ? orgDetails[6].toString() : '0'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">Wallet Address</Label>
-                      <div className="p-3 bg-gray-50 rounded-md border">
-                        <p className="text-sm font-mono break-all">{orgDetails[0]}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">Certificate Contract</Label>
-                      <div className="p-3 bg-gray-50 rounded-md border">
-                        <p className="text-sm font-mono break-all">{orgDetails[1] || 'N/A'}</p>
+                    <div className="space-y-1">
+                      <Label className="text-gray-500">Contract Address</Label>
+                      <div className="flex items-center gap-2 bg-gray-50 p-2 rounded border border-gray-200">
+                        <code className="text-xs flex-1 truncate">{modalOrgDetails[1]}</code>
+                        <button 
+                          onClick={() => navigator.clipboard.writeText(modalOrgDetails[1])}
+                          className="text-gray-400 hover:text-[#009688]"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
                       </div>
                     </div>
                   </div>
-                  
-                  {orgDetails[3] && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">Metadata</Label>
-                      <div className="p-3 bg-gray-50 rounded-md border">
-                        <p className="text-sm whitespace-pre-wrap">{orgDetails[3]}</p>
-                      </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-[#F5FAFA] p-4 rounded-xl border border-[#D9E5E6] text-center">
+                      <Activity className="h-6 w-6 text-[#009688] mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-gray-900">{modalOrgDetails[6]?.toString()}</p>
+                      <p className="text-xs text-gray-500">Certificates Issued</p>
                     </div>
-                  )}
+                    <div className="bg-[#F5FAFA] p-4 rounded-xl border border-[#D9E5E6] text-center">
+                      <Shield className="h-6 w-6 text-[#009688] mx-auto mb-2" />
+                      <p className="text-sm font-bold text-gray-900 mt-2">Verified</p>
+                      <p className="text-xs text-gray-500">Status</p>
+                    </div>
+                    <div className="bg-[#F5FAFA] p-4 rounded-xl border border-[#D9E5E6] text-center">
+                      <Flag className={`h-6 w-6 mx-auto mb-2 ${modalOrgDetails[5] ? "text-red-500" : "text-gray-400"}`} />
+                      <p className={`text-sm font-bold mt-2 ${modalOrgDetails[5] ? "text-red-600" : "text-green-600"}`}>
+                        {modalOrgDetails[5] ? "Flagged" : "Clean"}
+                      </p>
+                      <p className="text-xs text-gray-500">Risk Status</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Metadata / Description</Label>
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 min-h-[80px] text-sm text-gray-700">
+                      {modalOrgDetails[3] || "No additional metadata provided."}
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <XCircle className="h-12 w-12 text-red-400 mx-auto mb-3" />
-                  <p className="text-red-600 font-medium">Organization not found</p>
-                  <p className="text-sm text-gray-600 mt-1">Please check the wallet address and try again</p>
+                <div className="text-center py-8 text-red-500">
+                  Failed to load organization details.
                 </div>
               )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Flag Organization Form */}
-      <Card className="border-2 border-dashed border-orange-200 bg-orange-50/30">
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center gap-2 text-orange-700">
-            <Flag className="h-5 w-5" />
-            Flag/Unflag Organization
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleFlagSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="flagOrgWallet" className="text-sm font-medium">
-                  Organization Wallet Address *
-                </Label>
-                <Input
-                  id="flagOrgWallet"
-                  type="text"
-                  placeholder="0x..."
-                  value={flagFormData.orgWallet}
-                  onChange={(e) => setFlagFormData(prev => ({ ...prev, orgWallet: e.target.value }))}
-                  className="font-mono text-sm"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Flag Status</Label>
-                <div className="flex items-center space-x-4 pt-2">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="flagged"
-                      checked={!flagFormData.flagged}
-                      onChange={() => setFlagFormData(prev => ({ ...prev, flagged: false }))}
-                      className="text-green-600"
-                    />
-                    <span className="text-sm flex items-center gap-1">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      Remove Flag
-                    </span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="flagged"
-                      checked={flagFormData.flagged}
-                      onChange={() => setFlagFormData(prev => ({ ...prev, flagged: true }))}
-                      className="text-red-600"
-                    />
-                    <span className="text-sm flex items-center gap-1">
-                      <AlertCircle className="h-4 w-4 text-red-600" />
-                      Flag Organization
-                    </span>
-                  </label>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-orange-800">Important Notice</p>
-                  <p className="text-sm text-orange-700">
-                    {flagFormData.flagged 
-                      ? "Flagging an organization will mark it as potentially problematic. This action should be used carefully and only when necessary."
-                      : "Removing the flag will restore the organization to normal status. Make sure this action is appropriate."}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <Button 
-                type="submit" 
-                disabled={isFlagging}
-                variant={flagFormData.flagged ? "destructive" : "default"}
-                className="px-6"
-              >
-                {isFlagging ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Flag className="h-4 w-4 mr-2" />
-                    {flagFormData.flagged ? "Flag Organization" : "Remove Flag"}
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-
-          {/* Transaction Result Display */}
-          {transactionResult && (
-            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-start gap-2">
-                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                <div className="space-y-2 flex-1">
-                  <p className="text-sm font-medium text-green-800">
-                    Organization successfully {transactionResult.action}!
-                  </p>
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-green-700">Transaction Details:</p>
-                    <div className="bg-green-100 p-3 rounded border max-h-64 overflow-y-auto">
-                      <pre className="text-xs text-green-800 whitespace-pre-wrap break-words">
-                        {JSON.stringify(transactionResult.rawData, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setTransactionResult(null)}
-                  className="p-1"
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>Close</Button>
+                <Button 
+                  className="bg-[#009688] hover:bg-[#00796B]"
+                  onClick={() => {
+                    setIsDetailsModalOpen(false);
+                    setViewOrgAddress(selectedOrgAddress);
+                    setActiveTab('management');
+                  }}
                 >
-                  <X className="h-4 w-4" />
+                  Manage Organization
                 </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Organizations Grid */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Registered Organizations</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {organizations.map((orgAddress, index) => (
-            <Card key={index} className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-blue-600" />
-                    Organization {index + 1}
-                  </CardTitle>
-                  <Badge variant="secondary" className="text-xs">
-                    Active
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Wallet Address:</label>
-                    <div className="bg-gray-50 p-2 rounded-md border">
-                      <p className="text-sm font-mono text-gray-800 break-all">
-                        {orgAddress}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <span>Registry ID:</span>
-                    <span className="font-mono">#{(index + 1).toString().padStart(3, '0')}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
-      </div>
-
-      {/* Analytics Dashboard */}
-      <div className="mt-8 space-y-6">
-        <div className="flex items-center gap-3 mb-6">
-          <BarChart3 className="h-6 w-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-900">Organization Analytics</h2>
-          {analyticsData.loading && (
-            <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-          )}
-        </div>
-
-        {/* Main Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Total Organizations */}
-          <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-blue-700">Total Organizations</CardTitle>
-                <Building2 className="h-4 w-4 text-blue-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1">
-                <p className="text-3xl font-bold text-blue-900">{analyticsData.total}</p>
-                <p className="text-xs text-blue-600">Registered in system</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Active Organizations */}
-          <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-green-100">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-green-700">Active Organizations</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1">
-                <p className="text-3xl font-bold text-green-900">{analyticsData.active}</p>
-                <p className="text-xs text-green-600">
-                  {analyticsData.total > 0 ? Math.round((analyticsData.active / analyticsData.total) * 100) : 0}% of total
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Flagged Organizations */}
-          <Card className="border-2 border-red-200 bg-gradient-to-br from-red-50 to-red-100">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-red-700">Flagged Organizations</CardTitle>
-                <Flag className="h-4 w-4 text-red-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1">
-                <p className="text-3xl font-bold text-red-900">{analyticsData.flagged}</p>
-                <p className="text-xs text-red-600">
-                  {analyticsData.total > 0 ? Math.round((analyticsData.flagged / analyticsData.total) * 100) : 0}% of total
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Total Certificates */}
-          <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-purple-700">Total Certificates</CardTitle>
-                <Activity className="h-4 w-4 text-purple-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1">
-                <p className="text-3xl font-bold text-purple-900">{analyticsData.totalCertificates.toLocaleString()}</p>
-                <p className="text-xs text-purple-600">Issued across all orgs</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Pie Chart - Organization Status Distribution */}
-          <Card className="border-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PieChart className="h-5 w-5 text-blue-600" />
-                Organization Status Distribution
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <RechartsPieChart>
-                  <Tooltip 
-                    formatter={(value, name) => [value, name]}
-                    labelFormatter={() => 'Organizations'}
-                  />
-                  <Legend />
-                  <Pie
-                    data={analyticsData.pieChartData}
-                    cx="50%" 
-                    cy="50%" 
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {analyticsData.pieChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </RechartsPieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Bar Chart - Organizations vs Certificates */}
-          <Card className="border-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-green-600" />
-                Organizations & Certificates Overview
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={analyticsData.barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="active" fill="#22c55e" name="Active" />
-                  <Bar dataKey="flagged" fill="#ef4444" name="Flagged" />
-                  <Bar dataKey="inactive" fill="#6b7280" name="Inactive" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Trend Chart */}
-        <Card className="border-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
-              Growth Trends (Last 7 Days)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={analyticsData.trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <XAxis dataKey="day" />
-                <YAxis />
-                <CartesianGrid strokeDasharray="3 3" />
-                <Tooltip />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="organizations" 
-                  stroke="#3b82f6" 
-                  strokeWidth={3}
-                  name="Organizations"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="certificates" 
-                  stroke="#10b981" 
-                  strokeWidth={3}
-                  name="Certificates"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="flagged" 
-                  stroke="#ef4444" 
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  name="Flagged"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
