@@ -131,10 +131,12 @@ export async function POST(request) {
           name: createdCert.name,
           courseName: createdCert.courseName,
           certificateId: createdCert.certificateId,
-          // Pass hashes to frontend for blockchain
-          pHash: certData.pHash,
-          certificateHash: certData.certificateHash,
-          encryptedHash: certData.encryptedHash,
+          url: certData.url,
+          // Pass blockchain data structure to frontend
+          fileHash: certData.fileHash,
+          dataHash: certData.dataHash,
+          encryptedData: certData.encryptedData,
+          blockchainData: certData.blockchainData,
         });
 
         console.log(`Certificate ${i + 1} created successfully`);

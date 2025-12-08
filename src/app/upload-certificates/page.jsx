@@ -1,7 +1,6 @@
 "use client"
 import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
 import {
   Upload,
   FileSpreadsheet,
@@ -16,10 +15,9 @@ import {
   FileUp,
   Check,
  AlertCircle, 
-  Shield,
 } from "lucide-react"
 import * as XLSX from "xlsx"
-import { getContract, prepareContractCall } from "thirdweb"
+import { getContract, prepareContractCall, readContract } from "thirdweb"
 import { defineChain } from "thirdweb/chains"
 import { client } from "@/lib/client"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -28,6 +26,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { useActiveAccount, useSendTransaction, useReadContract } from "thirdweb/react";
 import { useRouter } from "next/navigation";
+import { computeFileHash, getZeroDataHash } from "@/utils/phash";
 
 // Step indicator component
 const StepIndicator = ({ currentStep, steps }) => (
@@ -315,7 +314,15 @@ export default function UploadCertificatesPage() {
   }
 
   const handleDeployToBlockchain = async () => {
-    if (!orgContract || !results?.certificates) return
+    console.log("=== Deploy to Blockchain Started ===");
+    console.log("orgContract:", orgContract);
+    console.log("results:", results);
+    
+    if (!orgContract || !results?.certificates) {
+      console.error("Missing required data:", { orgContract: !!orgContract, certificates: !!results?.certificates });
+      alert("Please ensure wallet is connected and certificates are generated");
+      return;
+    }
 
     setIsDeploying(true)
     setDeploySuccess(false)
@@ -327,24 +334,34 @@ export default function UploadCertificatesPage() {
         return
       }
 
+      // Validate certificates have blockchainData with fileHash
       const validCerts = results.certificates.filter((c) => {
-        const isValid = c.pHash && c.certificateHash && c.encryptedHash
-        if (!isValid) console.warn("Invalid cert (missing hashes):", c)
+        const isValid = c.blockchainData && c.blockchainData.filePhash && c.blockchainData.dataHash && c.blockchainData.encryptedData
+        if (!isValid) {
+          console.warn("Invalid cert (missing blockchainData):", c)
+          console.log("Certificate structure:", JSON.stringify(c, null, 2));
+        }
         return isValid
       })
 
       console.log("Valid Certificates Count:", validCerts.length)
+      console.log("Sample valid cert:", validCerts[0]);
 
       if (validCerts.length === 0) {
         throw new Error("No valid certificates found to deploy. Please re-upload the file to generate hashes.")
       }
 
-      const certIDList = validCerts.map((c) => c.certificateId)
-      const filePhashList = validCerts.map((c) => "0x" + c.pHash.padStart(64, "0"))
-      const dataHashList = validCerts.map((c) => "0x" + c.certificateHash)
-      const encryptedDataList = validCerts.map((c) => "0x" + c.encryptedHash.replace(":", ""))
+      // Extract blockchain data using the new structure
+      const certIDList = validCerts.map((c) => c.blockchainData.certID)
+      const filePhashList = validCerts.map((c) => c.blockchainData.filePhash)
+      const dataHashList = validCerts.map((c) => c.blockchainData.dataHash)
+      const encryptedDataList = validCerts.map((c) => c.blockchainData.encryptedData)
 
-      console.log("Deploying batch:", { certIDList, filePhashList, dataHashList, encryptedDataList })
+      console.log("=== Deploying batch ===");
+      console.log("certIDList:", certIDList);
+      console.log("filePhashList:", filePhashList);
+      console.log("dataHashList:", dataHashList);
+      console.log("encryptedDataList:", encryptedDataList);
 
       const transaction = prepareContractCall({
         contract: orgContract,
@@ -353,22 +370,26 @@ export default function UploadCertificatesPage() {
         params: [certIDList, filePhashList, dataHashList, encryptedDataList],
       })
 
+      console.log("Transaction prepared:", transaction);
+      console.log("Sending transaction to wallet...");
+
       await new Promise((resolve, reject) => {
         sendTransaction(transaction, {
           onSuccess: (result) => {
-            console.log("Batch deployment successful:", result)
+            console.log("✅ Batch deployment successful:", result)
             setDeploySuccess(true)
+            alert("Certificates successfully deployed to blockchain!")
             resolve(result)
           },
           onError: (error) => {
-            console.error("Batch deployment failed:", error)
+            console.error("❌ Batch deployment failed:", error)
+            alert(`Blockchain deployment failed: ${error.message}`)
             reject(error)
           },
         })
       })
     } catch (err) {
       console.error("Deployment error:", err)
-      // Don't override general error state, maybe just alert or console
       alert("Blockchain deployment failed: " + err.message)
     } finally {
       setIsDeploying(false)
