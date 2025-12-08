@@ -7,16 +7,22 @@
  * Compute SHA-256 cryptographic hash of a file
  * This creates a unique fingerprint of the file that changes if even a single byte is modified
  * 
- * @param {File|Blob} file - The file to hash
+ * @param {string} base64Data - The base64 encoded file data
  * @returns {Promise<string>} - The SHA-256 hash as a hex string (bytes32 format)
  */
-export async function computeFileHash(file) {
+export async function computeFileHash(base64Data) {
   try {
-    // Read file as ArrayBuffer
-    const arrayBuffer = await file.arrayBuffer();
+    // Convert base64 to binary
+    const binaryString = atob(base64Data);
+    
+    // Convert binary string to Uint8Array
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
     
     // Use Web Crypto API to compute SHA-256 hash
-    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
     
     // Convert to hex string
     const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -73,10 +79,12 @@ export function compareHashes(hash1, hash2) {
 }
 
 // Export default object with all functions
-export default {
+const hashUtils = {
   computeFileHash,
   getZeroDataHash,
   getZeroEncryption,
   isValidBytes32,
   compareHashes,
 };
+
+export default hashUtils;

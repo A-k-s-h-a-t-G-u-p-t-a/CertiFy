@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { createCanvas, loadImage } from "canvas";
 import cloudinary from "@/utils/cloudinary";
+import { computeFileHash, getZeroDataHash, getZeroEncryption } from "@/utils/phash";
 import path from "path";
 import fs from "fs";
+
 
 // Helper function to generate a single certificate
 async function generateSingleCertificate(certData, additionalImageBase64 = null) {
@@ -116,6 +118,15 @@ async function generateSingleCertificate(certData, additionalImageBase64 = null)
 
   // Upload to Cloudinary
   const base64 = canvas.toDataURL("image/png");
+  
+  // Compute file hash from base64 data (remove data:image/png;base64, prefix)
+  const base64Data = base64.split(',')[1];
+  const fileHash = await computeFileHash(base64Data);
+  
+  // Prepare blockchain-ready hashes (for contract upload)
+  const dataHash = getZeroDataHash(); // Using zero hash as placeholder
+  const encryptedData = getZeroEncryption(); // Using zero encryption as placeholder
+  
   const upload = await cloudinary.uploader.upload(base64, {
     folder: "certificates",
     unique_filename: true,
@@ -125,6 +136,16 @@ async function generateSingleCertificate(certData, additionalImageBase64 = null)
     ...certData,
     url: upload.secure_url,
     publicId: upload.public_id,
+    fileHash: fileHash,
+    dataHash: dataHash,
+    encryptedData: encryptedData,
+    // Blockchain-ready data for contract call
+    blockchainData: {
+      certID: certificateId,
+      filePhash: fileHash, // Already in bytes32 format (0x...)
+      dataHash: dataHash,
+      encryptedData: encryptedData
+    }
   };
 }
 
@@ -165,6 +186,10 @@ export async function POST(req) {
             ...certData,
             url: result.url,
             publicId: result.publicId,
+            fileHash: result.fileHash,
+            dataHash: result.dataHash,
+            encryptedData: result.encryptedData,
+            blockchainData: result.blockchainData
           });
 
           console.log(` Certificate ${i + 1} generated successfully`);
@@ -214,6 +239,10 @@ export async function POST(req) {
         success: true,
         url: result.url,
         publicId: result.publicId,
+        fileHash: result.fileHash,
+        dataHash: result.dataHash,
+        encryptedData: result.encryptedData,
+        blockchainData: result.blockchainData,
         pHash: result.pHash,
         certificateHash: result.certificateHash,
       },
