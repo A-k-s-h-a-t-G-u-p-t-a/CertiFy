@@ -1,99 +1,13 @@
 import { NextResponse } from "next/server";
 import { createCanvas, loadImage } from "canvas";
 import cloudinary from "@/utils/cloudinary";
+import { computeFileHash, getZeroDataHash, getZeroEncryption } from "@/utils/phash";
 import path from "path";
 import fs from "fs";
-import crypto from "crypto";
 
-// Configuration
-const ALGORITHM = 'aes-256-cbc';
-const ENCRYPTION_KEY = process.env.CERTIFICATE_ENCRYPTION_KEY || 'default_secret_key_32_bytes_long!!'; // Ensure this matches env
-const IV_LENGTH = 16;
-
-// Helper: Generate SHA-256 Hash
-function generateDataHash(data) {
-  return crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
-}
-
-// Helper: Encrypt Data
-function encryptData(text) {
-  // Ensure key is 32 bytes (using scrypt to derive/expand if needed or just Buffer if exact)
-  // For safety, let's derive a 32-byte key from the provided string to be robust
-  const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-  let encrypted = cipher.update(text);
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
-  return iv.toString('hex') + ':' + encrypted.toString('hex');
-}
-
-// Helper: Embed Steganography (LSB)
-function embedSteganography(ctx, width, height, message) {
-  const imgData = ctx.getImageData(0, 0, width, height);
-  const data = imgData.data;
-
-  // Protocol: Length (32-bit binary) + Message (Binary)
-  const binaryMessage = message.split('').map(char =>
-    char.charCodeAt(0).toString(2).padStart(8, '0')
-  ).join('');
-
-  const lengthBinary = message.length.toString(2).padStart(32, '0');
-  const fullBinary = lengthBinary + binaryMessage;
-
-  if (fullBinary.length > data.length * 0.75) {
-    console.warn("Message too long for steganography capacity");
-  }
-
-  let dataIdx = 0;
-  for (let i = 0; i < fullBinary.length; i++) {
-    if (dataIdx >= data.length) break;
-
-    // Skip Alpha channel (Every 4th byte: R, G, B, [A])
-    if ((dataIdx + 1) % 4 === 0) dataIdx++;
-
-    const bit = parseInt(fullBinary[i], 10);
-    data[dataIdx] = (data[dataIdx] & ~1) | bit; // Modify LSB
-    dataIdx++;
-  }
-
-  ctx.putImageData(imgData, 0, 0);
-}
-
-// Helper: dHash (Difference Hash) - A robust perceptual hash
-function computeDHash(sourceCanvas) {
-  // 1. Resize to 9x8 (72 pixels)
-  // We need 8 rows and 8 comparisons per row
-  const width = 9;
-  const height = 8;
-  const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext('2d');
-
-  // High quality resize usually better, but for hash simple drawImage is standard
-  ctx.drawImage(sourceCanvas, 0, 0, width, height);
-  const data = ctx.getImageData(0, 0, width, height).data;
-
-  let hashBits = '';
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width - 1; x++) {
-      const leftIdx = (y * width + x) * 4;
-      const rightIdx = (y * width + x + 1) * 4;
-
-      // Grayscale conversion (Luminance)
-      const left = data[leftIdx] * 0.299 + data[leftIdx + 1] * 0.587 + data[leftIdx + 2] * 0.114;
-      const right = data[rightIdx] * 0.299 + data[rightIdx + 1] * 0.587 + data[rightIdx + 2] * 0.114;
-
-      hashBits += (left > right ? '1' : '0');
-    }
-  }
-
-  // Convert binary string to Hex
-  // 64 bits matches 16 hex chars
-  const hex = BigInt('0b' + hashBits).toString(16).padStart(16, '0');
-  return hex;
-}
 
 // Helper function to generate a single certificate
-async function generateSingleCertificate(certData) {
+async function generateSingleCertificate(certData, additionalImageBase64 = null) {
   const {
     name,
     courseName,
@@ -159,17 +73,36 @@ async function generateSingleCertificate(certData) {
   const centerX = CANVAS_WIDTH / 2;
 
   // STANDARDIZED POSITIONS FOR 1200x900 CANVAS
-  drawText(name, centerX, 350, "38px 'Times New Roman'", "center");
-  drawText(courseName || "", centerX, 450);
-  drawText(year || "", centerX, 565);
+  drawText(name, centerX, 320, "38px 'Times New Roman'", "center");
+  drawText(courseName || "", centerX, 430);
+  drawText(year || "", centerX, 520);
 
   // LEFT SIDE
-  drawText(`${organisation || ""}`, 200, 700, "28px Serif", "left");
-  drawText(`${certificateId}`, 200, 800, "28px Serif", "left");
+  drawText(`${organisation || ""}`, 390, 600, "28px Serif", "left");
+  drawText(`${certificateId}`, 390, 680, "28px Serif", "left");
 
   // RIGHT SIDE
-  drawText(`${courseId || nqrCode || ""}`, 800, 700, "28px Serif", "left");
-  drawText(`${apaarId || ""}`, 800, 800, "28px Serif", "left");
+  drawText(`${courseId || nqrCode || ""}`, 800, 600, "28px Serif", "left");
+  drawText(`${apaarId || ""}`, 800, 680, "28px Serif", "left");
+
+  // Add additional image if provided
+  if (additionalImageBase64) {
+    try {
+      const imageBuffer = Buffer.from(additionalImageBase64, 'base64');
+      const additionalImage = await loadImage(imageBuffer);
+      
+      // Fixed size and position for the additional image at the bottom center
+      const imgWidth = 120;
+      const imgHeight = 80;
+      const imgX = (CANVAS_WIDTH - imgWidth) / 2; // Center horizontally
+      const imgY = CANVAS_HEIGHT - imgHeight - 90; // 30px from bottom
+      
+      ctx.drawImage(additionalImage, imgX, imgY, imgWidth, imgHeight);
+    } catch (error) {
+      console.warn("Failed to add additional image:", error.message);
+      // Continue certificate generation without the image
+    }
+  }
 
   // --- Steganography & Hashing ---
   // 1. Construct Identity Data (Excluding URL)
@@ -183,21 +116,17 @@ async function generateSingleCertificate(certData) {
     year: year || null
   };
 
-  // 2. Generate Hash
-  const certificateHash = generateDataHash(identityData);
-
-  // 3. Encrypt Hash
-  const encryptedHash = encryptData(certificateHash);
-
-  // 4. Embed in Image
-  embedSteganography(ctx, CANVAS_WIDTH, CANVAS_HEIGHT, encryptedHash);
-
-  // 5. Generate pHash (from modified buffer/canvas)
-  // We pass the canvas directly to our custom function
-  const pHash = computeDHash(canvas);
-
   // Upload to Cloudinary
   const base64 = canvas.toDataURL("image/png");
+  
+  // Compute file hash from base64 data (remove data:image/png;base64, prefix)
+  const base64Data = base64.split(',')[1];
+  const fileHash = await computeFileHash(base64Data);
+  
+  // Prepare blockchain-ready hashes (for contract upload)
+  const dataHash = getZeroDataHash(); // Using zero hash as placeholder
+  const encryptedData = getZeroEncryption(); // Using zero encryption as placeholder
+  
   const upload = await cloudinary.uploader.upload(base64, {
     folder: "certificates",
     unique_filename: true,
@@ -207,9 +136,16 @@ async function generateSingleCertificate(certData) {
     ...certData,
     url: upload.secure_url,
     publicId: upload.public_id,
-    pHash,
-    certificateHash,
-    encryptedHash, // Optional: return if needed for debug/verification
+    fileHash: fileHash,
+    dataHash: dataHash,
+    encryptedData: encryptedData,
+    // Blockchain-ready data for contract call
+    blockchainData: {
+      certID: certificateId,
+      filePhash: fileHash, // Already in bytes32 format (0x...)
+      dataHash: dataHash,
+      encryptedData: encryptedData
+    }
   };
 }
 
@@ -218,7 +154,7 @@ export async function POST(req) {
     const body = await req.json();
 
     // Check if it's a batch request (array of certificates) or single certificate
-    const { certificates } = body;
+    const { certificates, additionalImage } = body;
 
     // Batch processing: array of certificates
     if (certificates && Array.isArray(certificates)) {
@@ -243,16 +179,17 @@ export async function POST(req) {
             organisation: certData.Organisation || certData.organisation || certData['Organisation'] || null,
             organisationId: certData.OrganisationId || certData.organisationId || certData['Organisation ID'] || null,
             nqrCode: certData.NqrCode || certData.nqrCode || certData['NQR Code'] || null,
-          });
+          }, additionalImage); // Pass additional image to generation function
 
           // Append URL and Hashes to original certificate data
           processedCertificates.push({
             ...certData,
             url: result.url,
             publicId: result.publicId,
-            pHash: result.pHash,
-            certificateHash: result.certificateHash,
-            encryptedHash: result.encryptedHash,
+            fileHash: result.fileHash,
+            dataHash: result.dataHash,
+            encryptedData: result.encryptedData,
+            blockchainData: result.blockchainData
           });
 
           console.log(` Certificate ${i + 1} generated successfully`);
@@ -295,13 +232,17 @@ export async function POST(req) {
       return NextResponse.json({ error: "Certificate ID is required" }, { status: 400 });
     }
 
-    const result = await generateSingleCertificate({ name, courseName, year, certificateId, courseId, apaarId, organisation, organisationId, nqrCode });
+    const result = await generateSingleCertificate({ name, courseName, year, certificateId, courseId, apaarId, organisation, organisationId, nqrCode }, additionalImage);
 
     return NextResponse.json(
       {
         success: true,
         url: result.url,
         publicId: result.publicId,
+        fileHash: result.fileHash,
+        dataHash: result.dataHash,
+        encryptedData: result.encryptedData,
+        blockchainData: result.blockchainData,
         pHash: result.pHash,
         certificateHash: result.certificateHash,
       },
