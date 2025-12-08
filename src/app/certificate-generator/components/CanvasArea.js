@@ -24,30 +24,42 @@ const CanvasArea = ({
   }
 
   return (
-    <div className="flex-1 relative flex justify-center items-center bg-gray-50 p-6">
-      <div className="relative border-2 border-dashed border-gray-300 rounded-xl bg-white shadow-inner overflow-hidden">
-
-        <Stage
-          ref={stageRef}
-          width={1200}
-          height={900}
-          className="rounded-lg cursor-pointer"
-          onMouseDown={(e) => {
-            const clickedOnEmpty = e.target === e.target.getStage()
-            if (clickedOnEmpty) setSelectedId(null)
-          }}
-        >
-  
-          {/* Layer 1: Background */}
-          <Layer listening={false}>
-            {backgroundImage && (
-              <BackgroundImage 
-                src={backgroundImage}
-                stageWidth={1200}
-                stageHeight={900}
-              />
-            )}
-          </Layer>
+    <div className="flex-1 relative flex justify-center items-center bg-gray-50 p-4 overflow-hidden">
+      <div 
+        className="relative border-2 border-dashed border-gray-300 rounded-xl bg-white shadow-inner"
+        style={{
+          width: '800px',
+          height: '600px',
+          overflow: 'hidden'
+        }}
+      >
+        <div style={{
+          transform: 'scale(0.667)',
+          transformOrigin: 'top left',
+          width: '1200px',
+          height: '900px'
+        }}>
+          <Stage
+            ref={stageRef}
+            width={1200}
+            height={900}
+            className="rounded-lg cursor-pointer"
+            onMouseDown={(e) => {
+              const clickedOnEmpty = e.target === e.target.getStage()
+              if (clickedOnEmpty) setSelectedId(null)
+            }}
+          >
+    
+            {/* Layer 1: Background */}
+            <Layer listening={false}>
+              {backgroundImage && (
+                <BackgroundImage 
+                  src={backgroundImage}
+                  stageWidth={1200}
+                  stageHeight={900}
+                />
+              )}
+            </Layer>
 
           {/* Layer 2: User Elements */}
           <Layer>
@@ -81,8 +93,7 @@ const CanvasArea = ({
           </Layer>
 
         </Stage>
-
-
+        </div>
       </div>
     </div>
   )

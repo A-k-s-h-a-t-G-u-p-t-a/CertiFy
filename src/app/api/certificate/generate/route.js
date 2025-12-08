@@ -73,9 +73,9 @@ async function generateSingleCertificate(certData, additionalImageBase64 = null)
   const centerX = CANVAS_WIDTH / 2;
 
   // STANDARDIZED POSITIONS FOR 1200x900 CANVAS
-  drawText(name, centerX, 320, "38px 'Times New Roman'", "center");
+  drawText(name, centerX, 310, "38px 'Times New Roman'", "center");
   drawText(courseName || "", centerX, 430);
-  drawText(year || "", centerX, 520);
+  drawText(year || "", centerX, 540);
 
   // LEFT SIDE
   drawText(`${organisation || ""}`, 390, 600, "28px Serif", "left");

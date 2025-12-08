@@ -6,7 +6,6 @@ import {
   FileSpreadsheet,
   CheckCircle,
   XCircle,
-  Shield,
   Loader2,
   X,
   ImageIcon,
@@ -14,7 +13,6 @@ import {
   ArrowRight,
   FileUp,
   Check,
- AlertCircle, 
 } from "lucide-react"
 import * as XLSX from "xlsx"
 import { getContract, prepareContractCall, readContract } from "thirdweb"
