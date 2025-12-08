@@ -72,56 +72,96 @@ def clean_json(text):
 def backfill_fields(text, fields):
     """
     If Gemini missed any field, try to extract it from OCR text directly.
-    Example: certificateId often has patterns like 'ID: ABC123' or 'CERT-4567'
+    This ensures critical fields are populated even if the AI extraction fails.
     """
     # Backfill certificateId if missing
     if not fields.get("certificateId"):
         cleaned_text = " ".join(text.split())
         # Keywords that usually indicate certificate ID
-        # "Certificate ID"
-        # "Certificate No."
-        # "Verification Code"
-        # "Verification No."
         patterns = [
-            r'\bCertificate\s+ID\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
-            r'\bCertificate\s+No\.?\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
-            r'\bVerification\s+Code\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
-            r'\bVerification\s+No\.?\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
-            r'\bVerification\s+Cade\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
+            r'\bCertificate\s+ID\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
+            r'\bCertificate\s+No\.?\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
+            r'\bCert\s+No\.?\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
+            r'\bVerification\s+Code\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
+            r'\bVerification\s+No\.?\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
+            r'\bID\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
         ]
         cid_found = None
         for pat in patterns:
             match = re.search(pat, text, re.IGNORECASE)
             if match:
-                cid_found = match.group(1)
+                cid_found = match.group(1).strip()
                 break
-
         fields["certificateId"] = cid_found if cid_found else None
-        # # If still not found, set null explicitly
-        # if "certificateId" not in fields or not fields["certificateId"]:
-        #     fields["certificateId"] = None
 
-    # You can add similar backfill logic for other fields if needed
+    # Backfill year if missing
+    if not fields.get("year"):
+        # Look for 4-digit years (1900-2099)
+        year_patterns = [
+            r'\b(20[0-9]{2})\b',  # Years 2000-2099
+            r'\b(19[0-9]{2})\b',  # Years 1900-1999
+        ]
+        year_found = None
+        for pat in year_patterns:
+            matches = re.findall(pat, text)
+            if matches:
+                # Take the most recent year found
+                year_found = max(matches)
+                break
+        fields["year"] = year_found if year_found else None
+
+    # Backfill APAAR ID if missing
+    if not fields.get("apaarId"):
+        # APAAR ID patterns (adjust based on actual format)
+        apaar_patterns = [
+            r'\bAPAAR\s*(?:ID)?\s*[:\-]?\s*([A-Z0-9\-]{8,20})\b',
+            r'\bAPAAR[:\-]?\s*([A-Z0-9\-]{8,20})\b',
+        ]
+        apaar_found = None
+        for pat in apaar_patterns:
+            match = re.search(pat, text, re.IGNORECASE)
+            if match:
+                apaar_found = match.group(1).strip()
+                break
+        fields["apaarId"] = apaar_found if apaar_found else None
+
+    # Backfill NQR Code if missing
+    if not fields.get("nqrCode"):
+        # NQR Code patterns
+        nqr_patterns = [
+            r'\bNQR\s*(?:Code)?\s*[:\-]?\s*([A-Z0-9\-]{4,20})\b',
+            r'\bCourse\s+ID\s*[:\-]?\s*([A-Z0-9\-]{4,20})\b',
+            r'\bCourse\s+Code\s*[:\-]?\s*([A-Z0-9\-]{4,20})\b',
+        ]
+        nqr_found = None
+        for pat in nqr_patterns:
+            match = re.search(pat, text, re.IGNORECASE)
+            if match:
+                nqr_found = match.group(1).strip()
+                break
+        fields["nqrCode"] = nqr_found if nqr_found else None
+
     return fields
 
 
 def extract_fields_with_gemini(text):
     prompt = f"""
 You are an AI trained to extract information from certificates. 
-From the certificate text below, extract the following fields:
-- Name of the recipient
-- Name of the organisation
-- Degree name
-- Year of completion
-- Honors or distinction if mentioned
-- Roll number
-- Grade
-- Organisation
+From the certificate text below, extract the following fields according to the certificate schema:
 
-- certificateId
+REQUIRED FIELDS:
+- certificateId: The unique certificate ID, verification code, or certificate number (look for patterns like "Certificate ID", "Certificate No.", "Cert No.", "ID:", "Verification Code")
+- name: Full name of the certificate recipient/student
 
-Return the result as a valid JSON object only, JSON object ONLY, without any explanations, comments, or extra text with keys "name", "degree", "year", "honors", "roll_number", "grade", "organisation", "certificateId".
-If a field is not found, use null for that field.
+OPTIONAL FIELDS:
+- nqrCode: NQR Code or Course ID if mentioned (National Qualifications Register code)
+- courseName: Name of the course, degree, program, or qualification earned
+- apaarId: Student's APAAR ID if mentioned (Automated Permanent Academic Account Registry)
+- year: Year of completion, graduation year, or issuance year (extract only the year as a string, e.g., "2024")
+
+Return ONLY a valid JSON object without any explanations, comments, markdown formatting, or extra text.
+Use these exact keys: "certificateId", "name", "nqrCode", "courseName", "apaarId", "year"
+If a field is not found or not applicable, use null for that field.
 
 Certificate Text:
 \"\"\"{text}\"\"\"
