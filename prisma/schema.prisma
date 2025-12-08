@@ -15,11 +15,11 @@ datasource db {
 }
 
 model Admin {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
-  username       String       @unique
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  username       String   @unique
   hashedPassword String
   name           String?
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime @default(now())
 }
 
 model Organisation {
@@ -27,29 +27,81 @@ model Organisation {
   username       String        @unique
   hashedPassword String
   name           String        @unique
+  walletAddress  String?       @unique // Organization wallet address from blockchain
+  contractAddress String?      @unique // Certificate contract address from blockchain
+  metadata       String?       // Additional metadata from blockchain
+  isActive       Boolean       @default(true)
+  isFlagged      Boolean       @default(false)
+  issuedCertCount Int          @default(0)
   certificates   Certificate[]
+  courses        Course[]
+  alerts         Alert[]       // Alerts received by this organization
   createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 }
 
 model Certificate {
   id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  certificateId  String // your certificate unique ID
   name           String
-  url            String
-  degree         String?
-  certificateId  String?
-  year           String?
-  honors         String?
-  rollNo         String?
-  grade          String?
-  apaarId        String?
-  user           User?        @relation(fields: [apaarId], references: [apaarId])
-  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  nqrCode       String? // the NQR Code(courseId to be specific)
+  courseName     String?
   organisationId String       @db.ObjectId
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  apaarId        String? // Simple string field to link to user when they exist
+  year           String?
+  url            String
+  alerts         Alert[]      // Alerts related to this certificate
+  createdAt      DateTime     @default(now())
+
+  @@index([nqrCode])
 }
+
 model User {
-  id             String        @id @default(auto()) @map("_id") @db.ObjectId
-  apaarId        String        @unique
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  apaarId        String   @unique
+  name           String
+  mobile         String
+  dob            DateTime
   hashedPassword String
-  certificates   Certificate[]
-  createdAt      DateTime      @default(now())
+  createdAt      DateTime @default(now())
 }
+
+model Course {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  nqrCode        String       @unique
+  name           String
+  duration       Int // duration in hours
+  credits        Int
+  organisationId String       @db.ObjectId
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  createdAt      DateTime     @default(now())
+}
+
+model Alert {
+  id                  String       @id @default(auto()) @map("_id") @db.ObjectId
+  certificateId       String       @db.ObjectId
+  certificate         Certificate  @relation(fields: [certificateId], references: [id])
+  organisationId      String       @db.ObjectId
+  organisation        Organisation @relation(fields: [organisationId], references: [id])
+  message             String?      // Alert message or description
+  status              String       @default("pending") // pending, reviewed, resolved
+  
+  // Comparison Results - Store all comparison data for later display
+  similarityScore     Float?       // Overall similarity score (0-1)
+  tamperingScore      Float?       // Overall tampering score (0-1)
+  cvTamperingScore    Float?       // Computer vision tampering score
+  nlpTamperingScore   Float?       // NLP tampering score
+  ssimScore           Float?       // SSIM algorithm score
+  
+  // Detailed comparison data stored as JSON
+  comparisonData      String?      // Full comparison result as JSON string
+  
+  // OCR extracted fields for reference
+  extractedFields     String?      // Extracted fields as JSON string
+  
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+}
+
+

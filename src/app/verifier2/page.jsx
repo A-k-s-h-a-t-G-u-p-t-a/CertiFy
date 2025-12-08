@@ -1,639 +1,532 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useActiveAccount, useReadContract } from "thirdweb/react";
-import { getContract } from "thirdweb";
-import { defineChain } from "thirdweb/chains";
-import { client } from "../../lib/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shield, CheckCircle, XCircle, AlertTriangle, Search, FileText, Hash, Building2, Loader2, Upload, Image } from "lucide-react";
 
-export default function Verifier2() {
-  // Wallet to contract mapping
-  const WALLET_CONTRACT_MAPPING = {
-    "IIT": "0x1627fb0cc3e87E22648C05Db23c4638B0B881e3E",
-    "NIT - Trichy": "0xE13FB895ce3Bc12b61Ff725a32b44585DD0ACc2e", 
-    "PEC": "0xD2722d58332c42f27d1242D5Bb8D19e9DBFDB4eD"
-  };
+import { useState } from "react";
+import { ThirdwebProvider, useActiveAccount } from "thirdweb/react";
+import { createThirdwebClient, getContract, defineChain, readContract } from "thirdweb";
+import { Upload, CheckCircle, XCircle, AlertCircle, Loader2, FileText, Shield } from "lucide-react";
+import { computeFileHash, getZeroDataHash } from "@/utils/phash";
 
-  // Hash computation functions
-  const computeFilePhash = async (file) => {
-    try {
-      // For now, we'll use a simulated pHash computation
-      // In a real implementation, you'd use a proper pHash library
-      const fileBuffer = await file.arrayBuffer();
-      const hashBuffer = await crypto.subtle.digest('SHA-256', fileBuffer);
-      const hashArray = new Uint8Array(hashBuffer);
-      const hashHex = Array.from(hashArray)
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
-      return '0x' + hashHex;
-    } catch (error) {
-      console.error('Error computing file pHash:', error);
-      throw error;
-    }
-  };
+// Create Thirdweb client
+const client = createThirdwebClient({
+  clientId: "46d711b3df7e82f546ee080b590da647",
+});
 
-  const computeDataHash = (extractedData) => {
-    try {
-      // Create SHA-256 hash of the extracted data
-      const dataString = JSON.stringify(extractedData, null, 0);
-      const encoder = new TextEncoder();
-      const data = encoder.encode(dataString);
-      
-      return crypto.subtle.digest('SHA-256', data).then(hashBuffer => {
-        const hashArray = new Uint8Array(hashBuffer);
-        const hashHex = Array.from(hashArray)
-          .map(b => b.toString(16).padStart(2, '0'))
-          .join('');
-        return '0x' + hashHex;
-      });
-    } catch (error) {
-      console.error('Error computing data hash:', error);
-      throw error;
-    }
-  };
+// Contract configuration
+const VERIFIER_CONTRACT_ADDRESS = "0x25aF0a1fCC9188303aEcc9Df8D64a4093e3Bf6d5";
+const CHAIN_ID = 11155111; // Sepolia testnet
 
-  // Get active account
+const ORGANIZATIONS = [
+  { name: "Org1", address: "0x0Ae905eAB69D11a85b38f2D99F9A60682d362d3b" },
+  { name: "AdminOrg", address: "0x035cEaF7eF32Bdb850866d7bb0d82F3397D466F9" },
+  { name: "IIT Bombay", address: "0x60E6de3b551bCb530f5f2ECaEbe98bfDF3902E99" },
+  {name : "IIT DELHI", address:"0x853BD0627eF73dF5283A070CC2ACFA99dbdFfeF9"},
+
+];
+
+// Main component wrapped in ThirdwebProvider
+export default function Verifier2Page() {
+  return (
+    <ThirdwebProvider>
+      <VerifierContent />
+    </ThirdwebProvider>
+  );
+}
+
+function VerifierContent() {
   const account = useActiveAccount();
-
-  // State for verification form
-  const [verificationData, setVerificationData] = useState({
-    selectedOrg: "",
-    certContract: "",
-    certID: "",
-    selectedFile: null,
-    extractedFields: null,
-    recomputedFilePhash: "",
-    recomputedDataHash: ""
-  });
-  
+  const [certificateId, setCertificateId] = useState("");
+  const [certContractAddress, setCertContractAddress] = useState("");
+  const [selectedOrg, setSelectedOrg] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [isProcessingFile, setIsProcessingFile] = useState(false);
-  const [shouldVerify, setShouldVerify] = useState(false);
+  const [verificationResult, setVerificationResult] = useState(null);
+  const [fileHash, setFileHash] = useState("");
 
-  // Get contract dynamically based on selected organization
-  const getSelectedContract = () => {
-    if (!verificationData.certContract) return null;
-    
-    try {
-      return getContract({
-        client,
-        chain: defineChain(11155111), // Sepolia testnet
-        address: verificationData.certContract
-      });
-    } catch (error) {
-      console.error("Invalid contract address:", error);
-      return null;
-    }
-  };
-
-  const selectedContract = getSelectedContract();
-
-  // Auto-set contract address when organization is selected
-  useEffect(() => {
-    if (verificationData.selectedOrg && WALLET_CONTRACT_MAPPING[verificationData.selectedOrg]) {
-      setVerificationData(prev => ({
-        ...prev,
-        certContract: WALLET_CONTRACT_MAPPING[verificationData.selectedOrg]
-      }));
-    }
-  }, [verificationData.selectedOrg]);
-
-  // Get user's organization based on wallet address
-  const getUserOrganization = () => {
-    if (!account?.address) return null;
-    
-    const walletToOrgMapping = {
-      "0x7e14929d682236d3Cb02B6E2aCC779ca9b255E78": "IIT",
-      "0x5b2E5aB341743706cFae342A05df91E018838F59": "NIT - Trichy", 
-      "0x8e6a18B80bDbdF6422dA06BA04daCe8D832Fea98": "PEC"
-    };
-    
-    return walletToOrgMapping[account.address] || null;
-  };
-
-  const userOrganization = getUserOrganization();
-
-  // Initialize form with user's organization if available
-  useEffect(() => {
-    if (userOrganization && !verificationData.selectedOrg) {
-      setVerificationData(prev => ({
-        ...prev,
-        selectedOrg: userOrganization,
-        certContract: WALLET_CONTRACT_MAPPING[userOrganization]
-      }));
-    }
-  }, [userOrganization, verificationData.selectedOrg]);
-
-  // Create a dummy contract for the hook when no contract is selected
-  const dummyContract = getContract({
+  // Get contract instance
+  const contract = getContract({
     client,
-    chain: defineChain(11155111),
-    address: "0x0000000000000000000000000000000000000000" // Zero address as fallback
+    chain: defineChain(CHAIN_ID),
+    address: VERIFIER_CONTRACT_ADDRESS,
   });
-
-  // Verification contract call - only when contract is available
-  const { data: verificationResult, isPending: verificationPending, refetch: refetchVerification } = useReadContract({
-    contract: selectedContract || dummyContract,
-    method: "function verifyCertificateView(string certID, bytes32 recomputedFilePhash, bytes32 recomputedDataHash) view returns (uint8 code, string message, bool adminMatch, bytes32 storedFilePhash, bytes32 storedDataHash)",
-    params: [
-      verificationData.certID || "",
-      verificationData.recomputedFilePhash || "0x0000000000000000000000000000000000000000000000000000000000000000",
-      verificationData.recomputedDataHash || "0x0000000000000000000000000000000000000000000000000000000000000000"
-    ],
-    enabled: shouldVerify && selectedContract !== null && verificationData.certID.length > 0 // Only run when we have valid contract and data
-  });
-
-  // Console log the blockchain output whenever verificationResult changes
-  useEffect(() => {
-    if (verificationResult) {
-      console.log("🔗 BLOCKCHAIN CONTRACT OUTPUT:");
-      console.log("Raw result:", verificationResult);
-      console.log("Is Array:", Array.isArray(verificationResult));
-      
-      if (Array.isArray(verificationResult)) {
-        console.log("Array contents:");
-        console.log("  [0] Code:", verificationResult[0]);
-        console.log("  [1] Message:", verificationResult[1]);
-        console.log("  [2] Admin Match:", verificationResult[2]);
-        console.log("  [3] Stored File pHash:", verificationResult[3]);
-        console.log("  [4] Stored Data Hash:", verificationResult[4]);
-      } else {
-        console.log("Object contents:", verificationResult);
-      }
-    }
-  }, [verificationResult]);
-
-  // Handle file selection and OCR processing
-  const handleFileSelection = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-    if (!validTypes.includes(file.type)) {
-      alert('Please select a valid image file (JPG, PNG) or PDF');
-      return;
-    }
-
-    setVerificationData(prev => ({
-      ...prev,
-      selectedFile: file,
-      extractedFields: null,
-      recomputedFilePhash: "",
-      recomputedDataHash: ""
-    }));
-
-    setIsProcessingFile(true);
-
-    try {
-      // Convert file to base64
-      const fileBuffer = await file.arrayBuffer();
-      const base64Data = btoa(
-        new Uint8Array(fileBuffer).reduce(
-          (data, byte) => data + String.fromCharCode(byte),
-          ""
-        )
-      );
-
-      // Send file to OCR backend
-      const res = await fetch("http://localhost:5001/extract", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filename: file.name,
-          b64: base64Data,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "OCR extraction failed");
-
-      // Extract fields from OCR response
-      const fields = data?.results?.[0]?.fields || {};
-      
-      // Compute file pHash (simulated for now)
-      console.log("Computing file pHash...");
-      const filePhash = await computeFilePhash(file);
-      
-      // Compute data hash from extracted fields
-      console.log("Computing data hash...");
-      const dataHash = await computeDataHash(fields);
-      
-      setVerificationData(prev => ({
-        ...prev,
-        extractedFields: fields,
-        recomputedFilePhash: filePhash,
-        recomputedDataHash: dataHash,
-        // Auto-populate cert ID if available in extracted data
-        certID: fields.certificateId || fields.id || fields.certificate_id || prev.certID
-      }));
-
-    } catch (error) {
-      console.error("File processing error:", error);
-      alert(`Failed to process file: ${error.message}`);
-    } finally {
-      setIsProcessingFile(false);
-    }
-  };
-
-  // Handle input changes
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setVerificationData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
 
   // Handle organization selection
-  const handleOrgSelection = (value) => {
-    setVerificationData(prev => ({
-      ...prev,
-      selectedOrg: value,
-      certContract: WALLET_CONTRACT_MAPPING[value] || ""
-    }));
+  const handleOrgChange = (e) => {
+    const orgName = e.target.value;
+    setSelectedOrg(orgName);
+    const org = ORGANIZATIONS.find(o => o.name === orgName);
+    if (org) {
+      setCertContractAddress(org.address);
+    }
   };
 
-  // Handle form submission
-  const handleVerify = async (e) => {
-    e.preventDefault();
-    if (!verificationData.selectedOrg || !verificationData.certContract || 
-        !verificationData.certID || !verificationData.selectedFile) {
-      alert("Please fill in all required fields and select a certificate file");
+  // Handle file upload
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setVerificationResult(null);
+      
+      // Convert file to base64 and compute hash
+      try {
+        const base64Data = await fileToBase64(file);
+        const hash = await computeFileHash(base64Data);
+        setFileHash(hash);
+        console.log("File base64 computed");
+        console.log("File pHash:", hash);
+      } catch (error) {
+        console.error("Error computing file hash:", error);
+      }
+    }
+  };
+
+  // Helper function to convert file to base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        // Get the base64 string without the data URL prefix
+        const base64String = reader.result.split(',')[1];
+        resolve(base64String);
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Handle verification
+  const handleVerify = async () => {
+    if (!certContractAddress.trim()) {
+      alert("Please enter a certificate contract address");
       return;
     }
 
-    if (!selectedContract) {
-      alert("Invalid contract address. Please select a valid organization.");
+    if (!certificateId.trim()) {
+      alert("Please enter a certificate ID");
       return;
     }
 
-    // Check if hashes are computed
-    if (!verificationData.recomputedFilePhash || !verificationData.recomputedDataHash) {
-      alert("Hashes are still being computed. Please wait for file processing to complete.");
+    if (!selectedFile) {
+      alert("Please upload a certificate file");
       return;
     }
 
     setIsVerifying(true);
-    setShouldVerify(true);
-    
+    setVerificationResult(null);
+
     try {
-      console.log("🚀 STARTING VERIFICATION:");
-      console.log("Verification parameters being sent to contract:");
-      console.log("  Contract Address:", verificationData.certContract);
-      console.log("  Certificate ID:", verificationData.certID);
-      console.log("  File pHash:", verificationData.recomputedFilePhash);
-      console.log("  Data Hash:", verificationData.recomputedDataHash);
+      // Call the verify function on the VerifierContract using readContract
+      // The contract returns a struct VerificationResult
+      const zeroHash = getZeroDataHash();
       
-      console.log("Verifying with hashes:", {
-        filePhash: verificationData.recomputedFilePhash,
-        dataHash: verificationData.recomputedDataHash,
-        certID: verificationData.certID
+      const result = await readContract({
+        contract: contract,
+        method: "function verify(address certContract, string certID, bytes32 recomputedFilePhash, bytes32 recomputedDataHash) view returns ((uint8 code, string message, address certContract, bytes32 storedFilePhash, bytes32 storedDataHash, bytes32 recomputedFilePhash, bytes32 recomputedDataHash, bool adminDecryptedMatches))",
+        params: [
+          certContractAddress.trim(),
+          certificateId.trim(),
+          fileHash, // SHA-256 hash of the file used as filePhash
+          zeroHash, // dataHash set to 0x00... as requested
+        ],
       });
-      
-      // Trigger the contract call
-      await refetchVerification();
+
+      // Parse the result - result is an object representing the struct
+      setVerificationResult({
+        code: Number(result.code),
+        message: result.message,
+        adminMatch: result.adminDecryptedMatches,
+        storedFilePhash: result.storedFilePhash,
+        storedDataHash: result.storedDataHash,
+        recomputedFilePhash: result.recomputedFilePhash,
+        recomputedDataHash: result.recomputedDataHash,
+        certContract: result.certContract,
+        timestamp: new Date().toISOString(),
+      });
     } catch (error) {
       console.error("Verification error:", error);
-      alert("Failed to verify certificate. Please try again.");
+      setVerificationResult({
+        code: 0,
+        message: error.message || "Verification failed. Please check if the certificate exists and the contract address is correct.",
+        adminMatch: false,
+        error: true,
+      });
     } finally {
       setIsVerifying(false);
     }
   };
 
-  // Reset verification
-  const handleReset = () => {
-    setVerificationData({
-      selectedOrg: userOrganization || "",
-      certContract: userOrganization ? WALLET_CONTRACT_MAPPING[userOrganization] : "",
-      certID: "",
-      selectedFile: null,
-      extractedFields: null,
-      recomputedFilePhash: "",
-      recomputedDataHash: ""
-    });
-    setShouldVerify(false);
-    // Reset file input
-    const fileInput = document.getElementById('certificateFile');
-    if (fileInput) fileInput.value = '';
+  // Get status icon and color based on verification code
+  const getStatusDisplay = (code) => {
+    switch (code) {
+      case 1:
+        return {
+          icon: <CheckCircle className="w-12 h-12" />,
+          color: "text-green-600",
+          bgColor: "bg-green-50",
+          borderColor: "border-green-200",
+          title: "Verified ✓",
+        };
+      case 2:
+        return {
+          icon: <AlertCircle className="w-12 h-12" />,
+          color: "text-yellow-600",
+          bgColor: "bg-yellow-50",
+          borderColor: "border-yellow-200",
+          title: "Partial Match ⚠",
+        };
+      case 3:
+        return {
+          icon: <AlertCircle className="w-12 h-12" />,
+          color: "text-blue-600",
+          bgColor: "bg-blue-50",
+          borderColor: "border-blue-200",
+          title: "Data Match ℹ",
+        };
+      case 4:
+        return {
+          icon: <XCircle className="w-12 h-12" />,
+          color: "text-red-600",
+          bgColor: "bg-red-50",
+          borderColor: "border-red-200",
+          title: "Invalid ✗",
+        };
+      case 5:
+        return {
+          icon: <AlertCircle className="w-12 h-12" />,
+          color: "text-orange-600",
+          bgColor: "bg-orange-50",
+          borderColor: "border-orange-200",
+          title: "Flagged 🚩",
+        };
+      case 6:
+        return {
+          icon: <XCircle className="w-12 h-12" />,
+          color: "text-gray-600",
+          bgColor: "bg-gray-50",
+          borderColor: "border-gray-200",
+          title: "Revoked 🚫",
+        };
+      default:
+        return {
+          icon: <XCircle className="w-12 h-12" />,
+          color: "text-red-600",
+          bgColor: "bg-red-50",
+          borderColor: "border-red-200",
+          title: "Error ✗",
+        };
+    }
   };
 
-//   const verificationStatus = getVerificationStatus();
-
   return (
-    <div className="container mx-auto p-6 pt-16 space-y-8">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-8 rounded-xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white rounded-lg shadow-md">
-              <Shield className="h-8 w-8 text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Certificate Verifier</h1>
-              <p className="text-gray-600">Verify certificates using factory contract verification</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            {userOrganization && (
-              <Badge variant="outline" className="px-4 py-2 text-sm">
-                <Building2 className="h-4 w-4 mr-2" />
-                Your Org: {userOrganization}
-              </Badge>
-            )}
-            {account?.address && (
-              <Badge variant="secondary" className="px-4 py-2 text-sm">
-                <Shield className="h-4 w-4 mr-2" />
-                {account.address.slice(0, 6)}...{account.address.slice(-4)}
-              </Badge>
-            )}
-          </div>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#f8f6f1] via-[#e8f5e8] to-[#d4f4dd] p-4 py-12">
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-1/2 -left-1/2 w-96 h-96 bg-gradient-to-br from-[#a7d7b8]/20 to-[#66b2a0]/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-1/2 -right-1/2 w-96 h-96 bg-gradient-to-br from-[#4e796b]/20 to-[#a7d7b8]/20 rounded-full blur-3xl"></div>
       </div>
 
-      {/* Verification Form */}
-      <Card className="border-2 border-dashed border-blue-200 bg-blue-50/30">
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center gap-2 text-blue-700">
-            <Search className="h-5 w-5" />
-            Certificate Verification
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleVerify} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="selectedOrg">Select Organization *</Label>
-                <Select value={verificationData.selectedOrg} onValueChange={handleOrgSelection}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose organization" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(WALLET_CONTRACT_MAPPING).map((org) => (
-                      <SelectItem key={org} value={org}>
-                        {org} {userOrganization === org && "(Your Org)"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="certContract">Certificate Contract Address *</Label>
-                <Input
-                  id="certContract"
-                  name="certContract"
-                  value={verificationData.certContract}
-                  onChange={handleInputChange}
-                  placeholder="0x..."
-                  readOnly
-                  className="bg-gray-50"
-                />
-              </div>
+      <div className="relative max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-[#4e796b] to-[#66b2a0] rounded-2xl flex items-center justify-center shadow-lg">
+            <Shield className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-[#4e796b] to-[#2d5a47] bg-clip-text text-transparent mb-2">
+            Certificate Verifier
+          </h1>
+          <p className="text-[#4e796b] text-sm">
+            Verify the authenticity of certificates on the blockchain
+          </p>
+          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm rounded-full border border-[#a7d7b8]/40">
+            <div className={`w-2 h-2 rounded-full ${account ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+            <span className="text-xs text-[#4e796b] font-medium">
+              {account ? `Connected: ${account.address.slice(0, 6)}...${account.address.slice(-4)}` : 'Wallet not connected'}
+            </span>
+          </div>
+        </div>
+
+        {/* Main Card */}
+        <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl border border-[#a7d7b8]/20 overflow-hidden">
+          <div className="p-8">
+            {/* Organization Dropdown */}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-[#4e796b] mb-2">
+                Select Organization
+              </label>
+              <select
+                value={selectedOrg}
+                onChange={handleOrgChange}
+                className="w-full px-4 py-3 rounded-xl border-2 border-[#a7d7b8] focus:border-[#66b2a0] focus:outline-none transition-colors bg-white/50 backdrop-blur-sm text-[#4e796b]"
+              >
+                <option value="">Select an organization (Optional)</option>
+                {ORGANIZATIONS.map((org) => (
+                  <option key={org.name} value={org.name}>
+                    {org.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="certID">Certificate ID *</Label>
-                <Input
-                  id="certID"
-                  name="certID"
-                  value={verificationData.certID}
-                  onChange={handleInputChange}
-                  placeholder="Enter certificate ID or auto-fill from file"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="certificateFile">Certificate File *</Label>
-                <div className="relative">
-                  <Input
-                    id="certificateFile"
-                    name="certificateFile"
-                    type="file"
-                    onChange={handleFileSelection}
-                    accept=".jpg,.jpeg,.png,.pdf"
-                    required
-                    className="cursor-pointer"
-                    disabled={isProcessingFile}
-                  />
-                  {isProcessingFile && (
-                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                    </div>
-                  )}
-                </div>
-                {verificationData.selectedFile && (
-                  <p className="text-xs text-green-600 flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3" />
-                    {verificationData.selectedFile.name} ({(verificationData.selectedFile.size / 1024).toFixed(1)} KB)
-                  </p>
-                )}
-              </div>
+            {/* Certificate ID Input */}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-[#4e796b] mb-2">
+                Certificate Contract Address
+              </label>
+              <input
+                type="text"
+                value={certContractAddress}
+                onChange={(e) => setCertContractAddress(e.target.value)}
+                placeholder="Enter certificate contract address (0x...)"
+                className="w-full px-4 py-3 rounded-xl border-2 border-[#a7d7b8] focus:border-[#66b2a0] focus:outline-none transition-colors bg-white/50 backdrop-blur-sm"
+              />
             </div>
 
-            {/* Show extracted fields if available */}
-            {verificationData.extractedFields && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-start gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-green-800">OCR Extraction Complete</p>
-                    <div className="text-xs text-green-700 space-y-1">
-                      <p><strong>Extracted Fields:</strong></p>
-                      {Object.entries(verificationData.extractedFields).length > 0 ? (
-                        <div className="ml-2 space-y-1">
-                          {Object.entries(verificationData.extractedFields).map(([key, value]) => (
-                            <p key={key}><span className="font-medium">{key}:</span> {String(value)}</p>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="ml-2 text-orange-600">No fields extracted - manual entry required</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-[#4e796b] mb-2">
+                Certificate ID
+              </label>
+              <input
+                type="text"
+                value={certificateId}
+                onChange={(e) => setCertificateId(e.target.value)}
+                placeholder="Enter certificate ID"
+                className="w-full px-4 py-3 rounded-xl border-2 border-[#a7d7b8] focus:border-[#66b2a0] focus:outline-none transition-colors bg-white/50 backdrop-blur-sm"
+              />
+            </div>
 
-            {/* Show computed hashes */}
-            {(verificationData.recomputedFilePhash || verificationData.recomputedDataHash) && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <div className="flex items-start gap-2">
-                  <Hash className="h-5 w-5 text-purple-600 mt-0.5" />
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-purple-800">Hash Computation Complete</p>
-                    <div className="text-xs text-purple-700 space-y-2">
-                      {verificationData.recomputedFilePhash && (
-                        <div>
-                          <p><strong>File pHash (Certificate):</strong></p>
-                          <p className="ml-2 font-mono break-all bg-purple-100 p-2 rounded text-xs">
-                            {verificationData.recomputedFilePhash}
-                          </p>
-                        </div>
-                      )}
-                      {verificationData.recomputedDataHash && (
-                        <div>
-                          <p><strong>Data Hash (SHA-256):</strong></p>
-                          <p className="ml-2 font-mono break-all bg-purple-100 p-2 rounded text-xs">
-                            {verificationData.recomputedDataHash}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {isProcessingFile && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-blue-800">Processing Certificate File</p>
-                    <p className="text-xs text-blue-700">Extracting data using OCR and computing hashes...</p>
-                    <div className="text-xs text-blue-600">
-                      • pHash computation for certificate file<br/>
-                      • SHA-256 hash generation for extracted data
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start gap-2">
-                <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-blue-800">Verification Requirements</p>
-                  <p className="text-xs text-blue-700">
-                    • Organization: Select the organization that issued the certificate<br/>
-                    • Contract Address: Auto-populated based on organization selection<br/>
-                    • Certificate ID: The unique identifier (auto-filled from OCR if available)<br/>
-                    • Certificate File: Upload the certificate image/PDF for automatic data extraction
-                  </p>
-                  {userOrganization && (
-                    <p className="text-xs text-blue-600 mt-2">
-                      💡 Your organization ({userOrganization}) is automatically highlighted
+            {/* File Upload */}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-[#4e796b] mb-2">
+                Certificate File
+              </label>
+              <div className="relative">
+                <input
+                  type="file"
+                  onChange={handleFileChange}
+                  accept="image/*,.pdf"
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="flex items-center justify-center w-full px-4 py-8 border-2 border-dashed border-[#a7d7b8] rounded-xl cursor-pointer hover:border-[#66b2a0] hover:bg-[#f8f6f1]/50 transition-all bg-white/50 backdrop-blur-sm"
+                >
+                  <div className="text-center">
+                    <Upload className="w-10 h-10 mx-auto mb-2 text-[#66b2a0]" />
+                    <p className="text-sm text-[#4e796b] font-medium">
+                      {selectedFile ? selectedFile.name : "Click to upload certificate"}
                     </p>
-                  )}
-                </div>
+                    <p className="text-xs text-[#4e796b]/60 mt-1">
+                      PDF, PNG, JPG up to 10MB
+                    </p>
+                  </div>
+                </label>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3">
-              <Button 
-                type="button" 
-                variant="outline"
-                onClick={handleReset}
-                disabled={isVerifying || verificationPending}
-              >
-                Reset Form
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isVerifying || verificationPending || isProcessingFile || 
-                         !verificationData.selectedFile || 
-                         !verificationData.recomputedFilePhash || 
-                         !verificationData.recomputedDataHash}
-                className="px-8"
-              >
-                {isVerifying || verificationPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  <>
-                    <Search className="h-4 w-4 mr-2" />
-                    Verify Certificate
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Verification Results */}
-      {shouldVerify && (verificationResult || verificationPending) && (
-        <Card className="border-2 border-dashed border-blue-200 bg-blue-50/30">
-          <CardHeader>
-            <CardTitle className="text-xl flex items-center gap-2 text-blue-700">
-              <Shield className="h-5 w-5" />
-              Verification Results
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {verificationPending ? (
-              <div className="flex flex-col items-center justify-center p-12">
-                <div className="relative">
-                  <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-                  <div className="absolute inset-0 h-12 w-12 rounded-full border-2 border-blue-200"></div>
-                </div>
-                <div className="mt-6 text-center">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Verifying Certificate</h3>
-                  <p className="text-gray-600">Please wait while we verify your certificate...</p>
-                  <div className="flex justify-center mt-4">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : verificationResult ? (
-              <div className="space-y-6">
-                {/* Main Message Display */}
-                <div className="bg-gradient-to-r from-white to-blue-50 p-6 rounded-lg border-2 border-blue-200">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <FileText className="h-6 w-6 text-blue-600" />
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Verification Message</h3>
-                      <p className="text-gray-700 text-base leading-relaxed">
-                        {Array.isArray(verificationResult) ? verificationResult[1] || "No message provided" : verificationResult.message || "No message provided"}
-                      </p>
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="flex items-center justify-between text-sm text-gray-500">
-                          <span>Verification Code: {Array.isArray(verificationResult) ? verificationResult[0] : verificationResult.code}</span>
-                          <span>Contract: {verificationData.certContract}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Success Indicator */}
-                <div className="flex items-center justify-center">
-                  <div className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-full">
-                    <CheckCircle className="h-4 w-4" />
-                    <span className="text-sm font-medium">Verification Complete</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center p-8">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Search className="h-8 w-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to Verify</h3>
-                <p className="text-gray-500">Fill in the form above and click verify to see results</p>
+            {/* Hash Display (for debugging) */}
+            {selectedFile && (
+              <div className="mb-6 p-4 bg-[#f8f6f1]/50 rounded-xl border border-[#a7d7b8]/30">
+                <p className="text-xs text-[#4e796b]/70 mb-2">
+                  <strong>File SHA-256 Hash:</strong> {fileHash}
+                </p>
+                <p className="text-xs text-[#4e796b]/70">
+                  <strong>Data Hash:</strong> 0x0000...0000 (placeholder)
+                </p>
               </div>
             )}
-          </CardContent>
-        </Card>
-      )}
+
+            {/* Verify Button */}
+            <button
+              onClick={handleVerify}
+              disabled={isVerifying || !certificateId || !selectedFile || !certContractAddress}
+              className="w-full py-4 bg-gradient-to-r from-[#4e796b] to-[#66b2a0] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+            >
+              {isVerifying ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-5 h-5" />
+                  Verify Certificate
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Verification Result */}
+          {verificationResult && (
+            <div className="border-t border-[#a7d7b8]/20 p-8 bg-gradient-to-b from-white/50 to-[#f8f6f1]/30">
+              {verificationResult.error ? (
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                    <XCircle className="w-10 h-10 text-red-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-red-600 mb-2">Verification Failed</h3>
+                  <p className="text-sm text-[#4e796b]/70">{verificationResult.message}</p>
+                </div>
+              ) : (
+                <>
+                  {(() => {
+                    const status = getStatusDisplay(verificationResult.code);
+                    return (
+                      <div className={`${status.bgColor} ${status.borderColor} border-2 rounded-2xl p-6`}>
+                        <div className="text-center mb-6">
+                          <div className={`${status.color} mb-3 flex justify-center`}>
+                            {status.icon}
+                          </div>
+                          <h3 className={`text-2xl font-bold ${status.color} mb-2`}>
+                            {status.title}
+                          </h3>
+                          <p className="text-[#4e796b] font-medium">{verificationResult.message}</p>
+                        </div>
+
+                        {/* Details Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                          {/* Row 1: Code and Admin Match */}
+                          <div className="bg-white/60 p-4 rounded-xl">
+                            <p className="text-xs font-semibold text-[#4e796b]/70 mb-1">
+                              Verification Code
+                            </p>
+                            <p className={`text-lg font-bold ${status.color}`}>
+                              Code {verificationResult.code}
+                            </p>
+                          </div>
+
+                          <div className="bg-white/60 p-4 rounded-xl">
+                            <p className="text-xs font-semibold text-[#4e796b]/70 mb-1">
+                              Admin Decrypted Match
+                            </p>
+                            <p className={`text-lg font-bold ${verificationResult.adminMatch ? 'text-green-600' : 'text-gray-600'}`}>
+                              {verificationResult.adminMatch ? "Matched ✓" : "Not Matched ✗"}
+                            </p>
+                          </div>
+
+                          {/* Certificate Contract */}
+                          <div className="bg-white/60 p-4 rounded-xl col-span-full">
+                            <p className="text-xs font-semibold text-[#4e796b]/70 mb-2">
+                              Certificate Contract Address
+                            </p>
+                            <p className="text-xs text-[#4e796b] font-mono break-all">
+                              {verificationResult.certContract}
+                            </p>
+                          </div>
+
+                          {/* File Hash Comparison */}
+                          <div className="bg-white/60 p-4 rounded-xl">
+                            <p className="text-xs font-semibold text-[#4e796b]/70 mb-2">
+                              📦 Stored File Hash
+                            </p>
+                            <p className="text-xs text-[#4e796b] font-mono break-all bg-gray-100 p-2 rounded">
+                              {verificationResult.storedFilePhash}
+                            </p>
+                          </div>
+
+                          <div className="bg-white/60 p-4 rounded-xl">
+                            <p className="text-xs font-semibold text-[#4e796b]/70 mb-2">
+                              🔄 Recomputed File Hash
+                            </p>
+                            <p className="text-xs text-[#4e796b] font-mono break-all bg-gray-100 p-2 rounded">
+                              {verificationResult.recomputedFilePhash}
+                            </p>
+                          </div>
+
+                          {/* Data Hash Comparison */}
+                          <div className="bg-white/60 p-4 rounded-xl">
+                            <p className="text-xs font-semibold text-[#4e796b]/70 mb-2">
+                              📦 Stored Data Hash
+                            </p>
+                            <p className="text-xs text-[#4e796b] font-mono break-all bg-gray-100 p-2 rounded">
+                              {verificationResult.storedDataHash}
+                            </p>
+                          </div>
+
+                          <div className="bg-white/60 p-4 rounded-xl">
+                            <p className="text-xs font-semibold text-[#4e796b]/70 mb-2">
+                              🔄 Recomputed Data Hash
+                            </p>
+                            <p className="text-xs text-[#4e796b] font-mono break-all bg-gray-100 p-2 rounded">
+                              {verificationResult.recomputedDataHash}
+                            </p>
+                          </div>
+
+                          {/* Hash Match Summary */}
+                          <div className="bg-white/60 p-4 rounded-xl col-span-full">
+                            <p className="text-xs font-semibold text-[#4e796b]/70 mb-3">
+                              Hash Comparison Summary
+                            </p>
+                            <div className="flex flex-wrap gap-4">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-3 h-3 rounded-full ${verificationResult.storedFilePhash === verificationResult.recomputedFilePhash ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                <span className="text-sm text-[#4e796b]">
+                                  File Hash: {verificationResult.storedFilePhash === verificationResult.recomputedFilePhash ? 'Match ✓' : 'Mismatch ✗'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`w-3 h-3 rounded-full ${verificationResult.storedDataHash === verificationResult.recomputedDataHash ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                <span className="text-sm text-[#4e796b]">
+                                  Data Hash: {verificationResult.storedDataHash === verificationResult.recomputedDataHash ? 'Match ✓' : 'Mismatch ✗'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Verification Time */}
+                          <div className="bg-white/60 p-4 rounded-xl col-span-full">
+                            <p className="text-xs font-semibold text-[#4e796b]/70 mb-1">
+                              🕐 Verification Time
+                            </p>
+                            <p className="text-sm text-[#4e796b]">
+                              {new Date(verificationResult.timestamp).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Info Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-[#a7d7b8]/40 shadow-lg">
+            <div className="w-12 h-12 bg-gradient-to-r from-[#4e796b] to-[#66b2a0] rounded-xl flex items-center justify-center mb-4 shadow-md">
+              <FileText className="w-6 h-6 text-white" />
+            </div>
+            <h3 className="font-bold text-[#4e796b] mb-2">Verifier Contract</h3>
+            <p className="text-xs text-[#4e796b]/70 font-mono break-all">
+              {VERIFIER_CONTRACT_ADDRESS}
+            </p>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-[#a7d7b8]/40 shadow-lg">
+            <div className="w-12 h-12 bg-gradient-to-r from-[#66b2a0] to-[#a7d7b8] rounded-xl flex items-center justify-center mb-4 shadow-md">
+              <Shield className="w-6 h-6 text-white" />
+            </div>
+            <h3 className="font-bold text-[#4e796b] mb-2">Network</h3>
+            <p className="text-sm text-[#4e796b]/70">Sepolia Testnet</p>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-[#a7d7b8]/40 shadow-lg">
+            <div className="w-12 h-12 bg-gradient-to-r from-[#a7d7b8] to-[#4e796b] rounded-xl flex items-center justify-center mb-4 shadow-md">
+              <CheckCircle className="w-6 h-6 text-white" />
+            </div>
+            <h3 className="font-bold text-[#4e796b] mb-2">Verification Method</h3>
+            <p className="text-sm text-[#4e796b]/70">Blockchain + pHash</p>
+          </div>
+        </div>
+
+        {/* Footer Note */}
+        <div className="mt-8 text-center">
+          <p className="text-xs text-[#4e796b]/60">
+            This verifier uses blockchain technology to ensure certificate authenticity
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

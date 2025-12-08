@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import { NavbarDemo } from "@/components/NavbarContent";
 import { ThirdwebProvider } from "thirdweb/react";
 import { client } from "../lib/client";
@@ -6,13 +6,8 @@ import SessionProvider from "@/components/SessionProvider"; // ✅ import
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -78,7 +73,7 @@ export default function RootLayout({ children }) {
         <meta property="og:url" content="https://yourwebsite.com" />
         <meta property="og:image" content="https://yourwebsite.com/icon-512x512.png" />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${inter.variable} antialiased`}>
         <SessionProvider> {/* ✅ wrap with SessionProvider */}
           <ThirdwebProvider client={client}>
             <ServiceWorkerRegistration />

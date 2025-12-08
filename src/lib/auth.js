@@ -40,8 +40,14 @@ export const authOptions = {
             });
           } else if (credentials.role === "user") {
             console.log("🔍 Looking for user...");
-            user = await prisma.user.findUnique({
-              where: { apaarId: credentials.username }, // For users, username field contains apaarId
+            // Try to find user by apaarId first, then by mobile
+            user = await prisma.user.findFirst({
+              where: {
+                OR: [
+                  { apaarId: credentials.username },
+                  { mobile: credentials.username }
+                ]
+              }
             });
           } else {
             console.log("❌ Invalid role:", credentials.role);
@@ -74,8 +80,9 @@ export const authOptions = {
           console.log("✅ Authentication successful");
           return {
             id: user.id,
-            username: credentials.role === "user" ? user.apaarId : user.username,
-            name: user.name || user.apaarId, // For users, use apaarId as fallback for name
+            username: user.apaarId, // Always use apaarId as the unique identifier
+            name: user.name,
+            mobile: user.mobile,
             role: credentials.role,
           };
         } catch (error) {
@@ -97,6 +104,7 @@ export const authOptions = {
         token.username = user.username;
         token.name = user.name;
         token.role = user.role;
+        token.mobile = user.mobile;
       }
       return token;
     },
@@ -106,6 +114,7 @@ export const authOptions = {
         session.user.username = token.username;
         session.user.name = token.name;
         session.user.role = token.role;
+        session.user.mobile = token.mobile;
       }
       return session;
     },

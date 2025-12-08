@@ -3,8 +3,19 @@
 import { useState, useRef, useEffect} from "react"
 import { nanoid } from "nanoid"
 import useImage from "use-image"
+import { useActiveAccount } from "thirdweb/react"
 
 export const useCertificateLogic = () => {
+
+  // ======== WALLET & BLOCKCHAIN ========
+  const account = useActiveAccount()
+  
+  // Wallet to contract mapping
+  const WALLET_CONTRACT_MAPPING = {
+    "0x7e14929d682236d3Cb02B6E2aCC779ca9b255E78": "0x1627fb0cc3e87E22648C05Db23c4638B0B881e3E",
+    "0x5b2E5aB341743706cFae342A05df91E018838F59": "0xE13FB895ce3Bc12b61Ff725a32b44585DD0ACc2e",
+    "0x8e6a18B80bDbdF6422dA06BA04daCe8D832Fea98": "0xD2722d58332c42f27d1242D5Bb8D19e9DBFDB4eD"
+  }
 
   // ======== STATE MANAGEMENT ========
 
@@ -43,6 +54,11 @@ export const useCertificateLogic = () => {
     fontStyle: "normal",
   })
   const stageRef = useRef(null)
+  const [saveState, setSaveState] = useState({
+    isSaving: false,
+    error: null,
+    success: false,
+  })
 
   // ======== CRYPTO FUNCTIONS ========
 
@@ -424,8 +440,82 @@ export const useCertificateLogic = () => {
     setElements(newElements);
   };
 
+  // ======== SAVE CERTIFICATE TO DATABASE ========
+  const saveCertificateToDatabase = async () => {
+    console.log("Saving certificate to database...")
+    
+    setSaveState({
+      isSaving: true,
+      error: null,
+      success: false,
+    })
+
+    try {
+      // Step 1: Convert canvas to file
+      console.log("Step 1: Converting canvas to file...")
+      const certificateFile = await getCanvasAsFile()
+
+      // Step 2: Extract data with OCR
+      console.log("Step 2: Extracting data with OCR...")
+      const extractionResult = await extractFieldsFromImage(certificateFile)
+
+      if (!extractionResult.success) {
+        throw new Error("OCR extraction failed")
+      }
+
+      // Step 3: Generate certificate URL (optional - upload to storage)
+      const dataURL = stageRef.current.toDataURL({
+        pixelRatio: 2,
+        quality: 0.9
+      })
+
+      // Step 4: Save to database
+      console.log("Step 3: Saving to database...")
+      const response = await fetch("/api/certificate/save-single", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          certificateData: extractionResult,
+          certificateUrl: dataURL, // or upload to Cloudinary first
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save certificate")
+      }
+
+      console.log("Certificate saved successfully:", data)
+
+      setSaveState({
+        isSaving: false,
+        error: null,
+        success: true,
+      })
+
+      // Reset success message after 3 seconds
+      setTimeout(() => {
+        setSaveState(prev => ({ ...prev, success: false }))
+      }, 3000)
+
+      return data
+
+    } catch (error) {
+      console.error("Save certificate error:", error)
+      setSaveState({
+        isSaving: false,
+        error: error.message,
+        success: false,
+      })
+      throw error
+    }
+  }
+
 
   return {
+    account,
+    WALLET_CONTRACT_MAPPING,
     elements,
     setElements,
     selectedId,
@@ -459,6 +549,8 @@ export const useCertificateLogic = () => {
     moveLayer,
     downloadCertificate,
     downloadAndProcess,
+    saveCertificateToDatabase,
+    saveState,
     stageRef
   }
 }
