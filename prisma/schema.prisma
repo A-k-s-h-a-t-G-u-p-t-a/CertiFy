@@ -53,7 +53,6 @@ model Certificate {
   createdAt      DateTime     @default(now())
 
   @@index([nqrCode])
-  @@index([apaarId]) // Index for fast certificate lookups by APAAR ID
 }
 
 model User {
