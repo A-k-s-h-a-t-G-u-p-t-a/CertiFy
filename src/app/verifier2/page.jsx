@@ -41,6 +41,8 @@ function VerifierContent() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
   const [fileHash, setFileHash] = useState("");
+  const [isExtractingOCR, setIsExtractingOCR] = useState(false);
+  const [ocrError, setOcrError] = useState("");
 
   // Get contract instance
   const contract = getContract({
@@ -91,6 +93,59 @@ function VerifierContent() {
       reader.onerror = (error) => reject(error);
       reader.readAsDataURL(file);
     });
+  };
+
+  // Handle OCR extraction for certificate ID
+  const handleOCRExtraction = async () => {
+    if (!selectedFile) {
+      alert("Please upload a certificate file first");
+      return;
+    }
+
+    setIsExtractingOCR(true);
+    setOcrError("");
+
+    try {
+      // Convert file to base64
+      const base64Data = await fileToBase64(selectedFile);
+      
+      // Call Python OCR API
+      const response = await fetch('http://localhost:5001/extract', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: selectedFile.name,
+          b64: base64Data,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('OCR extraction failed');
+      }
+
+      const data = await response.json();
+      console.log('OCR Response:', data);
+
+      // Extract certificateId from the first page/result
+      if (data.results && data.results.length > 0) {
+        const fields = data.results[0].fields;
+        if (fields && fields.certificateId) {
+          setCertificateId(fields.certificateId);
+          setOcrError("");
+        } else {
+          setOcrError("Certificate ID not found in document");
+        }
+      } else {
+        setOcrError("No data extracted from document");
+      }
+    } catch (error) {
+      console.error('OCR extraction error:', error);
+      setOcrError(error.message || "Failed to extract certificate ID");
+    } finally {
+      setIsExtractingOCR(false);
+    }
   };
 
   // Handle verification
@@ -284,13 +339,42 @@ function VerifierContent() {
               <label className="block text-sm font-semibold text-[#4e796b] mb-2">
                 Certificate ID
               </label>
-              <input
-                type="text"
-                value={certificateId}
-                onChange={(e) => setCertificateId(e.target.value)}
-                placeholder="Enter certificate ID"
-                className="w-full px-4 py-3 rounded-xl border-2 border-[#a7d7b8] focus:border-[#66b2a0] focus:outline-none transition-colors bg-white/50 backdrop-blur-sm"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={certificateId}
+                  onChange={(e) => setCertificateId(e.target.value)}
+                  placeholder="Enter certificate ID"
+                  className="flex-1 px-4 py-3 rounded-xl border-2 border-[#a7d7b8] focus:border-[#66b2a0] focus:outline-none transition-colors bg-white/50 backdrop-blur-sm"
+                />
+                <button
+                  onClick={handleOCRExtraction}
+                  disabled={!selectedFile || isExtractingOCR}
+                  className="px-4 py-3 bg-gradient-to-r from-[#66b2a0] to-[#a7d7b8] text-white font-medium rounded-xl shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap"
+                  title="Extract Certificate ID using OCR"
+                >
+                  {isExtractingOCR ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Extracting...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-4 h-4" />
+                      Auto-fill
+                    </>
+                  )}
+                </button>
+              </div>
+              {ocrError && (
+                <p className="text-xs text-red-600 mt-2 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {ocrError}
+                </p>
+              )}
+              <p className="text-xs text-[#4e796b]/60 mt-2">
+                Upload a certificate file and click "Auto-fill" to extract the Certificate ID using OCR
+              </p>
             </div>
 
             {/* File Upload */}
