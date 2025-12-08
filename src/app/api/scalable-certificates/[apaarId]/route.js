@@ -4,7 +4,7 @@ import redis from "@/lib/redis";
 
 export async function GET(req, { params }) {
   try {
-    const apaarId = params.apaarId;
+    const apaarId = await params.apaarId;
 
     if (!apaarId) {
       return NextResponse.json(
