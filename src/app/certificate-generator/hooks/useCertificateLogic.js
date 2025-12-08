@@ -3,12 +3,16 @@
 import { useState, useRef, useEffect} from "react"
 import { nanoid } from "nanoid"
 import useImage from "use-image"
-import { useActiveAccount } from "thirdweb/react"
+import { useActiveAccount, useSendTransaction } from "thirdweb/react"
+import { getContract, prepareContractCall } from "thirdweb"
+import { defineChain } from "thirdweb/chains"
+import { client } from "@/lib/client"
 
 export const useCertificateLogic = () => {
 
   // ======== WALLET & BLOCKCHAIN ========
   const account = useActiveAccount()
+  const { mutate: sendTransaction } = useSendTransaction()
   
   // Wallet to contract mapping
   const WALLET_CONTRACT_MAPPING = {
@@ -463,20 +467,22 @@ export const useCertificateLogic = () => {
         throw new Error("OCR extraction failed")
       }
 
-      // Step 3: Generate certificate URL (optional - upload to storage)
+      // Step 3: Get certificate as base64
+      console.log("Step 3: Getting certificate as base64...")
       const dataURL = stageRef.current.toDataURL({
         pixelRatio: 2,
-        quality: 0.9
+        quality: 0.9,
+        mimeType: 'image/png'
       })
 
-      // Step 4: Save to database
-      console.log("Step 3: Saving to database...")
+      // Step 4: Save to database with base64 for steganography processing
+      console.log("Step 4: Saving to database with steganography and blockchain hashes...")
       const response = await fetch("/api/certificate/save-single", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           certificateData: extractionResult,
-          certificateUrl: dataURL, // or upload to Cloudinary first
+          certificateBase64: dataURL, // Send base64 for steganography processing
         }),
       })
 
@@ -487,6 +493,15 @@ export const useCertificateLogic = () => {
       }
 
       console.log("Certificate saved successfully:", data)
+      console.log("Blockchain data:", data.certificate?.blockchainData)
+
+      // Step 5: Deploy to blockchain if blockchain data is available
+      if (data.certificate?.blockchainData && account) {
+        console.log("Step 5: Deploying to blockchain...")
+        await deployToBlockchain(data.certificate.blockchainData)
+      } else if (!account) {
+        console.warn("Wallet not connected - skipping blockchain deployment")
+      }
 
       setSaveState({
         isSaving: false,
@@ -508,6 +523,85 @@ export const useCertificateLogic = () => {
         error: error.message,
         success: false,
       })
+      throw error
+    }
+  }
+
+  // ======== DEPLOY TO BLOCKCHAIN ========
+  const deployToBlockchain = async (blockchainData) => {
+    if (!account?.address) {
+      throw new Error("Wallet not connected")
+    }
+
+    try {
+      console.log("Getting organization contract address...")
+      
+      // Get organization contract address from wallet mapping or API
+      let contractAddress = WALLET_CONTRACT_MAPPING[account.address]
+      
+      if (!contractAddress) {
+        // Try to fetch from API
+        const response = await fetch(`/api/organizations?wallet=${account.address}`)
+        const orgData = await response.json()
+        
+        if (orgData.success && orgData.organization?.contractAddress) {
+          contractAddress = orgData.organization.contractAddress
+        } else {
+          throw new Error("Organization contract not found for this wallet")
+        }
+      }
+
+      console.log("Contract address:", contractAddress)
+
+      // Create contract instance
+      const orgContract = getContract({
+        client,
+        chain: defineChain(11155111), // Sepolia testnet
+        address: contractAddress,
+      })
+
+      // Prepare arrays for batch call (single certificate)
+      const certIDList = [blockchainData.certID]
+      const filePhashList = [blockchainData.filePhash]
+      const dataHashList = [blockchainData.dataHash]
+      const encryptedDataList = [blockchainData.encryptedData]
+
+      console.log("Preparing blockchain transaction:", {
+        certIDList,
+        filePhashList,
+        dataHashList,
+        encryptedDataList
+      })
+
+      // Prepare contract call
+      const transaction = prepareContractCall({
+        contract: orgContract,
+        method: "function issueCertificatesBatch(string[] certIDList, bytes32[] filePhashList, bytes32[] dataHashList, bytes[] encryptedDataList)",
+        params: [certIDList, filePhashList, dataHashList, encryptedDataList],
+      })
+
+      console.log("Sending transaction to wallet...")
+
+      // Send transaction and wait for confirmation
+      return new Promise((resolve, reject) => {
+        sendTransaction(transaction, {
+          onSuccess: (result) => {
+            console.log("✅ Blockchain deployment successful:", result)
+            setProcessingState(prev => ({
+              ...prev,
+              blockchainTxHash: result.transactionHash,
+            }))
+            resolve(result)
+          },
+          onError: (error) => {
+            console.error("❌ Blockchain deployment failed:", error)
+            reject(error)
+          },
+        })
+      })
+
+    } catch (error) {
+      console.error("Blockchain deployment error:", error)
       throw error
     }
   }
