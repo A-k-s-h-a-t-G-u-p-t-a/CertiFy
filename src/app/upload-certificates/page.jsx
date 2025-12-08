@@ -25,6 +25,7 @@ import { Progress } from "@/components/ui/progress"
 import { useActiveAccount, useSendTransaction, useReadContract } from "thirdweb/react";
 import { useRouter } from "next/navigation";
 import { computeFileHash, getZeroDataHash } from "@/utils/phash";
+import { Shield } from "lucide-react"
 
 // Step indicator component
 const StepIndicator = ({ currentStep, steps }) => (
