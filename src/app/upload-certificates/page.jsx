@@ -7,6 +7,7 @@ import { useActiveAccount, useSendTransaction, useReadContract } from "thirdweb/
 import { getContract, prepareContractCall } from "thirdweb";
 import { defineChain } from "thirdweb/chains";
 import { client } from "@/lib/client";
+import { useRouter } from "next/navigation";
 
 export default function UploadCertificatesPage() {
   const { data: session, status } = useSession();
