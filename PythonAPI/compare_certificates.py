@@ -241,6 +241,17 @@ def highlight_differences(img_orig_gray, img_test_gray, base_color_img):
     if img_orig_gray.shape != img_test_gray.shape:
         img_test_gray = cv2.resize(img_test_gray, (img_orig_gray.shape[1], img_orig_gray.shape[0]))
 
+    # Step 1.5: Resize images to reduce memory usage if they're too large
+    max_dimension = 1200  # Maximum width or height
+    h, w = img_orig_gray.shape
+    if h > max_dimension or w > max_dimension:
+        scale = max_dimension / max(h, w)
+        new_w = int(w * scale)
+        new_h = int(h * scale)
+        img_orig_gray = cv2.resize(img_orig_gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        img_test_gray = cv2.resize(img_test_gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        base_color_img = cv2.resize(base_color_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
     # Step 2: Normalize both images for better comparison
     orig_eq = normalize_histogram(img_orig_gray)
     test_eq = normalize_histogram(img_test_gray)
