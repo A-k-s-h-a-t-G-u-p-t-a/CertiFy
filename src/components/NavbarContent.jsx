@@ -25,7 +25,7 @@ export function NavbarDemo() {
   const enterDropdownRef = useRef(null)
   const navItems = [
     { name: "Admin", link: "/admin" },
-    { name: "Organizations", link: "/organizations" },
+    { name: "Organizations", link: "/org" },
     { name: "Verifier", link: "/verifier" },
     { name: "Certificate Playground", link: "/certificate-generator" },
   ]

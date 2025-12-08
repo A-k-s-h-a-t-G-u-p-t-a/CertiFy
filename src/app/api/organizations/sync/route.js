@@ -4,6 +4,7 @@ import { getContract } from "thirdweb";
 import { defineChain } from "thirdweb/chains";
 import { createThirdwebClient } from "thirdweb";
 import { readContract } from "thirdweb";
+import bcrypt from "bcryptjs";
 
 // Initialize Thirdweb client and contract
 const client = createThirdwebClient({
@@ -97,13 +98,13 @@ export async function POST(request) {
           // Generate username from wallet address (first 8 chars)
           const username = `org_${_orgWallet.slice(2, 10).toLowerCase()}`;
           
-          // Generate a default password (org should change this)
-          const defaultPassword = `pass_${_orgWallet.slice(2, 10)}`;
+          // Hash the default password "certify123" with bcrypt salt rounds 10
+          const hashedPassword = await bcrypt.hash("certify123", 10);
 
           await prisma.organisation.create({
             data: {
               username: username,
-              hashedPassword: defaultPassword, // In production, this should be properly hashed
+              hashedPassword: hashedPassword,
               name: name,
               walletAddress: _orgWallet.toLowerCase(),
               contractAddress: certContract.toLowerCase(),

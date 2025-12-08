@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Building2, Users, Loader2, Plus, FileText, CheckCircle, XCircle, AlertCircle, Shield, Award, Hash, Flag, X, Search, BarChart3 } from "lucide-react";
+import { Building2, Users, Loader2, Plus, FileText, CheckCircle, XCircle, AlertCircle, Shield, Award, Hash, Flag, X, Search, BarChart3, Upload, FileUp } from "lucide-react";
 
 export default function Org() {
   const account = useActiveAccount();
@@ -463,6 +463,22 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
           <p className="text-gray-600">Issue and manage certificates for your organization</p>
         </div>
         <div className="flex items-center gap-4">
+          <Button 
+            onClick={() => window.location.href = '/certificate-generator'}
+            variant="default"
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+          >
+            <FileUp className="h-4 w-4" />
+            Mass Upload Certificates
+          </Button>
+          <Button 
+            onClick={() => window.location.href = '/upload'}
+            variant="default"
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+          >
+            <Upload className="h-4 w-4" />
+            Add Legacy Documents
+          </Button>
           <Button 
             onClick={() => window.location.href = '/organizations'}
             variant="outline"
