@@ -13,7 +13,7 @@ import json
 from dotenv import load_dotenv
 from flask_cors import CORS
 import pandas as pd  # For Excel processing
-import google.generativeai as genai
+from groq import Groq  # Groq API
 
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' # Adjust this path(where tesseract is donwlaoded in your local system)
@@ -26,10 +26,17 @@ CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 # Load spaCy English model
 nlp = spacy.load("en_core_web_sm")
 
-# Initialize Gemini Client
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
-api_key = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=api_key)
+# Initialize Groq Client
+# Try loading from current directory first, then parent
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+if not os.getenv("GROQ_API_KEY"):
+    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
+
+groq_api_key = os.getenv("GROQ_API_KEY")
+if not groq_api_key:
+    raise ValueError("GROQ_API_KEY not found in environment variables. Please check your .env file.")
+
+groq_client = Groq(api_key=groq_api_key)
 
 
 def load_document_from_bytes(file_bytes, filename="file"):
@@ -71,7 +78,7 @@ def clean_json(text):
 
 def backfill_fields(text, fields):
     """
-    If Gemini missed any field, try to extract it from OCR text directly.
+    If Groq missed any field, try to extract it from OCR text directly.
     This ensures critical fields are populated even if the AI extraction fails.
     """
     # Backfill certificateId if missing
@@ -144,7 +151,7 @@ def backfill_fields(text, fields):
     return fields
 
 
-def extract_fields_with_gemini(text):
+def extract_fields_with_groq(text):
     prompt = f"""
 You are an AI trained to extract information from certificates. 
 From the certificate text below, extract the following fields according to the certificate schema:
@@ -167,17 +174,24 @@ Certificate Text:
 \"\"\"{text}\"\"\"
 """
 
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    # Call Groq API
+    chat_completion = groq_client.chat.completions.create(
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a precise information extraction assistant that returns only valid JSON."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        model="llama-3.3-70b-versatile",  # or "mixtral-8x7b-32768" for faster responses
+        temperature=0.0,
+        max_tokens=1000,
+    )
 
-    response = model.generate_content(
-    contents=prompt,
-    generation_config={
-        "temperature": 0.0
-    }
-)
-
-
-    output_text = response.text.strip()
+    output_text = chat_completion.choices[0].message.content.strip()
     cleaned_text = clean_json(output_text)
 
     try:
@@ -238,8 +252,8 @@ def extract_certificate_fields():
             print(f"📝 OCR text extracted (length: {len(ocr_text)})")
             print(f"OCR Text preview: {ocr_text[:200]}...")
             
-            fields = extract_fields_with_gemini(ocr_text)
-            print(f"🤖 Gemini fields extracted: {fields}")
+            fields = extract_fields_with_groq(ocr_text)
+            print(f"🤖 Groq fields extracted: {fields}")
             
             all_results.append({"page": idx + 1, "ocr_text": ocr_text, "fields": fields})
         except Exception as e:
