@@ -65,16 +65,16 @@ export default function UserSignInPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white/90 backdrop-blur-lg p-8 shadow-2xl border border-white/20">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/30 px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white/90 backdrop-blur-lg p-8 shadow-2xl border border-emerald-100">
         {/* Header */}
         <div className="mb-8 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-emerald-700 to-teal-600 bg-clip-text text-transparent">
             User Login
           </h2>
           <p className="text-slate-600 text-sm mt-2">Access your certificate dashboard</p>
@@ -90,7 +90,7 @@ export default function UserSignInPage() {
             }}
             className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
               loginMethod === 'mobile'
-                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
@@ -107,7 +107,7 @@ export default function UserSignInPage() {
             }}
             className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
               loginMethod === 'apaarId'
-                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
@@ -145,7 +145,7 @@ export default function UserSignInPage() {
               pattern={loginMethod === 'mobile' ? '[0-9]{10}' : undefined}
               maxLength={loginMethod === 'mobile' ? '10' : undefined}
               required
-              className="w-full rounded-xl border-2 border-slate-200 bg-white/50 px-4 py-3 shadow-sm focus:border-blue-400 focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+              className="w-full rounded-xl border-2 border-emerald-200 bg-white/50 px-4 py-3 shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all"
             />
           </div>
 
@@ -159,7 +159,7 @@ export default function UserSignInPage() {
               onChange={handleChange}
               placeholder="Enter your password"
               required
-              className="w-full rounded-xl border-2 border-slate-200 bg-white/50 px-4 py-3 shadow-sm focus:border-blue-400 focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+              className="w-full rounded-xl border-2 border-emerald-200 bg-white/50 px-4 py-3 shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all"
             />
           </div>
 
@@ -167,7 +167,7 @@ export default function UserSignInPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 p-3 text-white font-semibold hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 p-3 text-white font-semibold hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98]"
           >
             {loading ? (
               <div className="flex items-center justify-center gap-2">
@@ -184,12 +184,12 @@ export default function UserSignInPage() {
         <div className="mt-8 pt-6 border-t border-slate-200 space-y-4">
           <p className="text-center text-slate-600 text-sm">
             Don't have an account?{' '}
-            <Link href="/signup" className="text-blue-600 font-semibold hover:text-blue-700">
+            <Link href="/signup" className="text-emerald-600 font-semibold hover:text-emerald-700">
               Sign up
             </Link>
           </p>
           <p className="text-center text-slate-600 text-sm">
-            <Link href="/signin" className="text-blue-600 font-semibold hover:text-blue-700">
+            <Link href="/signin" className="text-emerald-600 font-semibold hover:text-emerald-700">
               Sign in as Admin/Organization
             </Link>
           </p>

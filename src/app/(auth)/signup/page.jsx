@@ -95,15 +95,15 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 px-4 py-8">
-      <div className="w-full max-w-md rounded-2xl bg-white/90 backdrop-blur-lg p-8 shadow-2xl border border-white/20">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/30 px-4 py-8">
+      <div className="w-full max-w-md rounded-2xl bg-white/90 backdrop-blur-lg p-8 shadow-2xl border border-emerald-100">
         <div className="mb-6 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
           </div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-emerald-700 to-teal-600 bg-clip-text text-transparent">
             Create Account
           </h2>
           <p className="text-slate-600 text-sm mt-2">Join CertiFy to manage your certificates</p>
@@ -129,7 +129,7 @@ export default function SignUpPage() {
               required
               value={formData.apaarId}
               onChange={handleChange}
-              className="w-full rounded-xl border-2 border-slate-200 bg-white/50 px-4 py-3 shadow-sm focus:border-blue-400 focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+              className="w-full rounded-xl border-2 border-emerald-200 bg-white/50 px-4 py-3 shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all"
               placeholder="Enter your APAAR ID"
             />
           </div>
@@ -142,7 +142,7 @@ export default function SignUpPage() {
               required
               value={formData.name}
               onChange={handleChange}
-              className="w-full rounded-xl border-2 border-slate-200 bg-white/50 px-4 py-3 shadow-sm focus:border-blue-400 focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+              className="w-full rounded-xl border-2 border-emerald-200 bg-white/50 px-4 py-3 shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all"
               placeholder="Enter your full name"
             />
           </div>
@@ -156,7 +156,7 @@ export default function SignUpPage() {
               pattern="[0-9]{10}"
               value={formData.mobile}
               onChange={handleChange}
-              className="w-full rounded-xl border-2 border-slate-200 bg-white/50 px-4 py-3 shadow-sm focus:border-blue-400 focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+              className="w-full rounded-xl border-2 border-emerald-200 bg-white/50 px-4 py-3 shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all"
               placeholder="10-digit mobile number"
               maxLength="10"
             />
@@ -171,7 +171,7 @@ export default function SignUpPage() {
               value={formData.dob}
               onChange={handleChange}
               max={new Date().toISOString().split('T')[0]}
-              className="w-full rounded-xl border-2 border-slate-200 bg-white/50 px-4 py-3 shadow-sm focus:border-blue-400 focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+              className="w-full rounded-xl border-2 border-emerald-200 bg-white/50 px-4 py-3 shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all"
             />
           </div>
 
@@ -184,7 +184,7 @@ export default function SignUpPage() {
               minLength="6"
               value={formData.password}
               onChange={handleChange}
-              className="w-full rounded-xl border-2 border-slate-200 bg-white/50 px-4 py-3 shadow-sm focus:border-blue-400 focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+              className="w-full rounded-xl border-2 border-emerald-200 bg-white/50 px-4 py-3 shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all"
               placeholder="Minimum 6 characters"
             />
           </div>
@@ -198,14 +198,14 @@ export default function SignUpPage() {
               minLength="6"
               value={formData.confirmPassword}
               onChange={handleChange}
-              className="w-full rounded-xl border-2 border-slate-200 bg-white/50 px-4 py-3 shadow-sm focus:border-blue-400 focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+              className="w-full rounded-xl border-2 border-emerald-200 bg-white/50 px-4 py-3 shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all"
               placeholder="Re-enter your password"
             />
           </div>
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 p-3 text-white font-semibold hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 p-3 text-white font-semibold hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] active:scale-[0.98]"
             disabled={loading}
           >
             {loading ? 'Creating Account...' : 'Sign Up'}
@@ -216,7 +216,7 @@ export default function SignUpPage() {
 
         <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-300">
           Already have an account?{' '}
-          <a href="/user-signin" className="text-blue-600 hover:underline font-semibold">
+          <a href="/user-signin" className="text-emerald-600 hover:underline font-semibold">
             Sign in
           </a>
         </p>
