@@ -1,8 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertCircle, Shield, Loader2 } from "lucide-react";
 import * as XLSX from 'xlsx';
+import { useActiveAccount, useSendTransaction, useReadContract } from "thirdweb/react";
+import { getContract, prepareContractCall } from "thirdweb";
+import { defineChain } from "thirdweb/chains";
+import { client } from "@/lib/client";
 
 export default function UploadCertificatesPage() {
   const { data: session } = useSession();
@@ -12,11 +16,40 @@ export default function UploadCertificatesPage() {
   const [error, setError] = useState("");
   const [parsedData, setParsedData] = useState(null);
 
+  // Blockchain State
+  const account = useActiveAccount();
+  const { mutate: sendTransaction } = useSendTransaction();
+  const [orgContract, setOrgContract] = useState(null);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [deploySuccess, setDeploySuccess] = useState(false);
+
+  // Fetch Organization Contract (Reuse logic from Org.jsx)
+  useEffect(() => {
+    const fetchOrganization = async () => {
+      if (account?.address) {
+        try {
+          const response = await fetch(`/api/organizations?wallet=${account.address}`);
+          const data = await response.json();
+          if (data.success && data.organization && data.organization.contractAddress) {
+            setOrgContract(getContract({
+              client,
+              chain: defineChain(11155111),
+              address: data.organization.contractAddress,
+            }));
+          }
+        } catch (error) {
+          console.error("Error fetching organization:", error);
+        }
+      }
+    };
+    fetchOrganization();
+  }, [account?.address]);
+
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-      if (selectedFile.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || 
-          selectedFile.type === "application/vnd.ms-excel") {
+      if (selectedFile.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+        selectedFile.type === "application/vnd.ms-excel") {
         setFile(selectedFile);
         setError("");
         setParsedData(null); // Reset parsed data when new file is selected
@@ -74,7 +107,7 @@ export default function UploadCertificatesPage() {
       // Parse Excel file to JSON
       console.log("Parsing Excel file...");
       const excelData = await parseExcelFile(file);
-      
+
       if (!excelData || excelData.length === 0) {
         throw new Error("Excel file is empty or could not be parsed");
       }
@@ -105,6 +138,67 @@ export default function UploadCertificatesPage() {
       console.error("Upload error:", err);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDeployToBlockchain = async () => {
+    if (!orgContract || !results?.certificates) return;
+
+    setIsDeploying(true);
+    setDeploySuccess(false);
+
+    try {
+      console.log("Handle Deploy - Results:", results);
+      if (!results?.certificates) {
+        console.error("No certificates in results");
+        return;
+      }
+
+      const validCerts = results.certificates.filter(c => {
+        const isValid = c.pHash && c.certificateHash && c.encryptedHash;
+        if (!isValid) console.warn("Invalid cert (missing hashes):", c);
+        return isValid;
+      });
+
+      console.log("Valid Certificates Count:", validCerts.length);
+
+      if (validCerts.length === 0) {
+        throw new Error("No valid certificates found to deploy. Please re-upload the file to generate hashes.");
+      }
+
+      const certIDList = validCerts.map(c => c.certificateId);
+      const filePhashList = validCerts.map(c => '0x' + c.pHash.padStart(64, '0'));
+      const dataHashList = validCerts.map(c => '0x' + c.certificateHash);
+      const encryptedDataList = validCerts.map(c => '0x' + c.encryptedHash.replace(':', ''));
+
+      console.log("Deploying batch:", { certIDList, filePhashList, dataHashList, encryptedDataList });
+
+      const transaction = prepareContractCall({
+        contract: orgContract,
+        method: "function issueCertificatesBatch(string[] certIDList, bytes32[] filePhashList, bytes32[] dataHashList, bytes[] encryptedDataList)",
+        params: [certIDList, filePhashList, dataHashList, encryptedDataList],
+      });
+
+      await new Promise((resolve, reject) => {
+        sendTransaction(transaction, {
+          onSuccess: (result) => {
+            console.log("Batch deployment successful:", result);
+            setDeploySuccess(true);
+            resolve(result);
+          },
+          onError: (error) => {
+            console.error("Batch deployment failed:", error);
+            reject(error);
+          }
+        });
+      });
+
+    } catch (err) {
+      console.error("Deployment error:", err);
+      // Don't override general error state, maybe just alert or console
+      alert("Blockchain deployment failed: " + err.message);
+    } finally {
+      setIsDeploying(false);
     }
   };
 
@@ -172,11 +266,10 @@ export default function UploadCertificatesPage() {
             <button
               onClick={handleUpload}
               disabled={!file || uploading}
-              className={`px-8 py-3 rounded-lg font-semibold transition-colors ${
-                !file || uploading
-                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
-              }`}
+              className={`px-8 py-3 rounded-lg font-semibold transition-colors ${!file || uploading
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
             >
               {uploading ? (
                 <div className="flex items-center">
@@ -258,6 +351,52 @@ export default function UploadCertificatesPage() {
                 <div className="text-sm text-gray-600">Failed</div>
               </div>
             </div>
+
+
+
+            {/* Blockchain Deployment Section */}
+            {results.successfulCreations > 0 && (
+              <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-purple-600" />
+                    <div>
+                      <h3 className="font-semibold text-purple-900">Blockchain Deployment</h3>
+                      <p className="text-sm text-purple-700">secured via Thirdweb</p>
+                    </div>
+                  </div>
+
+                  {!account ? (
+                    <span className="text-sm text-red-500 font-medium">Connect Wallet to Deploy</span>
+                  ) : !orgContract ? (
+                    <span className="text-sm text-yellow-600 font-medium">Loading Contract...</span>
+                  ) : deploySuccess ? (
+                    <span className="flex items-center text-green-600 font-bold">
+                      <CheckCircle className="w-5 h-5 mr-1" />
+                      Deployed
+                    </span>
+                  ) : (
+                    <button
+                      onClick={handleDeployToBlockchain}
+                      disabled={isDeploying}
+                      className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center ${isDeploying
+                        ? "bg-purple-300 text-white cursor-wait"
+                        : "bg-purple-600 text-white hover:bg-purple-700 shadow-md"
+                        }`}
+                    >
+                      {isDeploying ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Deploying...
+                        </>
+                      ) : (
+                        "Deploy Batch to Blockchain"
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             <p className="text-green-600 font-medium mb-4">{results.message}</p>
 
@@ -359,6 +498,6 @@ export default function UploadCertificatesPage() {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

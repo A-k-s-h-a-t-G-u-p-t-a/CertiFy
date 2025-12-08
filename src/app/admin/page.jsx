@@ -15,7 +15,7 @@ import { useState, useEffect } from "react";
 import { PieChart as RechartsPieChart, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area, Pie } from 'recharts';
 
 export default function AdminPage() {
-  const ADMIN_ADDRESS = "0x0408e64385FA3E98b86b55b8998B94Ecb771EF1D";
+  const ADMIN_ADDRESS = "0xD468DDd9a0F603492B69A2d4f2265eF06DD04371";
   const account = useActiveAccount();
   const { data: session } = useSession(); // ✅ Get session info
 const adminUsername = session?.user?.username || "Unknown"; // ✅ Logged-in username
