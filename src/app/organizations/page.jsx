@@ -22,8 +22,19 @@ import {
   Database,
   Loader2,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Eye,
+  Bell,
+  Link as LinkIcon,
+  X
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function OrganizationDashboard() {
   const router = useRouter();
@@ -31,6 +42,13 @@ export default function OrganizationDashboard() {
   const [orgData, setOrgData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Alerts state
+  const [alerts, setAlerts] = useState([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [uploadingAlert, setUploadingAlert] = useState(null);
 
   // Fetch organization data
   useEffect(() => {
@@ -71,12 +89,82 @@ export default function OrganizationDashboard() {
     fetchOrgData();
   }, [session, status]);
 
+  // Fetch alerts for the organization
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      if (!session?.user?.name || session.user.role !== "organisation") return;
+      
+      try {
+        setAlertsLoading(true);
+        const response = await fetch(`/api/alerts/organization/${encodeURIComponent(session.user.name)}`);
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+          setAlerts(result.alerts || []);
+        }
+      } catch (err) {
+        console.error("Error fetching alerts:", err);
+      } finally {
+        setAlertsLoading(false);
+      }
+    };
+
+    fetchAlerts();
+  }, [session]);
+
   // Redirect if not authenticated
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/signin");
     }
   }, [status, router]);
+
+  // Handle upload to chain button
+  const handleUploadToChain = async (alertId) => {
+    try {
+      setUploadingAlert(alertId);
+      
+      // Update alert status to completed
+      const response = await fetch(`/api/alerts/${alertId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update alert status");
+      }
+
+      // Remove alert from the list
+      setAlerts(alerts.filter(alert => alert.id !== alertId));
+      
+      // Close dialog if this alert was open
+      if (selectedAlert?.id === alertId) {
+        setDetailDialogOpen(false);
+        setSelectedAlert(null);
+      }
+
+      // TODO: Add blockchain upload functionality here
+      alert("Certificate uploaded to blockchain successfully! (Blockchain integration pending)");
+    } catch (err) {
+      console.error("Error uploading to chain:", err);
+      alert("Failed to upload certificate. Please try again.");
+    } finally {
+      setUploadingAlert(null);
+    }
+  };
+
+  // Open detail dialog
+  const viewAlertDetails = (alert) => {
+    setSelectedAlert(alert);
+    setDetailDialogOpen(true);
+  };
+
+  // Get tampered fields
+  const getTamperedFields = (alert) => {
+    if (!alert.comparisonData?.mismatched_fields) return [];
+    return alert.comparisonData.mismatched_fields;
+  };
 
   // Loading state
   if (loading || status === "loading") {
@@ -439,7 +527,336 @@ export default function OrganizationDashboard() {
             </Card>
           </motion.div>
         )}
+
+        {/* Alerts Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+          className="col-span-1 lg:col-span-2"
+        >
+          <Card className="shadow-2xl border-green-200 hover:shadow-3xl transition-all duration-500">
+            <CardHeader className="bg-gradient-to-r from-yellow-50 to-orange-50 border-b border-yellow-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                    <Bell className="h-6 w-6 text-yellow-600" />
+                    Certificate Alerts
+                  </CardTitle>
+                  <CardDescription className="text-gray-600 mt-1">
+                    Review pending verification alerts and upload to blockchain
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                  {alerts.length} Pending
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              {alertsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 text-yellow-600 animate-spin" />
+                  <span className="ml-3 text-gray-600">Loading alerts...</span>
+                </div>
+              ) : alerts.length === 0 ? (
+                <div className="text-center py-12">
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                  <p className="text-gray-600 text-lg">No pending alerts</p>
+                  <p className="text-gray-500 text-sm mt-2">All certificates have been reviewed</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {alerts.map((alert, index) => (
+                    <motion.div
+                      key={alert.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-white to-yellow-50"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-semibold text-lg text-gray-900">
+                              {alert.certificate?.name || "Unknown Certificate"}
+                            </h3>
+                            <Badge 
+                              variant="outline" 
+                              className={`
+                                ${alert.tamperingScore > 0.5 
+                                  ? 'bg-red-100 text-red-700 border-red-300' 
+                                  : 'bg-green-100 text-green-700 border-green-300'}
+                              `}
+                            >
+                              {alert.tamperingScore > 0.5 ? 'High Risk' : 'Low Risk'}
+                            </Badge>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-3">
+                            <div>
+                              <p className="text-gray-500">Similarity</p>
+                              <p className="font-semibold text-gray-900">
+                                {(alert.similarityScore * 100).toFixed(1)}%
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">Tampering</p>
+                              <p className="font-semibold text-gray-900">
+                                {(alert.tamperingScore * 100).toFixed(1)}%
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">Course</p>
+                              <p className="font-semibold text-gray-900 truncate">
+                                {alert.certificate?.courseName || "N/A"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">Date</p>
+                              <p className="font-semibold text-gray-900">
+                                {new Date(alert.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+
+                          {getTamperedFields(alert).length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-sm text-red-600 font-medium mb-1">
+                                ⚠️ Potentially Tampered Fields:
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {getTamperedFields(alert).map((field, idx) => (
+                                  <Badge key={idx} variant="destructive" className="text-xs">
+                                    {field}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {alert.message && (
+                            <p className="text-sm text-gray-600 italic">{alert.message}</p>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col gap-2 ml-4">
+                          <Button
+                            onClick={() => viewAlertDetails(alert)}
+                            variant="outline"
+                            size="sm"
+                            className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </Button>
+                          <Button
+                            onClick={() => handleUploadToChain(alert.id)}
+                            disabled={uploadingAlert === alert.id}
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            {uploadingAlert === alert.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Uploading...
+                              </>
+                            ) : (
+                              <>
+                                <LinkIcon className="h-4 w-4 mr-2" />
+                                Upload to Chain
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
+
+      {/* Alert Detail Dialog */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <Shield className="h-6 w-6 text-blue-600" />
+              Certificate Analysis Details
+            </DialogTitle>
+            <DialogDescription>
+              Comprehensive comparison and tampering detection results
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedAlert && (
+            <div className="space-y-6 mt-4">
+              {/* Certificate Information */}
+              <Card>
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                  <CardTitle className="text-lg">Certificate Information</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Name</p>
+                      <p className="font-semibold">{selectedAlert.certificate?.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Certificate ID</p>
+                      <p className="font-semibold">{selectedAlert.certificate?.certificateId}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Course</p>
+                      <p className="font-semibold">{selectedAlert.certificate?.courseName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Year</p>
+                      <p className="font-semibold">{selectedAlert.certificate?.year || "N/A"}</p>
+                    </div>
+                    {selectedAlert.certificate?.apaarId && (
+                      <div>
+                        <p className="text-sm text-gray-500">APAAR ID</p>
+                        <p className="font-semibold">{selectedAlert.certificate.apaarId}</p>
+                      </div>
+                    )}
+                    {selectedAlert.certificate?.nqrCode && (
+                      <div>
+                        <p className="text-sm text-gray-500">NQR Code</p>
+                        <p className="font-semibold">{selectedAlert.certificate.nqrCode}</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Comparison Scores */}
+              <Card>
+                <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+                  <CardTitle className="text-lg">Comparison Scores</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">Similarity Score</p>
+                      <p className="text-3xl font-bold text-blue-700">
+                        {(selectedAlert.similarityScore * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className="text-center p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">Tampering Score</p>
+                      <p className="text-3xl font-bold text-red-700">
+                        {(selectedAlert.tamperingScore * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">CV Tampering</p>
+                      <p className="text-3xl font-bold text-purple-700">
+                        {(selectedAlert.cvTamperingScore * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">NLP Tampering</p>
+                      <p className="text-3xl font-bold text-orange-700">
+                        {(selectedAlert.nlpTamperingScore * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                    {selectedAlert.ssimScore && (
+                      <div className="text-center p-4 bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-1">SSIM Score</p>
+                        <p className="text-3xl font-bold text-teal-700">
+                          {(selectedAlert.ssimScore * 100).toFixed(1)}%
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Tampered Fields */}
+              {getTamperedFields(selectedAlert).length > 0 && (
+                <Card>
+                  <CardHeader className="bg-gradient-to-r from-red-50 to-rose-50">
+                    <CardTitle className="text-lg text-red-700 flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5" />
+                      Potentially Tampered Fields
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <div className="space-y-3">
+                      {getTamperedFields(selectedAlert).map((field, idx) => (
+                        <div key={idx} className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <p className="font-semibold text-red-900">{field}</p>
+                          {selectedAlert.comparisonData?.field_comparison?.[field] && (
+                            <div className="mt-2 text-sm">
+                              <p className="text-gray-600">
+                                <span className="font-medium">Database:</span>{" "}
+                                {selectedAlert.comparisonData.field_comparison[field].db_value || "N/A"}
+                              </p>
+                              <p className="text-gray-600">
+                                <span className="font-medium">Uploaded:</span>{" "}
+                                {selectedAlert.comparisonData.field_comparison[field].uploaded_value || "N/A"}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Extracted Fields */}
+              {selectedAlert.extractedFields && (
+                <Card>
+                  <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50">
+                    <CardTitle className="text-lg">Extracted Fields (OCR)</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      {Object.entries(selectedAlert.extractedFields).map(([key, value]) => (
+                        <div key={key} className="p-3 bg-gray-50 rounded-lg">
+                          <p className="text-gray-500 capitalize">{key}</p>
+                          <p className="font-semibold text-gray-900">{value || "N/A"}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Upload Button */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button
+                  onClick={() => setDetailDialogOpen(false)}
+                  variant="outline"
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => handleUploadToChain(selectedAlert.id)}
+                  disabled={uploadingAlert === selectedAlert.id}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {uploadingAlert === selectedAlert.id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <LinkIcon className="h-4 w-4 mr-2" />
+                      Upload to Blockchain
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

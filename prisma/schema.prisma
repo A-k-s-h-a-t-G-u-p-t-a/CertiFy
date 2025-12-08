@@ -77,15 +77,29 @@ model Course {
 }
 
 model Alert {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
-  certificateId  String       @db.ObjectId
-  certificate    Certificate  @relation(fields: [certificateId], references: [id])
-  organisationId String       @db.ObjectId
-  organisation   Organisation @relation(fields: [organisationId], references: [id])
-  message        String?      // Alert message or description
-  status         String       @default("pending") // pending, reviewed, resolved
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                  String       @id @default(auto()) @map("_id") @db.ObjectId
+  certificateId       String       @db.ObjectId
+  certificate         Certificate  @relation(fields: [certificateId], references: [id])
+  organisationId      String       @db.ObjectId
+  organisation        Organisation @relation(fields: [organisationId], references: [id])
+  message             String?      // Alert message or description
+  status              String       @default("pending") // pending, reviewed, resolved
+  
+  // Comparison Results - Store all comparison data for later display
+  similarityScore     Float?       // Overall similarity score (0-1)
+  tamperingScore      Float?       // Overall tampering score (0-1)
+  cvTamperingScore    Float?       // Computer vision tampering score
+  nlpTamperingScore   Float?       // NLP tampering score
+  ssimScore           Float?       // SSIM algorithm score
+  
+  // Detailed comparison data stored as JSON
+  comparisonData      String?      // Full comparison result as JSON string
+  
+  // OCR extracted fields for reference
+  extractedFields     String?      // Extracted fields as JSON string
+  
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 }
 
 

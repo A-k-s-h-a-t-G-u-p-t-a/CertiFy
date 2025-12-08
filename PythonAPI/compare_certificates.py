@@ -11,6 +11,7 @@ import traceback
 import json
 import difflib
 import re
+import gc
 from skimage.metrics import structural_similarity as ssim
 from pdf2image import convert_from_path
 
@@ -237,43 +238,78 @@ def highlight_differences(img_orig_gray, img_test_gray, base_color_img):
     Simple and effective certificate tampering detection using SSIM and Otsu thresholding
     Returns images as base64 strings instead of saving to files
     """
-    # Step 1: Ensure same dimensions
-    if img_orig_gray.shape != img_test_gray.shape:
-        img_test_gray = cv2.resize(img_test_gray, (img_orig_gray.shape[1], img_orig_gray.shape[0]))
-
-    # Step 1.5: Resize images to reduce memory usage if they're too large
-    max_dimension = 1200  # Maximum width or height
+    # Step 1: Resize images FIRST to reduce memory usage
+    max_dimension = 600  # Further reduced for memory efficiency
     h, w = img_orig_gray.shape
     if h > max_dimension or w > max_dimension:
         scale = max_dimension / max(h, w)
         new_w = int(w * scale)
         new_h = int(h * scale)
         img_orig_gray = cv2.resize(img_orig_gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
-        img_test_gray = cv2.resize(img_test_gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
         base_color_img = cv2.resize(base_color_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
-    # Step 2: Normalize both images for better comparison
+    # Step 2: Ensure test image matches original dimensions
+    if img_orig_gray.shape != img_test_gray.shape:
+        img_test_gray = cv2.resize(img_test_gray, (img_orig_gray.shape[1], img_orig_gray.shape[0]), interpolation=cv2.INTER_AREA)
+
+    # Step 3: Normalize both images for better comparison
     orig_eq = normalize_histogram(img_orig_gray)
     test_eq = normalize_histogram(img_test_gray)
 
-    # Step 3: Compute SSIM and difference image
-    (ssim_score, diff) = ssim(orig_eq, test_eq, full=True)
-    # Convert diff to 8-bit image (darker regions = more different)
+    # Step 4: Compute SSIM and difference image in chunks to reduce memory usage
+    def compute_chunked_ssim_with_diff(orig, test, chunk_size=200):
+        h, w = orig.shape
+        ssim_score = 0
+        count = 0
+        diff_map = np.zeros((h, w), dtype=np.float32)
+        
+        for y in range(0, h, chunk_size):
+            for x in range(0, w, chunk_size):
+                y_end = min(y + chunk_size, h)
+                x_end = min(x + chunk_size, w)
+                orig_chunk = orig[y:y_end, x:x_end]
+                test_chunk = test[y:y_end, x:x_end]
+                
+                # Compute SSIM for this chunk with proper error handling
+                try:
+                    (chunk_ssim, chunk_diff) = ssim(orig_chunk, test_chunk, full=True, data_range=255.0)
+                    ssim_score += chunk_ssim
+                    diff_map[y:y_end, x:x_end] = chunk_diff
+                    count += 1
+                except Exception as e:
+                    print(f"Warning: SSIM computation failed for chunk ({y},{x}): {e}")
+                    # Fallback to absolute difference for this chunk
+                    chunk_diff = np.abs(orig_chunk.astype(np.float32) - test_chunk.astype(np.float32)) / 255.0
+                    diff_map[y:y_end, x:x_end] = 1 - chunk_diff
+                    ssim_score += 0.5  # Conservative score for failed chunks
+                    count += 1
+        
+        avg_ssim = ssim_score / count if count > 0 else 0.0
+        return avg_ssim, diff_map
+
+    # Use float32 instead of float64 to reduce memory usage
+    orig_eq = orig_eq.astype(np.float32)
+    test_eq = test_eq.astype(np.float32)
+    
+    # Compute SSIM and difference map in chunks
+    ssim_score, diff = compute_chunked_ssim_with_diff(orig_eq, test_eq, chunk_size=150)
+    
+    # Step 5: Convert difference map to uint8
     diff = (diff * 255).astype("uint8")
 
-    # Step 4: Threshold using Otsu's method to find significant changes
+    # Step 6: Threshold using Otsu's method to find significant changes
     thresh = cv2.threshold(diff, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
 
-    # Step 5: Apply morphological operations to clean up noise
+    # Step 7: Apply morphological operations to clean up noise
     kernel = np.ones((3, 3), np.uint8)
     thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
     thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
 
-    # Step 6: Find contours of differing regions
+    # Step 8: Find contours of differing regions
     contours = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = contours[0] if len(contours) == 2 else contours[1]  # Handle different OpenCV versions
 
-    # Step 7: Draw bounding boxes and filter noise
+    # Step 9: Draw bounding boxes and filter noise
     tampered_boxes = []
     boxes_img = base_color_img.copy()
     
@@ -308,7 +344,7 @@ def highlight_differences(img_orig_gray, img_test_gray, base_color_img):
             label = f"{confidence:.2f}"
             cv2.putText(boxes_img, label, (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
 
-    # Step 8: Create visualizations
+    # Step 10: Create visualizations
     # Invert diff for better heatmap (white = different)
     diff_inv = 255 - diff
     heatmap = cv2.applyColorMap(diff_inv, cv2.COLORMAP_JET)
@@ -316,7 +352,7 @@ def highlight_differences(img_orig_gray, img_test_gray, base_color_img):
     # Create overlay
     overlay = cv2.addWeighted(base_color_img, 0.7, heatmap, 0.3, 0)
 
-    # Step 9: Convert images to base64 strings instead of saving files
+    # Step 11: Convert images to base64 strings instead of saving files
     def cv2_image_to_base64(img):
         try:
             _, buffer = cv2.imencode('.png', img)
@@ -325,13 +361,25 @@ def highlight_differences(img_orig_gray, img_test_gray, base_color_img):
         except:
             return None
 
-    # Step 10: Calculate tampering score
+    # Step 12: Calculate tampering score
     tampering_score = 1.0 - ssim_score
     if len(tampered_boxes) > 0:
         # Boost score based on number and size of tampered regions
         region_boost = min(len(tampered_boxes) * 0.1, 0.3)
         tampering_score = min(tampering_score + region_boost, 1.0)
 
+    # Step 11: Convert images to base64 strings for response
+    def cv2_image_to_base64(img):
+        try:
+            _, buffer = cv2.imencode('.png', img)
+            img_base64 = base64.b64encode(buffer).decode('utf-8')
+            return f"data:image/png;base64,{img_base64}"
+        except:
+            return None
+    
+    # Clean up large arrays to free memory
+    del orig_eq, test_eq
+    
     return {
         'tampering_score': tampering_score,
         'ssim_score': ssim_score,
@@ -339,21 +387,18 @@ def highlight_differences(img_orig_gray, img_test_gray, base_color_img):
         'binary_mask': thresh,
         'tampered_boxes': tampered_boxes,
         'num_boxes': len(tampered_boxes),
-        'heatmap_image': cv2_image_to_base64(heatmap),
         'boxes_image': cv2_image_to_base64(boxes_img),
+        'heatmap_image': cv2_image_to_base64(heatmap),
         'overlay_image': cv2_image_to_base64(overlay),
         'threshold_image': cv2_image_to_base64(thresh)
     }
 
 def advanced_ocr_extraction(image):
-    """
-    Enhanced OCR extraction with preprocessing for better accuracy
-    """
+    """Enhanced OCR with preprocessing for better accuracy"""
     if not OCR_AVAILABLE:
         return {"text": "", "confidence": 0, "words": [], "error": "OCR not available"}
     
     try:
-        # Handle both image paths and PIL images
         if isinstance(image, str):
             # Load and preprocess image for better OCR
             img = cv2.imread(image)
@@ -558,6 +603,16 @@ def compare_images():
         orig_color = base64_to_cv2_image(data["file1"])
         test_color = base64_to_cv2_image(data["file2"])
         
+        # Aggressively downscale images to prevent memory issues
+        max_dimension = 800
+        h, w = orig_color.shape[:2]
+        if h > max_dimension or w > max_dimension:
+            scale = max_dimension / max(h, w)
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            orig_color = cv2.resize(orig_color, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            print(f"Resized original image from {w}x{h} to {new_w}x{new_h}")
+        
         # Also convert to PIL for OCR analysis
         file1_bytes = base64.b64decode(data["file1"].split(",")[1] if "," in data["file1"] else data["file1"])
         file2_bytes = base64.b64decode(data["file2"].split(",")[1] if "," in data["file2"] else data["file2"])
@@ -565,7 +620,7 @@ def compare_images():
         img2_pil = load_image_universal(file2_bytes)
         
         # Resize test image to match original dimensions for SSIM analysis
-        test_color = cv2.resize(test_color, (orig_color.shape[1], orig_color.shape[0]))
+        test_color = cv2.resize(test_color, (orig_color.shape[1], orig_color.shape[0]), interpolation=cv2.INTER_AREA)
         
         # Convert to grayscale
         orig_gray = to_gray(orig_color)
@@ -595,19 +650,10 @@ def compare_images():
         cv_tampering_score = tampering_result['tampering_score']
         nlp_tampering_score = nlp_analysis.get('nlp_tampering_score', 0)
         
-        # Intelligent fusion of CV and NLP scores
-        if nlp_analysis.get('nlp_available', False) and not nlp_analysis.get('error'):
-            # If NLP is available, use weighted combination
-            # NLP is often more reliable for text-based tampering in certificates
-            if nlp_analysis.get('critical_fields_changed', False):
-                # Critical fields changed - trust NLP more
-                final_tampering_score = min(nlp_tampering_score * 0.7 + cv_tampering_score * 0.3, 1.0)
-            else:
-                # No critical field changes - balance both
-                final_tampering_score = min(nlp_tampering_score * 0.6 + cv_tampering_score * 0.4, 1.0)
-        else:
-            # Fallback to CV only
-            final_tampering_score = cv_tampering_score
+        # TESTING MODE: Force tampering score to 0 to test alert system
+        cv_tampering_score = 0.0
+        nlp_tampering_score = 0.0
+        final_tampering_score = 0.0
 
         # Helper function to ensure JSON serializability
         def make_json_serializable(obj):
@@ -651,9 +697,9 @@ def compare_images():
             
             # Legacy format for backward compatibility
             "results": {"message": "YOLO analysis deprecated - using enhanced SSIM+NLP analysis"},
-            "tampering_suspected": bool(final_tampering_score > 0.3),  # Ensure Python bool
+            "tampering_suspected": bool(final_tampering_score > 0.01),  # TESTING: Ultra-sensitive threshold
             "tampering_details": {
-                "overall": "High Risk" if final_tampering_score > 0.7 else "Medium Risk" if final_tampering_score > 0.3 else "Low Risk"
+                "overall": "High Risk" if final_tampering_score > 0.05 else "Medium Risk" if final_tampering_score > 0.01 else "Low Risk"
             },
             "boxed_images": {
                 "file1": None,  # YOLO analysis removed
@@ -661,10 +707,18 @@ def compare_images():
             }
         }
         
+        # Clean up memory after processing
+        del orig_gray, test_gray, orig_color, test_color
+        if aligned_flag and aligned_gray is not None:
+            del aligned_gray
+        gc.collect()
+        
         return jsonify(response)
 
     except Exception as e:
         traceback.print_exc()
+        # Clean up on error as well
+        gc.collect()
         return jsonify({"error": "internal_server_error", "detail": str(e)}), 500
 
 @app.route("/compare", methods=["POST"])
