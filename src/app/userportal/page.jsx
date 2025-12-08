@@ -100,10 +100,10 @@ export default function UserPortalPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/30 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-slate-900 mx-auto mb-4"></div>
-          <p className="text-slate-500 text-sm">Loading certificates...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-200 border-t-emerald-600 mx-auto mb-4"></div>
+          <p className="text-slate-600 text-sm font-medium">Loading certificates...</p>
         </div>
       </div>
     );
@@ -111,7 +111,7 @@ export default function UserPortalPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/30 flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 text-sm mb-2">Something went wrong</div>
           <p className="text-slate-600 text-sm">{error}</p>
@@ -121,10 +121,9 @@ export default function UserPortalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/30">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="border-t-2 border-emerald-500"></div>
+      <div className="bg-gradient-to-r from-white via-emerald-50/20 to-white border-b border-emerald-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between">
             <div>
@@ -141,8 +140,8 @@ export default function UserPortalPage() {
           </div>
 
           {/* User Info */}
-          <div className="mt-6 flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-            <div className="p-3 bg-emerald-500 rounded-xl">
+          <div className="mt-6 flex items-center gap-4 p-4 bg-gradient-to-br from-emerald-50/50 via-white to-teal-50/50 rounded-xl border border-emerald-100 shadow-sm">
+            <div className="p-3 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-md">
               <User className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1">
@@ -173,9 +172,9 @@ export default function UserPortalPage() {
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Total Credits Card */}
-              <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <div className="bg-gradient-to-br from-white via-emerald-50/30 to-white rounded-xl border border-emerald-100 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-emerald-50 rounded-lg">
+                  <div className="p-2 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-lg">
                     <TrendingUp className="w-5 h-5 text-emerald-600" />
                   </div>
                   <h3 className="text-base font-semibold text-slate-900">Total Credits Earned</h3>
@@ -189,10 +188,10 @@ export default function UserPortalPage() {
               </div>
 
               {/* Pie Chart Card */}
-              <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <div className="bg-gradient-to-br from-white via-teal-50/30 to-white rounded-xl border border-teal-100 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-emerald-50 rounded-lg">
-                    <BookOpen className="w-5 h-5 text-emerald-600" />
+                  <div className="p-2 bg-gradient-to-br from-teal-100 to-teal-50 rounded-lg">
+                    <BookOpen className="w-5 h-5 text-teal-600" />
                   </div>
                   <h3 className="text-base font-semibold text-slate-900">Course Distribution</h3>
                 </div>
@@ -244,20 +243,20 @@ export default function UserPortalPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <div className="bg-gradient-to-br from-white via-emerald-50/40 to-white rounded-xl border border-emerald-100 p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="text-3xl font-bold text-emerald-600">{analytics?.totalCertificates || 0}</div>
             <div className="text-sm text-slate-500 mt-1">Total Certificates</div>
           </div>
           
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <div className="text-3xl font-bold text-emerald-600">
+          <div className="bg-gradient-to-br from-white via-teal-50/40 to-white rounded-xl border border-teal-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-3xl font-bold text-teal-600">
               {analytics?.domainData?.length || 0}
             </div>
             <div className="text-sm text-slate-500 mt-1">Course Domains</div>
           </div>
           
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <div className="text-lg font-semibold text-emerald-600">
+          <div className="bg-gradient-to-br from-white via-cyan-50/40 to-white rounded-xl border border-cyan-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-lg font-semibold text-cyan-600">
               {displayCertificates.length > 0 
                 ? formatDate(displayCertificates[0]?.createdAt)
                 : 'N/A'
@@ -272,7 +271,7 @@ export default function UserPortalPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 bg-gradient-to-r from-white via-emerald-50/20 to-white border border-emerald-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent shadow-sm"
             placeholder="Search by name, ID, or organization..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -280,7 +279,7 @@ export default function UserPortalPage() {
         </div>
 
         {/* Certificates List */}
-        <div className="bg-white rounded-xl border border-slate-200">
+        <div className="bg-gradient-to-br from-white via-slate-50/30 to-white rounded-xl border border-slate-200 shadow-md">
           <div className="px-5 py-4 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-900">
               Certificates ({filteredCertificates.length})
@@ -303,11 +302,11 @@ export default function UserPortalPage() {
           ) : (
             <div className="divide-y divide-slate-100">
               {filteredCertificates.map((certificate) => (
-                <div key={certificate.id} className="p-5 hover:bg-slate-50 transition-colors">
+                <div key={certificate.id} className="p-5 hover:bg-gradient-to-r hover:from-emerald-50/30 hover:to-teal-50/30 transition-all">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="p-2 bg-emerald-50 rounded-lg">
+                        <div className="p-2 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-lg shadow-sm">
                           <Award className="w-4 h-4 text-emerald-600" />
                         </div>
                         <h3 className="text-base font-semibold text-slate-900">
