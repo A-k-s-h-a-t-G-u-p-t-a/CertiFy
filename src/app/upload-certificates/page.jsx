@@ -9,7 +9,8 @@ import { defineChain } from "thirdweb/chains";
 import { client } from "@/lib/client";
 
 export default function UploadCertificatesPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [results, setResults] = useState(null);

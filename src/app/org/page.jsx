@@ -4,13 +4,19 @@ import { useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/
 import { getContract, prepareContractCall } from "thirdweb";
 import { defineChain } from "thirdweb/chains";
 import { client } from "../../lib/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Building2, Users, Loader2, Plus, FileText, CheckCircle, XCircle, AlertCircle, Shield, Award, Hash, Flag, X, Search, BarChart3, Upload, FileUp } from "lucide-react";
+import { 
+  Building2, Users, Loader2, Plus, FileText, CheckCircle, XCircle, 
+  AlertCircle, Shield, Award, Hash, Flag, X, Search, BarChart3, 
+  Upload, FileUp, LayoutDashboard, FileSignature, ShieldAlert, 
+  Menu, ChevronRight, Wallet, Lock, FileCheck
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Org() {
   const account = useActiveAccount();
@@ -32,7 +38,6 @@ export default function Org() {
           
           if (data.success && data.organization) {
             const org = data.organization;
-            console.log("Organization found:", org);
             
             // Check if organization is active and has a contract address
             if (org.contractAddress && org.isActive && !org.isFlagged) {
@@ -47,13 +52,11 @@ export default function Org() {
               setOrgInfo(org);
               setIsValidOrg(true);
             } else {
-              console.warn("Organization exists but is not active or missing contract:", org);
               setIsValidOrg(false);
               setOrgContract(null);
               setOrgInfo(org);
             }
           } else {
-            console.warn("Organization not found for wallet:", account.address);
             setIsValidOrg(false);
             setOrgContract(null);
             setOrgInfo(null);
@@ -78,10 +81,12 @@ export default function Org() {
 
   if (isLoading || !account) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin mr-3" />
-        <div className="text-lg text-gray-600">
-          {!account ? "Waiting for wallet connection..." : "Loading organization data..."}
+      <div className="flex items-center justify-center min-h-screen bg-[#F5FAFA] pt-20">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-[#009688]" />
+          <p className="text-[#009688] font-medium animate-pulse">
+            {!account ? "Waiting for wallet connection..." : "Loading organization data..."}
+          </p>
         </div>
       </div>
     );
@@ -89,8 +94,12 @@ export default function Org() {
 
   if (!isValidOrg) {
     return (
-      <div className="container mx-auto p-6 pt-16">
-        <div className="text-center space-y-6 mt-20">
+      <div className="min-h-screen flex items-center justify-center bg-[#F5FAFA] pt-20">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center space-y-6 p-8 bg-white rounded-2xl shadow-xl max-w-md border border-[#D9E5E6]"
+        >
           <XCircle className="h-24 w-24 text-red-400 mx-auto" />
           <div className="space-y-4">
             <h1 className="text-3xl font-bold text-red-600">
@@ -100,21 +109,21 @@ export default function Org() {
                 ? "Organization Inactive" 
                 : "Invalid Organization"}
             </h1>
-            <p className="text-gray-600 max-w-md mx-auto">
+            <p className="text-gray-600">
               {orgInfo && orgInfo.isFlagged 
                 ? "Your organization has been flagged by the administrator. Please contact support." 
                 : orgInfo && !orgInfo.isActive 
                 ? "Your organization is currently inactive. Please contact the administrator." 
                 : "Your wallet address is not registered as a valid organization. Please contact the administrator."}
             </p>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md mx-auto">
-              <p className="text-sm text-red-700">
-                <strong>Connected Address:</strong> {account.address}
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left">
+              <p className="text-sm text-red-700 truncate">
+                <strong>Connected:</strong> {account.address}
               </p>
               {orgInfo && (
                 <>
                   <p className="text-sm text-red-700 mt-2">
-                    <strong>Organization Name:</strong> {orgInfo.name}
+                    <strong>Name:</strong> {orgInfo.name}
                   </p>
                   <p className="text-sm text-red-700 mt-2">
                     <strong>Status:</strong> {orgInfo.isFlagged ? "Flagged" : orgInfo.isActive ? "Active" : "Inactive"}
@@ -122,8 +131,14 @@ export default function Org() {
                 </>
               )}
             </div>
+            <Button 
+              onClick={() => window.location.href = '/'}
+              className="w-full bg-[#009688] hover:bg-[#00796B]"
+            >
+              Return Home
+            </Button>
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -134,6 +149,9 @@ export default function Org() {
 
 // Separate component that only renders when contract is ready
 function OrgDashboard({ orgContract, account, orgInfo }) {
+  const [activeTab, setActiveTab] = useState("overview");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
   const [certificateData, setCertificateData] = useState({
     certID: "",
     filePhash: "",
@@ -444,616 +462,508 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
     }
   };
 
-  return (
-    <div className="container mx-auto p-6 pt-16 space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Building2 className="h-8 w-8 text-blue-600" />
-            {orgNamePending ? (
-              <div className="flex items-center">
-                <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                Loading...
-              </div>
-            ) : (
-              orgName || "Organization Dashboard"
-            )}
-          </h1>
-          <p className="text-gray-600">Issue and manage certificates for your organization</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Button 
-            onClick={() => window.location.href = '/certificate-generator'}
-            variant="default"
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-          >
-            <FileUp className="h-4 w-4" />
-            Mass Upload Certificates
-          </Button>
-          <Button 
-            onClick={() => window.location.href = '/upload'}
-            variant="default"
-            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
-          >
-            <Upload className="h-4 w-4" />
-            Add Legacy Documents
-          </Button>
-          <Button 
-            onClick={() => window.location.href = '/organizations'}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <BarChart3 className="h-4 w-4" />
-            Check Legacy Certificate Stats
-          </Button>
-          <Badge variant="outline" className="px-4 py-2 text-sm">
-            <Award className="h-4 w-4 mr-2" />
-            Contract: {orgInfo?.contractAddress || "N/A"}
-          </Badge>
-        </div>
-      </div>
-
-      {/* Organization Info & Statistics */}
-      {(orgDetails || stats || certificateCount !== undefined) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Organization Info */}
-          <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-700">
-                <Building2 className="h-5 w-5" />
-                Organization Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium text-gray-700">Organization Name</Label>
-                <p className="text-lg font-semibold text-blue-900">
-                  {orgNamePending ? (
-                    <div className="flex items-center">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Loading...
-                    </div>
-                  ) : (
-                    orgName || orgDetails?.[0] || "Not Set"
-                  )}
-                </p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-700">Total Certificates</Label>
-                <p className="text-lg font-semibold text-green-600">
-                  {countPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    certificateCount?.toString() || orgDetails?.[2]?.toString() || "0"
-                  )}
-                </p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-700">Status</Label>
-                <div className="flex items-center gap-2">
-                  {orgDetails?.[3] ? (
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <XCircle className="h-4 w-4 text-red-600" />
-                  )}
-                  <span className={`text-sm font-medium ${orgDetails?.[3] ? 'text-green-600' : 'text-red-600'}`}>
-                    {orgDetails?.[3] ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Statistics */}
-          <Card className="border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-purple-700">
-                <Shield className="h-5 w-5" />
-                Certificate Statistics
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {statsPending ? (
-                <div className="flex items-center justify-center p-4">
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  <span className="text-sm text-gray-600">Loading statistics...</span>
-                </div>
-              ) : stats ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium text-gray-700">Total Issued</Label>
-                    <Badge variant="outline" className="bg-green-50 text-green-700">
-                      {stats[0]?.toString() || "0"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium text-gray-700">Total Flagged</Label>
-                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
-                      {stats[1]?.toString() || "0"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium text-gray-700">Total Revoked</Label>
-                    <Badge variant="outline" className="bg-red-50 text-red-700">
-                      {stats[2]?.toString() || "0"}
-                    </Badge>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-gray-500 text-center">No statistics available</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Issue Certificate Form */}
-      <Card className="border-2 border-dashed border-green-200 bg-green-50/30">
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center gap-2 text-green-700">
-            <Plus className="h-5 w-5" />
-            Issue New Certificate
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleIssueCertificate} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="certID">Certificate ID *</Label>
-                <Input
-                  id="certID"
-                  name="certID"
-                  value={certificateData.certID}
-                  onChange={handleInputChange}
-                  placeholder="Enter unique certificate ID"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="filePhash">File P-Hash *</Label>
-                <Input
-                  id="filePhash"
-                  name="filePhash"
-                  value={certificateData.filePhash}
-                  onChange={handleInputChange}
-                  placeholder="Enter file perceptual hash (bytes32)"
-                  required
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dataHash">Data Hash *</Label>
-                <Input
-                  id="dataHash"
-                  name="dataHash"
-                  value={certificateData.dataHash}
-                  onChange={handleInputChange}
-                  placeholder="Enter data hash (bytes32)"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="encryptedData">Encrypted Data *</Label>
-                <Textarea
-                  id="encryptedData"
-                  name="encryptedData"
-                  value={certificateData.encryptedData}
-                  onChange={handleInputChange}
-                  placeholder="Enter encrypted certificate data (bytes)"
-                  className="min-h-[80px]"
-                  required
-                />
-              </div>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-blue-800">Certificate Data Format</p>
-                  <p className="text-xs text-blue-700">
-                    • Certificate ID: Unique identifier for the certificate<br/>
-                    • File P-Hash: 32-byte perceptual hash of certificate file<br/>
-                    • Data Hash: 32-byte hash of certificate metadata<br/>
-                    • Encrypted Data: Encrypted certificate information in bytes format
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button 
-                type="submit" 
-                disabled={isIssuing}
-                className="px-8"
-              >
-                {isIssuing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Issuing Certificate...
-                  </>
-                ) : (
-                  <>
-                    <Award className="h-4 w-4 mr-2" />
-                    Issue Certificate
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Certificate Verification */}
-      <Card className="border-2 border-dashed border-indigo-200 bg-indigo-50/30">
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center gap-2 text-indigo-700">
-            <Search className="h-5 w-5" />
-            Verify Certificate
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleVerifyCertificate} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="verifyCertID">Certificate ID *</Label>
-                <Input
-                  id="verifyCertID"
-                  name="certID"
-                  value={verificationData.certID}
-                  onChange={handleVerificationChange}
-                  placeholder="Enter certificate ID to verify"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="verifyFilePhash">Recomputed File P-Hash *</Label>
-                <Input
-                  id="verifyFilePhash"
-                  name="recomputedFilePhash"
-                  value={verificationData.recomputedFilePhash}
-                  onChange={handleVerificationChange}
-                  placeholder="0x..."
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="verifyDataHash">Recomputed Data Hash *</Label>
-                <Input
-                  id="verifyDataHash"
-                  name="recomputedDataHash"
-                  value={verificationData.recomputedDataHash}
-                  onChange={handleVerificationChange}
-                  placeholder="0x..."
-                  required
-                />
-              </div>
-            </div>
-            
-            {/* Verification Results */}
-            {shouldVerify && verificationResult && (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-800 mb-3">Verification Result:</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium text-gray-700">Status Code:</Label>
-                    <Badge variant={verificationResult[0] === 0 ? "default" : "destructive"}>
-                      {verificationResult[0]?.toString()}
-                    </Badge>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Message:</Label>
-                    <p className="text-sm text-gray-900 mt-1 p-2 bg-white rounded border">
-                      {verificationResult[1] || "No message"}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium text-gray-700">Admin Hash Match:</Label>
-                    <Badge variant={verificationResult[2] ? "default" : "destructive"}>
-                      {verificationResult[2] ? "Match" : "No Match"}
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Stored File P-Hash:</Label>
-                      <p className="font-mono text-gray-600 break-all mt-1 p-2 bg-white rounded border">
-                        {verificationResult[3] || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Stored Data Hash:</Label>
-                      <p className="font-mono text-gray-600 break-all mt-1 p-2 bg-white rounded border">
-                        {verificationResult[4] || "N/A"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {verificationPending && shouldVerify && (
-              <div className="flex items-center justify-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <Loader2 className="h-5 w-5 animate-spin mr-2 text-blue-600" />
-                <span className="text-blue-700">Verifying certificate...</span>
-              </div>
-            )}
-
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-indigo-600 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-indigo-800">Certificate Verification</p>
-                  <p className="text-xs text-indigo-700">
-                    Enter the certificate ID and recomputed hashes to verify the certificate's authenticity and integrity against the blockchain records.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-end">
-              <Button 
-                type="submit" 
-                disabled={verificationPending}
-                className="px-8"
-              >
-                {verificationPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  <>
-                    <Search className="h-4 w-4 mr-2" />
-                    Verify Certificate
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Additional Certificate Management Forms */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* Record Decrypted Hash */}
-        <Card className="border-2 border-dashed border-blue-200 bg-blue-50/30">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2 text-blue-700">
-              <Hash className="h-5 w-5" />
-              Record Decrypted Hash
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleRecordDecryptedHash} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="decryptCertID">Certificate ID *</Label>
-                <Input
-                  id="decryptCertID"
-                  value={decryptedHashData.certID}
-                  onChange={(e) => handleDecryptedHashChange(e, 'certID')}
-                  placeholder="Enter certificate ID"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="decryptedHash">Decrypted Hash *</Label>
-                <Input
-                  id="decryptedHash"
-                  value={decryptedHashData.decryptedHash}
-                  onChange={(e) => handleDecryptedHashChange(e, 'decryptedHash')}
-                  placeholder="0x..."
-                  required
-                />
-              </div>
-              <Button 
-                type="submit" 
-                disabled={isRecording}
-                size="sm"
-                className="w-full"
-              >
-                {isRecording ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Recording...
-                  </>
-                ) : (
-                  <>
-                    <Hash className="h-4 w-4 mr-2" />
-                    Record Hash
-                  </>
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Flag Certificate */}
-        <Card className="border-2 border-dashed border-yellow-200 bg-yellow-50/30">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2 text-yellow-700">
-              <Flag className="h-5 w-5" />
-              Flag Certificate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleFlagCertificate} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="flagCertID">Certificate ID *</Label>
-                <Input
-                  id="flagCertID"
-                  value={flagData.certID}
-                  onChange={(e) => handleFlagChange(e, 'certID')}
-                  placeholder="Enter certificate ID"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="flagReason">Reason *</Label>
-                <Textarea
-                  id="flagReason"
-                  value={flagData.reason}
-                  onChange={(e) => handleFlagChange(e, 'reason')}
-                  placeholder="Enter reason for flagging"
-                  className="min-h-[80px]"
-                  required
-                />
-              </div>
-              <Button 
-                type="submit" 
-                disabled={isFlagging}
-                variant="destructive"
-                size="sm"
-                className="w-full"
-              >
-                {isFlagging ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Flagging...
-                  </>
-                ) : (
-                  <>
-                    <Flag className="h-4 w-4 mr-2" />
-                    Flag Certificate
-                  </>
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Revoke Certificate */}
-        <Card className="border-2 border-dashed border-red-200 bg-red-50/30">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2 text-red-700">
-              <X className="h-5 w-5" />
-              Revoke Certificate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleRevokeCertificate} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="revokeCertID">Certificate ID *</Label>
-                <Input
-                  id="revokeCertID"
-                  value={revokeData.certID}
-                  onChange={(e) => handleRevokeChange(e, 'certID')}
-                  placeholder="Enter certificate ID"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="revokeReason">Reason *</Label>
-                <Textarea
-                  id="revokeReason"
-                  value={revokeData.reason}
-                  onChange={(e) => handleRevokeChange(e, 'reason')}
-                  placeholder="Enter reason for revocation"
-                  className="min-h-[80px]"
-                  required
-                />
-              </div>
-              <Button 
-                type="submit" 
-                disabled={isRevoking}
-                variant="destructive"
-                size="sm"
-                className="w-full"
-              >
-                {isRevoking ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Revoking...
-                  </>
-                ) : (
-                  <>
-                    <X className="h-4 w-4 mr-2" />
-                    Revoke Certificate
-                  </>
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Certificates List */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold flex items-center gap-2">
-          <FileText className="h-5 w-5 text-blue-600" />
-          Issued Certificates
-        </h2>
-        
-        {countPending ? (
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-6 w-6 animate-spin mr-3" />
-            <span>Loading certificates...</span>
-          </div>
-        ) : certificateCount && Number(certificateCount) > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: Number(certificateCount) }, (_, index) => (
-              <CertificateCard 
-                key={index} 
-                index={index} 
-                orgContract={orgContract} 
-              />
-            ))}
-          </div>
-        ) : (
-          <Card className="border-dashed border-2 border-gray-200">
-            <CardContent className="p-8 text-center">
-              <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Certificates Issued</h3>
-              <p className="text-gray-600">Issue your first certificate using the form above.</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </div>
+  // Sidebar Component
+  const SidebarItem = ({ id, icon: Icon, label }) => (
+    <motion.button
+      whileHover={{ x: 4, backgroundColor: "rgba(0, 150, 136, 0.1)" }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => setActiveTab(id)}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+        activeTab === id 
+          ? "bg-[#009688] text-white shadow-md" 
+          : "text-gray-600 hover:text-[#009688]"
+      }`}
+    >
+      <Icon className={`h-5 w-5 ${activeTab === id ? "text-white" : "text-current"}`} />
+      {isSidebarOpen && <span className="font-medium">{label}</span>}
+    </motion.button>
   );
-}
-
-// Certificate Card Component with ID fetching
-function CertificateCard({ index, orgContract }) {
-  const { data: certificateId, isPending: certIdPending } = useReadContract({
-    contract: orgContract,
-    method: "function getCertificateIdByIndex(uint256 index) view returns (string)",
-    params: [BigInt(index)],
-    enabled: !!orgContract,
-  });
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-green-200">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Award className="h-5 w-5 text-green-600" />
-            Certificate #{index + 1}
-          </CardTitle>
-          <Badge variant="default" className="text-xs">
-            Active
-          </Badge>
+    <div className="h-screen bg-[#F5FAFA] flex pt-20 overflow-hidden">
+      {/* Sidebar */}
+      <motion.div 
+        initial={{ width: 280 }}
+        animate={{ width: isSidebarOpen ? 280 : 80 }}
+        className="bg-white border-r border-[#D9E5E6] h-full flex flex-col shadow-sm"
+      >
+        <div className="p-6 flex items-center justify-between">
+          {isSidebarOpen ? (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-2"
+            >
+              <Building2 className="h-8 w-8 text-[#009688]" />
+              <span className="text-xl font-bold text-gray-800">Org Panel</span>
+            </motion.div>
+          ) : (
+            <Building2 className="h-8 w-8 text-[#009688] mx-auto" />
+          )}
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+          >
+            {isSidebarOpen ? <Menu className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+          </button>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div>
-          <Label className="text-sm font-medium text-gray-700">Certificate ID:</Label>
-          {certIdPending ? (
-            <div className="flex items-center mt-1">
-              <Loader2 className="h-3 w-3 animate-spin mr-2" />
-              <span className="text-xs text-gray-500">Loading...</span>
+
+        <div className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
+          <SidebarItem id="overview" icon={LayoutDashboard} label="Overview" />
+          <SidebarItem id="issue" icon={FileSignature} label="Issue Certificate" />
+          <SidebarItem id="manage" icon={ShieldAlert} label="Manage & Revoke" />
+          <SidebarItem id="verify" icon={FileCheck} label="Verify Certificate" />
+        </div>
+
+        <div className="p-4 border-t border-[#D9E5E6]">
+          {isSidebarOpen ? (
+            <div className="flex items-center gap-3 px-2">
+              <div className="h-10 w-10 rounded-full bg-[#D9E5E6] flex items-center justify-center text-[#009688] font-bold">
+                {orgName?.charAt(0).toUpperCase() || "O"}
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-sm font-medium text-gray-900 truncate">{orgName || "Organization"}</p>
+                <p className="text-xs text-gray-500">Active Session</p>
+              </div>
             </div>
           ) : (
-            <p className="text-sm font-semibold text-gray-900 break-all mt-1">
-              {certificateId || "N/A"}
-            </p>
+            <div className="h-10 w-10 rounded-full bg-[#D9E5E6] flex items-center justify-center text-[#009688] font-bold mx-auto">
+              {orgName?.charAt(0).toUpperCase() || "O"}
+            </div>
           )}
         </div>
-        <div className="pt-2 border-t border-gray-200">
-          <p className="text-xs text-gray-500">
-            Index: {index}
-          </p>
+      </motion.div>
+
+      {/* Main Content */}
+      <div className="flex-1 p-8 overflow-y-auto h-full">
+        <div className="max-w-7xl mx-auto space-y-8 pb-20">
+          {/* Header */}
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between"
+          >
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {activeTab === 'overview' && 'Dashboard Overview'}
+                {activeTab === 'issue' && 'Issue New Certificate'}
+                {activeTab === 'manage' && 'Manage Certificates'}
+                {activeTab === 'verify' && 'Verify Certificate'}
+              </h1>
+              <p className="text-gray-500 mt-1">
+                Manage your organization's certificates and records.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => window.location.href = '/upload-certificates'}
+                className="bg-[#009688] hover:bg-[#00796B] text-white shadow-sm"
+              >
+                <FileUp className="h-4 w-4 mr-2" />
+                Mass Generate
+              </Button>
+            </div>
+          </motion.div>
+
+          <AnimatePresence mode="wait">
+            {activeTab === 'overview' && (
+              <motion.div
+                key="overview"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {[
+                    { title: "Total Issued", value: stats?.[0]?.toString() || "0", icon: Award, color: "green" },
+                    { title: "Flagged", value: stats?.[1]?.toString() || "0", icon: Flag, color: "yellow" },
+                    { title: "Revoked", value: stats?.[2]?.toString() || "0", icon: XCircle, color: "red" }
+                  ].map((stat, index) => (
+                    <motion.div
+                      key={index}
+                      whileHover={{ scale: 1.02, translateY: -5 }}
+                      className="bg-white p-6 rounded-2xl shadow-sm border border-[#D9E5E6] relative overflow-hidden group"
+                    >
+                      <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-${stat.color}-600`}>
+                        <stat.icon className="h-24 w-24 transform translate-x-4 translate-y-4" />
+                      </div>
+                      <div className="relative z-10">
+                        <div className={`p-3 rounded-xl bg-${stat.color}-50 w-fit mb-4`}>
+                          <stat.icon className={`h-6 w-6 text-${stat.color}-600`} />
+                        </div>
+                        <p className="text-sm font-medium text-gray-500">{stat.title}</p>
+                        <h3 className="text-3xl font-bold text-gray-900 mt-1">{stat.value}</h3>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Organization Info Card */}
+                <Card className="border-[#D9E5E6] shadow-sm bg-white">
+                  <CardHeader className="bg-[#F5FAFA] border-b border-[#D9E5E6]">
+                    <CardTitle className="flex items-center gap-2 text-[#009688]">
+                      <Building2 className="h-5 w-5" />
+                      Organization Details
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <Label className="text-gray-500">Organization Name</Label>
+                      <p className="text-lg font-semibold text-gray-900">
+                        {orgName || orgDetails?.[0] || "Loading..."}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-gray-500">Contract Address</Label>
+                      <div className="flex items-center gap-2 bg-gray-50 p-2 rounded border border-gray-200">
+                        <code className="text-xs flex-1 truncate">{orgInfo?.contractAddress}</code>
+                        <button 
+                          onClick={() => navigator.clipboard.writeText(orgInfo?.contractAddress)}
+                          className="text-gray-400 hover:text-[#009688]"
+                        >
+                          <Wallet className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-gray-500">Status</Label>
+                      <div className="flex items-center gap-2">
+                        <Badge className={orgDetails?.[3] ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>
+                          {orgDetails?.[3] ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {activeTab === 'issue' && (
+              <motion.div
+                key="issue"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="border-[#D9E5E6] shadow-sm bg-white overflow-hidden">
+                  <div className="bg-[#F5FAFA] border-b border-[#D9E5E6] p-6">
+                    <div className="flex items-center gap-3 text-[#009688] mb-1">
+                      <div className="p-2 bg-white rounded-lg border border-[#D9E5E6]">
+                        <Plus className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-bold text-lg text-gray-900">Issue Single Certificate</h3>
+                    </div>
+                    <p className="text-sm text-gray-500 ml-[52px]">Manually issue a new certificate on the blockchain</p>
+                  </div>
+                  
+                  <CardContent className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-gray-700 font-medium">Certificate ID</Label>
+                        <div className="relative group">
+                          <Hash className="absolute left-3 top-3 h-4 w-4 text-gray-400 group-focus-within:text-[#009688] transition-colors" />
+                          <Input 
+                            placeholder="e.g. CERT-2025-001" 
+                            className="pl-10 border-gray-200 focus:border-[#009688] focus:ring-[#009688] bg-gray-50/50 h-11"
+                            value={certificateData.certID}
+                            onChange={handleInputChange}
+                            name="certID"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-gray-700 font-medium">File Hash (IPFS)</Label>
+                        <div className="relative group">
+                          <FileText className="absolute left-3 top-3 h-4 w-4 text-gray-400 group-focus-within:text-[#009688] transition-colors" />
+                          <Input 
+                            placeholder="Qm..." 
+                            className="pl-10 border-gray-200 focus:border-[#009688] focus:ring-[#009688] bg-gray-50/50 h-11"
+                            value={certificateData.filePhash}
+                            onChange={handleInputChange}
+                            name="filePhash"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-gray-700 font-medium">Data Hash</Label>
+                        <div className="relative group">
+                          <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400 group-focus-within:text-[#009688] transition-colors" />
+                          <Input 
+                            placeholder="0x..." 
+                            className="pl-10 border-gray-200 focus:border-[#009688] focus:ring-[#009688] bg-gray-50/50 h-11"
+                            value={certificateData.dataHash}
+                            onChange={handleInputChange}
+                            name="dataHash"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-gray-700 font-medium">Encrypted Data</Label>
+                        <div className="relative group">
+                          <Shield className="absolute left-3 top-3 h-4 w-4 text-gray-400 group-focus-within:text-[#009688] transition-colors" />
+                          <Input 
+                            placeholder="0x..." 
+                            className="pl-10 border-gray-200 focus:border-[#009688] focus:ring-[#009688] bg-gray-50/50 h-11"
+                            value={certificateData.encryptedData}
+                            onChange={handleInputChange}
+                            name="encryptedData"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      onClick={handleIssueCertificate}
+                      disabled={isIssuing}
+                      className="w-full bg-[#009688] hover:bg-[#00796B] text-white h-12 text-base font-medium shadow-md hover:shadow-lg transition-all"
+                    >
+                      {isIssuing ? <Loader2 className="animate-spin mr-2" /> : <Plus className="mr-2 h-5 w-5" />}
+                      Issue Certificate
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {activeTab === 'manage' && (
+              <motion.div
+                key="manage"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+              >
+                {/* Record Decrypted Hash */}
+                <Card className="border-[#D9E5E6] shadow-sm bg-white h-fit">
+                  <CardHeader className="bg-[#F5FAFA] border-b border-[#D9E5E6]">
+                    <CardTitle className="flex items-center gap-2 text-gray-700">
+                      <Lock className="h-5 w-5" />
+                      Record Decrypted Hash
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    <div className="space-y-2">
+                      <Label>Certificate ID</Label>
+                      <Input 
+                        placeholder="e.g. CERT-2025-001" 
+                        className="border-gray-200 focus:ring-[#009688]"
+                        value={decryptedHashData.certID}
+                        onChange={handleDecryptedHashChange}
+                        name="certID"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Decrypted Hash</Label>
+                      <Input 
+                        placeholder="0x..." 
+                        className="border-gray-200 focus:ring-[#009688]"
+                        value={decryptedHashData.decryptedHash}
+                        onChange={handleDecryptedHashChange}
+                        name="decryptedHash"
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleRecordDecryptedHash}
+                      disabled={isRecording}
+                      variant="outline"
+                      className="w-full border-[#009688] text-[#009688] hover:bg-[#F5FAFA]"
+                    >
+                      {isRecording ? <Loader2 className="animate-spin mr-2" /> : "Record Hash"}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <div className="space-y-8">
+                  {/* Flag Certificate */}
+                  <Card className="border-yellow-100 shadow-sm bg-white">
+                    <CardHeader className="bg-yellow-50/50 border-b border-yellow-100">
+                      <CardTitle className="flex items-center gap-2 text-yellow-700">
+                        <Flag className="h-5 w-5" />
+                        Flag Certificate
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      <div className="space-y-2">
+                        <Label>Certificate ID</Label>
+                        <Input 
+                          placeholder="e.g. CERT-2025-001" 
+                          className="border-yellow-200 focus:ring-yellow-500"
+                          value={flagData.certID}
+                          onChange={handleFlagChange}
+                          name="certID"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Reason</Label>
+                        <Input 
+                          placeholder="Why is this flagged?" 
+                          className="border-yellow-200 focus:ring-yellow-500"
+                          value={flagData.reason}
+                          onChange={handleFlagChange}
+                          name="reason"
+                        />
+                      </div>
+                      <Button 
+                        onClick={handleFlagCertificate}
+                        disabled={isFlagging}
+                        className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
+                      >
+                        {isFlagging ? <Loader2 className="animate-spin mr-2" /> : "Flag Certificate"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* Revoke Certificate */}
+                  <Card className="border-red-100 shadow-sm bg-white">
+                    <CardHeader className="bg-red-50/50 border-b border-red-100">
+                      <CardTitle className="flex items-center gap-2 text-red-700">
+                        <XCircle className="h-5 w-5" />
+                        Revoke Certificate
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      <div className="space-y-2">
+                        <Label>Certificate ID</Label>
+                        <Input 
+                          placeholder="e.g. CERT-2025-001" 
+                          className="border-red-200 focus:ring-red-500"
+                          value={revokeData.certID}
+                          onChange={handleRevokeChange}
+                          name="certID"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Reason</Label>
+                        <Input 
+                          placeholder="Why is this revoked?" 
+                          className="border-red-200 focus:ring-red-500"
+                          value={revokeData.reason}
+                          onChange={handleRevokeChange}
+                          name="reason"
+                        />
+                      </div>
+                      <Button 
+                        onClick={handleRevokeCertificate}
+                        disabled={isRevoking}
+                        className="w-full bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        {isRevoking ? <Loader2 className="animate-spin mr-2" /> : "Revoke Permanently"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'verify' && (
+              <motion.div
+                key="verify"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="border-[#D9E5E6] shadow-sm bg-white">
+                  <CardHeader className="bg-[#F5FAFA] border-b border-[#D9E5E6]">
+                    <CardTitle className="flex items-center gap-2 text-[#009688]">
+                      <FileCheck className="h-5 w-5" />
+                      Verify Certificate Integrity
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <Label>Certificate ID</Label>
+                        <Input 
+                          placeholder="e.g. CERT-2025-001" 
+                          className="border-gray-200 focus:ring-[#009688]"
+                          value={verificationData.certID}
+                          onChange={handleVerificationChange}
+                          name="certID"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Recomputed File Hash</Label>
+                        <Input 
+                          placeholder="0x..." 
+                          className="border-gray-200 focus:ring-[#009688]"
+                          value={verificationData.recomputedFilePhash}
+                          onChange={handleVerificationChange}
+                          name="recomputedFilePhash"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Recomputed Data Hash</Label>
+                        <Input 
+                          placeholder="0x..." 
+                          className="border-gray-200 focus:ring-[#009688]"
+                          value={verificationData.recomputedDataHash}
+                          onChange={handleVerificationChange}
+                          name="recomputedDataHash"
+                        />
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      onClick={handleVerifyCertificate}
+                      className="w-full bg-[#009688] hover:bg-[#00796B] text-white"
+                    >
+                      Verify Now
+                    </Button>
+
+                    <AnimatePresence>
+                      {shouldVerify && (
+                        <motion.div 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="mt-6"
+                        >
+                          {verificationPending ? (
+                            <div className="flex items-center justify-center p-8 bg-gray-50 rounded-xl">
+                              <Loader2 className="h-6 w-6 animate-spin text-[#009688] mr-2" />
+                              <span className="text-gray-600">Verifying on blockchain...</span>
+                            </div>
+                          ) : verificationResult ? (
+                            <div className={`p-6 rounded-xl border ${verificationResult[0] === 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                              <div className="flex items-center gap-3 mb-2">
+                                {verificationResult[0] === 0 ? (
+                                  <CheckCircle className="h-6 w-6 text-green-600" />
+                                ) : (
+                                  <XCircle className="h-6 w-6 text-red-600" />
+                                )}
+                                <h3 className={`text-lg font-bold ${verificationResult[0] === 0 ? 'text-green-800' : 'text-red-800'}`}>
+                                  {verificationResult[0] === 0 ? "Verification Successful" : "Verification Failed"}
+                                </h3>
+                              </div>
+                              <p className="text-gray-700 ml-9">{verificationResult[1]}</p>
+                              
+                              <div className="mt-4 grid grid-cols-2 gap-4 ml-9 text-sm">
+                                <div>
+                                  <span className="text-gray-500">Stored File Hash:</span>
+                                  <p className="font-mono text-gray-800 truncate">{verificationResult[3]}</p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500">Stored Data Hash:</span>
+                                  <p className="font-mono text-gray-800 truncate">{verificationResult[4]}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
