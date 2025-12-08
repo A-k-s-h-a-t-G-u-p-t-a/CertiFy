@@ -32,10 +32,13 @@ export async function POST(request) {
   }
 
   try {
-    // Receive certificates array directly from frontend
-    const { certificates } = await request.json();
+    // Receive certificates array and optional additional image from frontend
+    const { certificates, additionalImage } = await request.json();
 
     console.log("Processing certificates from frontend...");
+    if (additionalImage) {
+      console.log("Additional image (signature/logo) provided, will be added to certificates");
+    }
 
     if (!certificates || !Array.isArray(certificates)) {
       return new Response(JSON.stringify({ error: "Invalid certificates data. Expected array of certificates." }), {
@@ -46,7 +49,8 @@ export async function POST(request) {
 
     // First, let's generate certificate images using the certificate generation API
     const json_certificates_data = {
-      certificates: certificates
+      certificates: certificates,
+      additionalImage: additionalImage || null  // Pass the additional image (signature/logo)
     };
 
     // Get the base URL for the API call

@@ -93,7 +93,7 @@ function computeDHash(sourceCanvas) {
 }
 
 // Helper function to generate a single certificate
-async function generateSingleCertificate(certData) {
+async function generateSingleCertificate(certData, additionalImageBase64 = null) {
   const {
     name,
     courseName,
@@ -159,17 +159,36 @@ async function generateSingleCertificate(certData) {
   const centerX = CANVAS_WIDTH / 2;
 
   // STANDARDIZED POSITIONS FOR 1200x900 CANVAS
-  drawText(name, centerX, 350, "38px 'Times New Roman'", "center");
-  drawText(courseName || "", centerX, 450);
-  drawText(year || "", centerX, 565);
+  drawText(name, centerX, 320, "38px 'Times New Roman'", "center");
+  drawText(courseName || "", centerX, 430);
+  drawText(year || "", centerX, 520);
 
   // LEFT SIDE
-  drawText(`${organisation || ""}`, 200, 700, "28px Serif", "left");
-  drawText(`${certificateId}`, 200, 800, "28px Serif", "left");
+  drawText(`${organisation || ""}`, 390, 600, "28px Serif", "left");
+  drawText(`${certificateId}`, 390, 680, "28px Serif", "left");
 
   // RIGHT SIDE
-  drawText(`${courseId || nqrCode || ""}`, 800, 700, "28px Serif", "left");
-  drawText(`${apaarId || ""}`, 800, 800, "28px Serif", "left");
+  drawText(`${courseId || nqrCode || ""}`, 800, 600, "28px Serif", "left");
+  drawText(`${apaarId || ""}`, 800, 680, "28px Serif", "left");
+
+  // Add additional image if provided
+  if (additionalImageBase64) {
+    try {
+      const imageBuffer = Buffer.from(additionalImageBase64, 'base64');
+      const additionalImage = await loadImage(imageBuffer);
+      
+      // Fixed size and position for the additional image at the bottom center
+      const imgWidth = 120;
+      const imgHeight = 80;
+      const imgX = (CANVAS_WIDTH - imgWidth) / 2; // Center horizontally
+      const imgY = CANVAS_HEIGHT - imgHeight - 90; // 30px from bottom
+      
+      ctx.drawImage(additionalImage, imgX, imgY, imgWidth, imgHeight);
+    } catch (error) {
+      console.warn("Failed to add additional image:", error.message);
+      // Continue certificate generation without the image
+    }
+  }
 
   // --- Steganography & Hashing ---
   // 1. Construct Identity Data (Excluding URL)
@@ -218,7 +237,7 @@ export async function POST(req) {
     const body = await req.json();
 
     // Check if it's a batch request (array of certificates) or single certificate
-    const { certificates } = body;
+    const { certificates, additionalImage } = body;
 
     // Batch processing: array of certificates
     if (certificates && Array.isArray(certificates)) {
@@ -243,7 +262,7 @@ export async function POST(req) {
             organisation: certData.Organisation || certData.organisation || certData['Organisation'] || null,
             organisationId: certData.OrganisationId || certData.organisationId || certData['Organisation ID'] || null,
             nqrCode: certData.NqrCode || certData.nqrCode || certData['NQR Code'] || null,
-          });
+          }, additionalImage); // Pass additional image to generation function
 
           // Append URL and Hashes to original certificate data
           processedCertificates.push({
@@ -295,7 +314,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "Certificate ID is required" }, { status: 400 });
     }
 
-    const result = await generateSingleCertificate({ name, courseName, year, certificateId, courseId, apaarId, organisation, organisationId, nqrCode });
+    const result = await generateSingleCertificate({ name, courseName, year, certificateId, courseId, apaarId, organisation, organisationId, nqrCode }, additionalImage);
 
     return NextResponse.json(
       {

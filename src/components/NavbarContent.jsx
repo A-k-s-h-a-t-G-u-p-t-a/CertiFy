@@ -26,7 +26,7 @@ export function NavbarDemo() {
   const navItems = [
     { name: "Admin", link: "/admin" },
     { name: "Organizations", link: "/org" },
-    { name: "Verifier", link: "/verifier" },
+    { name: "Verifier", link: "/verifier2" },
     { name: "Certificate Playground", link: "/certificate-generator" },
   ]
 

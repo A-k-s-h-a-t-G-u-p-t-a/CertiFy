@@ -84,8 +84,11 @@ def backfill_fields(text, fields):
     # Backfill certificateId if missing
     if not fields.get("certificateId"):
         cleaned_text = " ".join(text.split())
-        # Keywords that usually indicate certificate ID
+        # Keywords that usually indicate certificate ID (prioritize CERT prefix)
         patterns = [
+            r'\b(CERT[A-Z0-9\-]{4,30})\b',  # Prefer CERT prefix first
+            r'\bCertificate\s+ID\s*[:\-]?\s*(CERT[A-Z0-9\-]{4,30})\b',
+            r'\bCertificate\s+No\.?\s*[:\-]?\s*(CERT[A-Z0-9\-]{4,30})\b',
             r'\bCertificate\s+ID\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
             r'\bCertificate\s+No\.?\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
             r'\bCert\s+No\.?\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
@@ -119,10 +122,11 @@ def backfill_fields(text, fields):
 
     # Backfill APAAR ID if missing
     if not fields.get("apaarId"):
-        # APAAR ID patterns (adjust based on actual format)
+        # APAAR ID patterns - typically plain integers (numeric digits only)
         apaar_patterns = [
-            r'\bAPAAR\s*(?:ID)?\s*[:\-]?\s*([A-Z0-9\-]{8,20})\b',
-            r'\bAPAAR[:\-]?\s*([A-Z0-9\-]{8,20})\b',
+            r'\bAPAAR\s*(?:ID)?\s*[:\-]?\s*(\d{6,15})\b',  # Numeric only, 6-15 digits
+            r'\bAPAAR[:\-]?\s*(\d{6,15})\b',
+            r'\bStudent\s+ID\s*[:\-]?\s*(\d{6,15})\b',  # Alternative pattern
         ]
         apaar_found = None
         for pat in apaar_patterns:
@@ -157,14 +161,18 @@ You are an AI trained to extract information from certificates.
 From the certificate text below, extract the following fields according to the certificate schema:
 
 REQUIRED FIELDS:
-- certificateId: The unique certificate ID, verification code, or certificate number (look for patterns like "Certificate ID", "Certificate No.", "Cert No.", "ID:", "Verification Code")
+- certificateId: The unique certificate ID, verification code, or certificate number. This usually starts with "CERT" followed by alphanumeric characters (e.g., "CERT12345", "CERT-ABC-001"). Look for patterns like "Certificate ID", "Certificate No.", "Cert No.", "ID:", "Verification Code"
 - name: Full name of the certificate recipient/student
 
 OPTIONAL FIELDS:
 - nqrCode: NQR Code or Course ID if mentioned (National Qualifications Register code)
 - courseName: Name of the course, degree, program, or qualification earned
-- apaarId: Student's APAAR ID if mentioned (Automated Permanent Academic Account Registry)
+- apaarId: Student's APAAR ID if mentioned (Automated Permanent Academic Account Registry). This is typically a plain integer number (e.g., "123456789", "987654321")
 - year: Year of completion, graduation year, or issuance year (extract only the year as a string, e.g., "2024")
+
+IMPORTANT NOTES:
+- certificateId usually starts with "CERT" prefix
+- apaarId is typically a plain integer (numeric digits only, no letters)
 
 Return ONLY a valid JSON object without any explanations, comments, markdown formatting, or extra text.
 Use these exact keys: "certificateId", "name", "nqrCode", "courseName", "apaarId", "year"
