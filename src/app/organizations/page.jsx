@@ -371,7 +371,7 @@ export default function OrganizationDashboard() {
                 className="border-2 border-green-600 text-green-600 hover:bg-green-600 hover:text-white px-8 py-3 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
               >
                 <FileText className="h-5 w-5 mr-2" />
-                Create Certificate
+                Certificate Playground
               </Button>
               <Button
                 variant="outline"
