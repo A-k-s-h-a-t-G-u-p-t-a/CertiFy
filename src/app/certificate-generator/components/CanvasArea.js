@@ -29,8 +29,8 @@ const CanvasArea = ({
 
         <Stage
           ref={stageRef}
-          width={900}
-          height={600}
+          width={1200}
+          height={900}
           className="rounded-lg cursor-pointer"
           onMouseDown={(e) => {
             const clickedOnEmpty = e.target === e.target.getStage()
@@ -43,8 +43,8 @@ const CanvasArea = ({
             {backgroundImage && (
               <BackgroundImage 
                 src={backgroundImage}
-                stageWidth={900}
-                stageHeight={600}
+                stageWidth={1200}
+                stageHeight={900}
               />
             )}
           </Layer>
