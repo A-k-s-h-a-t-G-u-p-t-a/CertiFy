@@ -3,8 +3,19 @@
 import { useState, useRef, useEffect} from "react"
 import { nanoid } from "nanoid"
 import useImage from "use-image"
+import { useActiveAccount } from "thirdweb/react"
 
 export const useCertificateLogic = () => {
+
+  // ======== WALLET & BLOCKCHAIN ========
+  const account = useActiveAccount()
+  
+  // Wallet to contract mapping
+  const WALLET_CONTRACT_MAPPING = {
+    "0x7e14929d682236d3Cb02B6E2aCC779ca9b255E78": "0x1627fb0cc3e87E22648C05Db23c4638B0B881e3E",
+    "0x5b2E5aB341743706cFae342A05df91E018838F59": "0xE13FB895ce3Bc12b61Ff725a32b44585DD0ACc2e",
+    "0x8e6a18B80bDbdF6422dA06BA04daCe8D832Fea98": "0xD2722d58332c42f27d1242D5Bb8D19e9DBFDB4eD"
+  }
 
   // ======== STATE MANAGEMENT ========
 
@@ -426,6 +437,8 @@ export const useCertificateLogic = () => {
 
 
   return {
+    account,
+    WALLET_CONTRACT_MAPPING,
     elements,
     setElements,
     selectedId,
