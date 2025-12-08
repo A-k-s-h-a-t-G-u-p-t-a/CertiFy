@@ -73,14 +73,30 @@ const OcrComparer = () => {
       if (!res.ok) throw new Error(data.error || "OCR extraction failed");
 
       // The OCR backend returns fields in results[0].fields
+      const ocrText = data?.results?.[0]?.ocr_text || "";
       const fields = data?.results?.[0]?.fields || {};
+      
+      console.log("📄 RAW OCR TEXT:");
+      console.log("=".repeat(80));
+      console.log(ocrText);
+      console.log("=".repeat(80));
+      console.log("\n📋 OCR Extracted Fields:", fields);
 
-      // Override organization and add the manually entered year
+      // Map OCR fields to match what we need for verification
+      // OCR returns: certificateId, name, nqrCode, courseName, apaarId, year
       const finalFields = {
         ...fields,
-        organisation: organization,
-        
+        organisation: organization, // Manual input
+        // Ensure all fields are present even if null
+        certificateId: fields.certificateId || null,
+        name: fields.name || null,
+        nqrCode: fields.nqrCode || null,
+        courseName: fields.courseName || null,
+        apaarId: fields.apaarId || null,
+        year: fields.year || year, // Use OCR year if available, otherwise use manual input
       };
+      
+      console.log("✅ Final Fields for Verification:", finalFields);
 
       setFormattedFields(finalFields);
       setStatus("Fields extracted successfully ✅");
@@ -119,13 +135,14 @@ const OcrComparer = () => {
         return;
       }
 
-      // Fields to compare
+      // Fields to compare - using the actual schema fields
       const keys = [
         "name",
         "courseName",
-        "courseId",
+        "nqrCode", // Changed from courseId to match schema
         "year",
         "certificateId",
+        "apaarId", // Added APAAR ID comparison
       ];
 
       let bestMatch = null;
@@ -405,10 +422,45 @@ const OcrComparer = () => {
         {/* Parsed Fields */}
         {formattedFields && (
           <div className="mt-6">
-            <h3 className="font-semibold text-[#4e796b]">Extracted Fields:</h3>
-            <pre className="bg-[#f8f6f1] p-3 rounded-lg overflow-x-auto">
-              {JSON.stringify(formattedFields, null, 2)}
-            </pre>
+            <h3 className="font-semibold text-[#4e796b] text-lg mb-3">📋 Extracted Fields:</h3>
+            <div className="bg-[#f8f6f1] p-5 rounded-lg border-2 border-[#a7d7b8]/30 space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-3 bg-white rounded-lg border border-[#a7d7b8]/20">
+                  <span className="text-xs font-semibold text-[#4e796b]/60 uppercase">Certificate ID</span>
+                  <p className="text-[#4e796b] font-mono font-medium mt-1">{formattedFields.certificateId || "Not found"}</p>
+                </div>
+                <div className="p-3 bg-white rounded-lg border border-[#a7d7b8]/20">
+                  <span className="text-xs font-semibold text-[#4e796b]/60 uppercase">Name</span>
+                  <p className="text-[#4e796b] font-medium mt-1">{formattedFields.name || "Not found"}</p>
+                </div>
+                <div className="p-3 bg-white rounded-lg border border-[#a7d7b8]/20">
+                  <span className="text-xs font-semibold text-[#4e796b]/60 uppercase">Course Name</span>
+                  <p className="text-[#4e796b] font-medium mt-1">{formattedFields.courseName || "Not found"}</p>
+                </div>
+                <div className="p-3 bg-white rounded-lg border border-[#a7d7b8]/20">
+                  <span className="text-xs font-semibold text-[#4e796b]/60 uppercase">NQR Code</span>
+                  <p className="text-[#4e796b] font-mono font-medium mt-1">{formattedFields.nqrCode || "Not found"}</p>
+                </div>
+                <div className="p-3 bg-white rounded-lg border border-[#a7d7b8]/20">
+                  <span className="text-xs font-semibold text-[#4e796b]/60 uppercase">APAAR ID</span>
+                  <p className="text-[#4e796b] font-mono font-medium mt-1">{formattedFields.apaarId || "Not found"}</p>
+                </div>
+                <div className="p-3 bg-white rounded-lg border border-[#a7d7b8]/20">
+                  <span className="text-xs font-semibold text-[#4e796b]/60 uppercase">Year</span>
+                  <p className="text-[#4e796b] font-medium mt-1">{formattedFields.year || "Not found"}</p>
+                </div>
+                <div className="p-3 bg-white rounded-lg border border-[#a7d7b8]/20">
+                  <span className="text-xs font-semibold text-[#4e796b]/60 uppercase">Organisation</span>
+                  <p className="text-[#4e796b] font-medium mt-1">{formattedFields.organisation || "Not found"}</p>
+                </div>
+              </div>
+              <details className="mt-4">
+                <summary className="cursor-pointer text-sm text-[#4e796b]/70 hover:text-[#4e796b] font-medium">View Raw JSON</summary>
+                <pre className="mt-2 p-3 bg-white rounded text-xs overflow-x-auto border border-[#a7d7b8]/20">
+                  {JSON.stringify(formattedFields, null, 2)}
+                </pre>
+              </details>
+            </div>
           </div>
         )}
 

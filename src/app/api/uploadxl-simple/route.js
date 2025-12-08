@@ -14,7 +14,7 @@ export async function POST(request) {
 
   // Validate user role
   if (role !== 'organisation') {
-    return new Response(JSON.stringify({ error: "Only organizations can upload certificates" }), { 
+    return new Response(JSON.stringify({ error: "Only organizations can upload certificates" }), {
       status: 403,
       headers: { "Content-Type": "application/json" },
     });
@@ -25,7 +25,7 @@ export async function POST(request) {
   });
 
   if (!org) {
-    return new Response(JSON.stringify({ error: "Organization not found" }), { 
+    return new Response(JSON.stringify({ error: "Organization not found" }), {
       status: 404,
       headers: { "Content-Type": "application/json" },
     });
@@ -48,23 +48,23 @@ export async function POST(request) {
     const json_certificates_data = {
       certificates: certificates
     };
-    
+
     // Get the base URL for the API call
     const baseUrl = process.env.NEXTAUTH_URL || `${request.headers.get('x-forwarded-proto') || 'http'}://${request.headers.get('host') || 'localhost:3000'}`;
-    
+
     let certificatesWithUrls = certificates; // Default fallback
-    
+
     try {
       const finalResponse = await fetch(`${baseUrl}/api/certificate/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(json_certificates_data),
       });
-      
+
       if (finalResponse.ok) {
         const finalResponseData = await finalResponse.json();
         console.log("Certificate Generation Response:", finalResponseData);
-        
+
         if (finalResponseData.success && finalResponseData.certificates) {
           certificatesWithUrls = finalResponseData.certificates;
         }
@@ -127,6 +127,10 @@ export async function POST(request) {
           name: createdCert.name,
           courseName: createdCert.courseName,
           certificateId: createdCert.certificateId,
+          // Pass hashes to frontend for blockchain
+          pHash: certData.pHash,
+          certificateHash: certData.certificateHash,
+          encryptedHash: certData.encryptedHash,
         });
 
         console.log(`Certificate ${i + 1} created successfully`);
@@ -144,7 +148,7 @@ export async function POST(request) {
 
     console.log(`Successfully processed ${createdCertificates.length} certificates`);
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       success: true,
       message: `Successfully processed ${createdCertificates.length} certificates`,
       totalRows: certificatesWithUrls.length,
@@ -158,7 +162,7 @@ export async function POST(request) {
 
   } catch (error) {
     console.error("Upload certificates error:", error);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: error.message || "Upload failed",
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }), {

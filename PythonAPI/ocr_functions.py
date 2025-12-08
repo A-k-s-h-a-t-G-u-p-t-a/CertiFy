@@ -13,7 +13,7 @@ import json
 from dotenv import load_dotenv
 from flask_cors import CORS
 import pandas as pd  # For Excel processing
-import google.generativeai as genai
+from groq import Groq  # Groq API
 
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' # Adjust this path(where tesseract is donwlaoded in your local system)
@@ -26,10 +26,17 @@ CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 # Load spaCy English model
 nlp = spacy.load("en_core_web_sm")
 
-# Initialize Gemini Client
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
-api_key = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=api_key)
+# Initialize Groq Client
+# Try loading from current directory first, then parent
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+if not os.getenv("GROQ_API_KEY"):
+    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
+
+groq_api_key = os.getenv("GROQ_API_KEY")
+if not groq_api_key:
+    raise ValueError("GROQ_API_KEY not found in environment variables. Please check your .env file.")
+
+groq_client = Groq(api_key=groq_api_key)
 
 
 def load_document_from_bytes(file_bytes, filename="file"):
@@ -71,73 +78,120 @@ def clean_json(text):
 
 def backfill_fields(text, fields):
     """
-    If Gemini missed any field, try to extract it from OCR text directly.
-    Example: certificateId often has patterns like 'ID: ABC123' or 'CERT-4567'
+    If Groq missed any field, try to extract it from OCR text directly.
+    This ensures critical fields are populated even if the AI extraction fails.
     """
     # Backfill certificateId if missing
     if not fields.get("certificateId"):
         cleaned_text = " ".join(text.split())
         # Keywords that usually indicate certificate ID
-        # "Certificate ID"
-        # "Certificate No."
-        # "Verification Code"
-        # "Verification No."
         patterns = [
-            r'\bCertificate\s+ID\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
-            r'\bCertificate\s+No\.?\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
-            r'\bVerification\s+Code\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
-            r'\bVerification\s+No\.?\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
-            r'\bVerification\s+Cade\s*[:\-]?\s*([A-Z0-9]{4,20})\b',
+            r'\bCertificate\s+ID\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
+            r'\bCertificate\s+No\.?\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
+            r'\bCert\s+No\.?\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
+            r'\bVerification\s+Code\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
+            r'\bVerification\s+No\.?\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
+            r'\bID\s*[:\-]?\s*([A-Z0-9\-]{4,30})\b',
         ]
         cid_found = None
         for pat in patterns:
             match = re.search(pat, text, re.IGNORECASE)
             if match:
-                cid_found = match.group(1)
+                cid_found = match.group(1).strip()
                 break
-
         fields["certificateId"] = cid_found if cid_found else None
-        # # If still not found, set null explicitly
-        # if "certificateId" not in fields or not fields["certificateId"]:
-        #     fields["certificateId"] = None
 
-    # You can add similar backfill logic for other fields if needed
+    # Backfill year if missing
+    if not fields.get("year"):
+        # Look for 4-digit years (1900-2099)
+        year_patterns = [
+            r'\b(20[0-9]{2})\b',  # Years 2000-2099
+            r'\b(19[0-9]{2})\b',  # Years 1900-1999
+        ]
+        year_found = None
+        for pat in year_patterns:
+            matches = re.findall(pat, text)
+            if matches:
+                # Take the most recent year found
+                year_found = max(matches)
+                break
+        fields["year"] = year_found if year_found else None
+
+    # Backfill APAAR ID if missing
+    if not fields.get("apaarId"):
+        # APAAR ID patterns (adjust based on actual format)
+        apaar_patterns = [
+            r'\bAPAAR\s*(?:ID)?\s*[:\-]?\s*([A-Z0-9\-]{8,20})\b',
+            r'\bAPAAR[:\-]?\s*([A-Z0-9\-]{8,20})\b',
+        ]
+        apaar_found = None
+        for pat in apaar_patterns:
+            match = re.search(pat, text, re.IGNORECASE)
+            if match:
+                apaar_found = match.group(1).strip()
+                break
+        fields["apaarId"] = apaar_found if apaar_found else None
+
+    # Backfill NQR Code if missing
+    if not fields.get("nqrCode"):
+        # NQR Code patterns
+        nqr_patterns = [
+            r'\bNQR\s*(?:Code)?\s*[:\-]?\s*([A-Z0-9\-]{4,20})\b',
+            r'\bCourse\s+ID\s*[:\-]?\s*([A-Z0-9\-]{4,20})\b',
+            r'\bCourse\s+Code\s*[:\-]?\s*([A-Z0-9\-]{4,20})\b',
+        ]
+        nqr_found = None
+        for pat in nqr_patterns:
+            match = re.search(pat, text, re.IGNORECASE)
+            if match:
+                nqr_found = match.group(1).strip()
+                break
+        fields["nqrCode"] = nqr_found if nqr_found else None
+
     return fields
 
 
-def extract_fields_with_gemini(text):
+def extract_fields_with_groq(text):
     prompt = f"""
 You are an AI trained to extract information from certificates. 
-From the certificate text below, extract the following fields:
-- Name of the recipient
-- Name of the organisation
-- Degree name
-- Year of completion
-- Honors or distinction if mentioned
-- Roll number
-- Grade
-- Organisation
+From the certificate text below, extract the following fields according to the certificate schema:
 
-- certificateId
+REQUIRED FIELDS:
+- certificateId: The unique certificate ID, verification code, or certificate number (look for patterns like "Certificate ID", "Certificate No.", "Cert No.", "ID:", "Verification Code")
+- name: Full name of the certificate recipient/student
 
-Return the result as a valid JSON object only, JSON object ONLY, without any explanations, comments, or extra text with keys "name", "degree", "year", "honors", "roll_number", "grade", "organisation", "certificateId".
-If a field is not found, use null for that field.
+OPTIONAL FIELDS:
+- nqrCode: NQR Code or Course ID if mentioned (National Qualifications Register code)
+- courseName: Name of the course, degree, program, or qualification earned
+- apaarId: Student's APAAR ID if mentioned (Automated Permanent Academic Account Registry)
+- year: Year of completion, graduation year, or issuance year (extract only the year as a string, e.g., "2024")
+
+Return ONLY a valid JSON object without any explanations, comments, markdown formatting, or extra text.
+Use these exact keys: "certificateId", "name", "nqrCode", "courseName", "apaarId", "year"
+If a field is not found or not applicable, use null for that field.
 
 Certificate Text:
 \"\"\"{text}\"\"\"
 """
 
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    # Call Groq API
+    chat_completion = groq_client.chat.completions.create(
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a precise information extraction assistant that returns only valid JSON."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        model="llama-3.3-70b-versatile",  # or "mixtral-8x7b-32768" for faster responses
+        temperature=0.0,
+        max_tokens=1000,
+    )
 
-    response = model.generate_content(
-    contents=prompt,
-    generation_config={
-        "temperature": 0.0
-    }
-)
-
-
-    output_text = response.text.strip()
+    output_text = chat_completion.choices[0].message.content.strip()
     cleaned_text = clean_json(output_text)
 
     try:
@@ -198,8 +252,8 @@ def extract_certificate_fields():
             print(f"📝 OCR text extracted (length: {len(ocr_text)})")
             print(f"OCR Text preview: {ocr_text[:200]}...")
             
-            fields = extract_fields_with_gemini(ocr_text)
-            print(f"🤖 Gemini fields extracted: {fields}")
+            fields = extract_fields_with_groq(ocr_text)
+            print(f"🤖 Groq fields extracted: {fields}")
             
             all_results.append({"page": idx + 1, "ocr_text": ocr_text, "fields": fields})
         except Exception as e:
