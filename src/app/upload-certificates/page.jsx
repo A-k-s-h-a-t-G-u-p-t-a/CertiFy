@@ -1,4 +1,5 @@
 "use client";
+import { FileUpload } from "@/components/ui/file-upload";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertCircle, Shield, Loader2 } from "lucide-react";
@@ -7,6 +8,8 @@ import { useActiveAccount, useSendTransaction, useReadContract } from "thirdweb/
 import { getContract, prepareContractCall } from "thirdweb";
 import { defineChain } from "thirdweb/chains";
 import { client } from "@/lib/client";
+import { useRouter } from "next/navigation";
+
 
 export default function UploadCertificatesPage() {
   const { data: session, status } = useSession();
@@ -234,28 +237,24 @@ export default function UploadCertificatesPage() {
               <strong>Name, Certificate ID, Course Name, Course ID, Year, APAAR ID</strong>
             </p>
 
-            <div className="mb-4">
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileChange}
-                className="hidden"
-                id="excel-upload"
+            <div className="mb-6">
+              <FileUpload
+                accept={{ "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [], "application/vnd.ms-excel": [] }}
+                onChange={(files) => {
+                  if (files && files.length > 0) {
+                    handleFileChange({ target: { files } });
+                  }
+                }}
+                maxFiles={1}
+                className="border border-green-400"
               />
-              <label
-                htmlFor="excel-upload"
-                className="cursor-pointer inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <Upload className="w-5 h-5 mr-2" />
-                Choose Excel File
-              </label>
-            </div>
 
-            {file && (
-              <div className="text-sm text-gray-600 mb-4">
-                Selected: {file.name}
-              </div>
-            )}
+              {file && (
+                <p className="text-sm text-gray-600 mt-2">
+                  Selected File: <span className="font-medium">{file.name}</span>
+                </p>
+              )}
+            </div>
 
             {error && (
               <div className="flex items-center justify-center text-red-600 mb-4">
@@ -502,3 +501,4 @@ export default function UploadCertificatesPage() {
     </div >
   );
 }
+
