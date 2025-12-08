@@ -80,14 +80,12 @@ function VerifierContent() {
 
     try {
       // Call the verify function on the VerifierContract using readContract
-      // function verify(address certContract, string calldata certID, bytes32 recomputedFilePhash, bytes32 recomputedDataHash) 
-      // returns (VerificationResult memory result)
-      // Use SHA-256 file hash as filePhash, dataHash set to 0x00...
+      // The contract returns a struct VerificationResult
       const zeroHash = getZeroDataHash();
       
       const result = await readContract({
         contract: contract,
-        method: "function verify(address certContract, string certID, bytes32 recomputedFilePhash, bytes32 recomputedDataHash) view returns (uint8 code, string message, address certContract, bytes32 storedFilePhash, bytes32 storedDataHash, bytes32 recomputedFilePhash, bytes32 recomputedDataHash, bool adminDecryptedMatches)",
+        method: "function verify(address certContract, string certID, bytes32 recomputedFilePhash, bytes32 recomputedDataHash) view returns ((uint8 code, string message, address certContract, bytes32 storedFilePhash, bytes32 storedDataHash, bytes32 recomputedFilePhash, bytes32 recomputedDataHash, bool adminDecryptedMatches))",
         params: [
           certContractAddress.trim(),
           certificateId.trim(),
@@ -96,18 +94,16 @@ function VerifierContent() {
         ],
       });
 
-      // Parse the result - readContract returns the decoded struct values
-      const [code, message, returnedCertContract, storedFilePhash, storedDataHash, recomputedFilePhash, recomputedDataHash, adminMatch] = result;
-
+      // Parse the result - result is an object representing the struct
       setVerificationResult({
-        code: Number(code),
-        message,
-        adminMatch,
-        storedFilePhash,
-        storedDataHash,
-        recomputedFilePhash,
-        recomputedDataHash,
-        certContract: returnedCertContract,
+        code: Number(result.code),
+        message: result.message,
+        adminMatch: result.adminDecryptedMatches,
+        storedFilePhash: result.storedFilePhash,
+        storedDataHash: result.storedDataHash,
+        recomputedFilePhash: result.recomputedFilePhash,
+        recomputedDataHash: result.recomputedDataHash,
+        certContract: result.certContract,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -334,6 +330,7 @@ function VerifierContent() {
 
                         {/* Details Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                          {/* Row 1: Code and Admin Match */}
                           <div className="bg-white/60 p-4 rounded-xl">
                             <p className="text-xs font-semibold text-[#4e796b]/70 mb-1">
                               Verification Code
@@ -345,34 +342,86 @@ function VerifierContent() {
 
                           <div className="bg-white/60 p-4 rounded-xl">
                             <p className="text-xs font-semibold text-[#4e796b]/70 mb-1">
-                              Admin Verification
+                              Admin Decrypted Match
                             </p>
                             <p className={`text-lg font-bold ${verificationResult.adminMatch ? 'text-green-600' : 'text-gray-600'}`}>
-                              {verificationResult.adminMatch ? "Matched ✓" : "Not Matched"}
+                              {verificationResult.adminMatch ? "Matched ✓" : "Not Matched ✗"}
                             </p>
                           </div>
 
+                          {/* Certificate Contract */}
                           <div className="bg-white/60 p-4 rounded-xl col-span-full">
                             <p className="text-xs font-semibold text-[#4e796b]/70 mb-2">
-                              Stored File Hash (SHA-256)
+                              Certificate Contract Address
                             </p>
                             <p className="text-xs text-[#4e796b] font-mono break-all">
+                              {verificationResult.certContract}
+                            </p>
+                          </div>
+
+                          {/* File Hash Comparison */}
+                          <div className="bg-white/60 p-4 rounded-xl">
+                            <p className="text-xs font-semibold text-[#4e796b]/70 mb-2">
+                              📦 Stored File Hash
+                            </p>
+                            <p className="text-xs text-[#4e796b] font-mono break-all bg-gray-100 p-2 rounded">
                               {verificationResult.storedFilePhash}
                             </p>
                           </div>
 
-                          <div className="bg-white/60 p-4 rounded-xl col-span-full">
+                          <div className="bg-white/60 p-4 rounded-xl">
                             <p className="text-xs font-semibold text-[#4e796b]/70 mb-2">
-                              Stored Data Hash
+                              🔄 Recomputed File Hash
                             </p>
-                            <p className="text-xs text-[#4e796b] font-mono break-all">
+                            <p className="text-xs text-[#4e796b] font-mono break-all bg-gray-100 p-2 rounded">
+                              {verificationResult.recomputedFilePhash}
+                            </p>
+                          </div>
+
+                          {/* Data Hash Comparison */}
+                          <div className="bg-white/60 p-4 rounded-xl">
+                            <p className="text-xs font-semibold text-[#4e796b]/70 mb-2">
+                              📦 Stored Data Hash
+                            </p>
+                            <p className="text-xs text-[#4e796b] font-mono break-all bg-gray-100 p-2 rounded">
                               {verificationResult.storedDataHash}
                             </p>
                           </div>
 
+                          <div className="bg-white/60 p-4 rounded-xl">
+                            <p className="text-xs font-semibold text-[#4e796b]/70 mb-2">
+                              🔄 Recomputed Data Hash
+                            </p>
+                            <p className="text-xs text-[#4e796b] font-mono break-all bg-gray-100 p-2 rounded">
+                              {verificationResult.recomputedDataHash}
+                            </p>
+                          </div>
+
+                          {/* Hash Match Summary */}
+                          <div className="bg-white/60 p-4 rounded-xl col-span-full">
+                            <p className="text-xs font-semibold text-[#4e796b]/70 mb-3">
+                              Hash Comparison Summary
+                            </p>
+                            <div className="flex flex-wrap gap-4">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-3 h-3 rounded-full ${verificationResult.storedFilePhash === verificationResult.recomputedFilePhash ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                <span className="text-sm text-[#4e796b]">
+                                  File Hash: {verificationResult.storedFilePhash === verificationResult.recomputedFilePhash ? 'Match ✓' : 'Mismatch ✗'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`w-3 h-3 rounded-full ${verificationResult.storedDataHash === verificationResult.recomputedDataHash ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                <span className="text-sm text-[#4e796b]">
+                                  Data Hash: {verificationResult.storedDataHash === verificationResult.recomputedDataHash ? 'Match ✓' : 'Mismatch ✗'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Verification Time */}
                           <div className="bg-white/60 p-4 rounded-xl col-span-full">
                             <p className="text-xs font-semibold text-[#4e796b]/70 mb-1">
-                              Verification Time
+                              🕐 Verification Time
                             </p>
                             <p className="text-sm text-[#4e796b]">
                               {new Date(verificationResult.timestamp).toLocaleString()}
