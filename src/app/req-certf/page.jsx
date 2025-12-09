@@ -147,20 +147,17 @@ const CertificateVerification = () => {
       console.log("📄 RAW OCR TEXT:", ocrText);
       console.log("📋 OCR Extracted Fields:", fields);
 
-      // TESTING MODE: Hardcode OCR results to match database certificate
-      console.log("⚠️ TESTING MODE: Using hardcoded OCR values");
-      
       const finalFields = {
-        certificateId: "CERT-034",
-        name: "Ananya Sharma",
-        nqrCode: "CSE-150",
-        courseName: "Cyber Security Essentials",
-        apaarId: "3",
-        year: "2025",
+        certificateId: fields.certificateId || "",
+        name: fields.name || "",
+        nqrCode: fields.nqrCode || "",
+        courseName: fields.courseName || "",
+        apaarId: fields.apaarId || "",
+        year: year,
         organisation: organization,
       };
       
-      console.log("✅ Hardcoded Fields for Testing:", finalFields);
+      console.log("✅ OCR Extracted Fields:", finalFields);
 
       setFormattedFields(finalFields);
       setStatus("verifying");
@@ -222,12 +219,6 @@ const CertificateVerification = () => {
         keys.forEach((key) => {
           const ocrVal = extractedFields[key]?.toString().trim().toLowerCase() || null;
           const dbVal = cert[key]?.toString().trim().toLowerCase() || null;
-
-          if (key === "certificateId" || key === "apaarId") {
-            console.log(`⚠️ TESTING BYPASS: Ignoring ${key} - OCR: ${ocrVal}, DB: ${dbVal}`);
-            matches++;
-            return;
-          }
 
           if (ocrVal === dbVal) {
             matches++;
@@ -310,11 +301,15 @@ const CertificateVerification = () => {
 
       const noMismatchedFields = currentResult?.mismatches?.length === 0;
       const tamperingScore = compareData?.tampering_score || 0;
+      const similarityScore = compareData?.similarity_score || 0;
+
+      // If similarity is 100% (or >= 0.99), ignore field mismatches due to OCR inaccuracies
+      const shouldIgnoreMismatches = similarityScore >= 0.99;
 
       setVerificationComplete(true);
       setIsProcessing(false);
 
-      if (noMismatchedFields && tamperingScore === 0) {
+      if ((noMismatchedFields || shouldIgnoreMismatches) && tamperingScore === 0) {
         try {
           await createAlert(currentResult.winner, organization, compareData);
           setStatus("success");

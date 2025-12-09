@@ -535,19 +535,19 @@ export default function OrganizationDashboard() {
           transition={{ delay: 0.7 }}
           className="col-span-1 lg:col-span-2"
         >
-          <Card className="shadow-2xl border-green-200 hover:shadow-3xl transition-all duration-500">
-            <CardHeader className="bg-gradient-to-r from-yellow-50 to-orange-50 border-b border-yellow-200">
+          <Card className="bg-white/80 backdrop-blur-sm border-2 border-white/50 shadow-xl">
+            <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                    <Bell className="h-6 w-6 text-yellow-600" />
+                  <CardTitle className="text-2xl text-gray-900 flex items-center gap-3">
+                    <Bell className="h-6 w-6 text-green-600" />
                     Certificate Alerts
                   </CardTitle>
-                  <CardDescription className="text-gray-600 mt-1">
-                    Review pending verification alerts and upload to blockchain
+                  <CardDescription className="text-gray-600 text-lg mt-1">
+                    Review pending verification requests
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                <Badge className="bg-green-100 text-green-800 border border-green-300 px-3 py-1">
                   {alerts.length} Pending
                 </Badge>
               </div>
@@ -555,7 +555,7 @@ export default function OrganizationDashboard() {
             <CardContent className="p-6">
               {alertsLoading ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 text-yellow-600 animate-spin" />
+                  <Loader2 className="h-8 w-8 text-green-600 animate-spin" />
                   <span className="ml-3 text-gray-600">Loading alerts...</span>
                 </div>
               ) : alerts.length === 0 ? (
@@ -565,105 +565,85 @@ export default function OrganizationDashboard() {
                   <p className="text-gray-500 text-sm mt-2">All certificates have been reviewed</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {alerts.map((alert, index) => (
                     <motion.div
                       key={alert.id}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-white to-yellow-50"
+                      transition={{ delay: index * 0.05 }}
+                      className="border-2 border-green-100 rounded-lg p-4 hover:shadow-md transition-all duration-200 bg-white hover:border-green-200"
                     >
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-semibold text-lg text-gray-900">
+                          <div className="flex items-center gap-2 mb-3">
+                            <h3 className="font-semibold text-gray-900">
                               {alert.certificate?.name || "Unknown Certificate"}
                             </h3>
                             <Badge 
-                              variant="outline" 
                               className={`
                                 ${alert.tamperingScore > 0.5 
-                                  ? 'bg-red-100 text-red-700 border-red-300' 
-                                  : 'bg-green-100 text-green-700 border-green-300'}
+                                  ? 'bg-red-100 text-red-700 border-red-200' 
+                                  : 'bg-green-100 text-green-700 border-green-200'}
                               `}
                             >
-                              {alert.tamperingScore > 0.5 ? 'High Risk' : 'Low Risk'}
+                              {alert.tamperingScore > 0.5 ? 'High Risk' : 'Verified'}
                             </Badge>
                           </div>
                           
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-3">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                             <div>
-                              <p className="text-gray-500">Similarity</p>
-                              <p className="font-semibold text-gray-900">
+                              <p className="text-gray-500 text-xs mb-1">Similarity</p>
+                              <p className="font-semibold text-green-700">
                                 {(alert.similarityScore * 100).toFixed(1)}%
                               </p>
                             </div>
                             <div>
-                              <p className="text-gray-500">Tampering</p>
-                              <p className="font-semibold text-gray-900">
-                                {(alert.tamperingScore * 100).toFixed(1)}%
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-gray-500">Course</p>
-                              <p className="font-semibold text-gray-900 truncate">
+                              <p className="text-gray-500 text-xs mb-1">Course</p>
+                              <p className="font-medium text-gray-900 truncate">
                                 {alert.certificate?.courseName || "N/A"}
                               </p>
                             </div>
                             <div>
-                              <p className="text-gray-500">Date</p>
-                              <p className="font-semibold text-gray-900">
+                              <p className="text-gray-500 text-xs mb-1">Certificate ID</p>
+                              <p className="font-mono text-sm text-gray-700">
+                                {alert.certificate?.certificateId || "N/A"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500 text-xs mb-1">Date</p>
+                              <p className="font-medium text-gray-700">
                                 {new Date(alert.createdAt).toLocaleDateString()}
                               </p>
                             </div>
                           </div>
-
-                          {getTamperedFields(alert).length > 0 && (
-                            <div className="mb-3">
-                              <p className="text-sm text-red-600 font-medium mb-1">
-                                ⚠️ Potentially Tampered Fields:
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {getTamperedFields(alert).map((field, idx) => (
-                                  <Badge key={idx} variant="destructive" className="text-xs">
-                                    {field}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {alert.message && (
-                            <p className="text-sm text-gray-600 italic">{alert.message}</p>
-                          )}
                         </div>
 
-                        <div className="flex flex-col gap-2 ml-4">
+                        <div className="flex flex-col gap-2">
                           <Button
                             onClick={() => viewAlertDetails(alert)}
                             variant="outline"
                             size="sm"
-                            className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                            className="border-green-300 text-green-700 hover:bg-green-50"
                           >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
+                            <Eye className="h-4 w-4 mr-1" />
+                            Details
                           </Button>
                           <Button
                             onClick={() => handleUploadToChain(alert.id)}
                             disabled={uploadingAlert === alert.id}
                             size="sm"
-                            className="bg-green-600 hover:bg-green-700 text-white"
+                            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
                           >
                             {uploadingAlert === alert.id ? (
                               <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Uploading...
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Uploading
                               </>
                             ) : (
                               <>
-                                <LinkIcon className="h-4 w-4 mr-2" />
-                                Upload to Chain
+                                <LinkIcon className="h-4 w-4 mr-1" />
+                                Upload
                               </>
                             )}
                           </Button>
