@@ -14,7 +14,8 @@ import {
   Building2, Users, Loader2, Plus, FileText, CheckCircle, XCircle, 
   AlertCircle, Shield, Award, Hash, Flag, X, Search, BarChart3, 
   Upload, FileUp, LayoutDashboard, FileSignature, ShieldAlert, 
-  Menu, ChevronRight, Wallet, Lock, FileCheck, TrendingUp, Activity, Clock, PieChart as PieChartIcon
+  Menu, ChevronRight, Wallet, Lock, FileCheck, TrendingUp, Activity, Clock, PieChart as PieChartIcon,
+  Bell, Eye, ImageIcon, Layers, ZoomIn
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from "recharts";
@@ -164,6 +165,15 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
     hourlyDistribution: []
   });
 
+  // Notifications state
+  const [notificationsData, setNotificationsData] = useState({
+    loading: true,
+    stats: null,
+    notifications: []
+  });
+  const [selectedNotification, setSelectedNotification] = useState(null);
+  const [imageViewMode, setImageViewMode] = useState('side-by-side'); // 'side-by-side', 'overlay', 'slider'
+
   const [certificateData, setCertificateData] = useState({
     certID: "",
     filePhash: "",
@@ -271,6 +281,49 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
   useEffect(() => {
     if (orgInfo?.name && activeTab === 'analytics') {
       fetchAnalyticsData();
+    }
+  }, [orgInfo?.name, activeTab]);
+
+  // Fetch notifications data for this organization
+  const fetchNotificationsData = async () => {
+    if (!orgInfo?.name) return;
+    
+    try {
+      setNotificationsData(prev => ({ ...prev, loading: true }));
+      const response = await fetch(`/api/notifications/org?name=${encodeURIComponent(orgInfo.name)}&limit=50`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Debug log to check if images are being received
+        console.log('Notifications received:', data.notifications.length);
+        data.notifications.forEach((n, i) => {
+          console.log(`Notification ${i}: hasTamperedImage=${n.hasTamperedImage}, hasHeatmap=${n.hasHeatmap}`);
+          if (n.tamperedImageUrl) {
+            console.log(`  tamperedImageUrl length: ${n.tamperedImageUrl.length}, starts with: ${n.tamperedImageUrl.substring(0, 50)}...`);
+          }
+          if (n.heatmapImageUrl) {
+            console.log(`  heatmapImageUrl length: ${n.heatmapImageUrl.length}, starts with: ${n.heatmapImageUrl.substring(0, 50)}...`);
+          }
+        });
+        
+        setNotificationsData({
+          loading: false,
+          stats: data.stats,
+          notifications: data.notifications
+        });
+      } else {
+        setNotificationsData(prev => ({ ...prev, loading: false }));
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      setNotificationsData(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Fetch notifications when switching to notifications tab
+  useEffect(() => {
+    if (orgInfo?.name && activeTab === 'notifications') {
+      fetchNotificationsData();
     }
   }, [orgInfo?.name, activeTab]);
 
@@ -558,6 +611,7 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
         <div className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
           <SidebarItem id="overview" icon={LayoutDashboard} label="Overview" />
           <SidebarItem id="analytics" icon={BarChart3} label="Analytics" />
+          <SidebarItem id="notifications" icon={Bell} label="Tampering Alerts" />
           <SidebarItem id="issue" icon={FileSignature} label="Issue Certificate" />
           <SidebarItem id="manage" icon={ShieldAlert} label="Manage & Revoke" />
           <SidebarItem id="verify" icon={FileCheck} label="Verify Certificate" />
@@ -596,13 +650,16 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
               <h1 className="text-3xl font-bold text-gray-900">
                 {activeTab === 'overview' && 'Dashboard Overview'}
                 {activeTab === 'analytics' && 'Verification Analytics'}
+                {activeTab === 'notifications' && 'Tampering Alerts'}
                 {activeTab === 'issue' && 'Issue New Certificate'}
                 {activeTab === 'manage' && 'Manage Certificates'}
                 {activeTab === 'verify' && 'Verify Certificate'}
                 {activeTab === 'playground' && 'Certificate Playground'}
               </h1>
               <p className="text-gray-500 mt-1">
-                Manage your organization's certificates and records.
+                {activeTab === 'notifications' 
+                  ? 'Review verification attempts with visual evidence of tampering.'
+                  : 'Manage your organization\'s certificates and records.'}
               </p>
             </div>
             <div className="flex gap-3">
@@ -981,6 +1038,377 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
                               </div>
                             )}
                           </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === 'notifications' && (
+              <motion.div
+                key="notifications"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                {notificationsData.loading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 className="h-8 w-8 animate-spin text-[#009688] mr-3" />
+                    <span className="text-gray-600">Loading tampering alerts...</span>
+                  </div>
+                ) : (
+                  <>
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-white p-5 rounded-xl border border-[#D9E5E6] shadow-sm"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="p-2 rounded-lg bg-slate-50">
+                            <Bell className="h-5 w-5 text-slate-600" />
+                          </div>
+                          <span className="text-sm text-gray-500">Total Alerts</span>
+                        </div>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {notificationsData.stats?.total || 0}
+                        </p>
+                      </motion.div>
+
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-white p-5 rounded-xl border border-[#D9E5E6] shadow-sm"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="p-2 rounded-lg bg-[#E8F5F3]">
+                            <CheckCircle className="h-5 w-5 text-[#4F9D8E]" />
+                          </div>
+                          <span className="text-sm text-gray-500">Verified</span>
+                        </div>
+                        <p className="text-2xl font-bold text-[#4F9D8E]">
+                          {notificationsData.stats?.verifiedCount || 0}
+                        </p>
+                      </motion.div>
+
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-white p-5 rounded-xl border border-[#D9E5E6] shadow-sm"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="p-2 rounded-lg bg-[#FBEAE8]">
+                            <AlertCircle className="h-5 w-5 text-[#D4847C]" />
+                          </div>
+                          <span className="text-sm text-gray-500">Tampered</span>
+                        </div>
+                        <p className="text-2xl font-bold text-[#D4847C]">
+                          {notificationsData.stats?.tamperedCount || 0}
+                        </p>
+                      </motion.div>
+
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-white p-5 rounded-xl border border-[#D9E5E6] shadow-sm"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="p-2 rounded-lg bg-[#F0F4FF]">
+                            <ImageIcon className="h-5 w-5 text-[#6366F1]" />
+                          </div>
+                          <span className="text-sm text-gray-500">With Evidence</span>
+                        </div>
+                        <p className="text-2xl font-bold text-[#6366F1]">
+                          {notificationsData.stats?.withTamperEvidence || 0}
+                        </p>
+                      </motion.div>
+                    </div>
+
+                    {/* Main Content - Split View */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* Notifications List */}
+                      <Card className="border-[#D9E5E6] shadow-sm lg:col-span-1">
+                        <CardHeader className="bg-[#F5FAFA] border-b border-[#D9E5E6] py-4">
+                          <CardTitle className="flex items-center gap-2 text-[#009688] text-base">
+                            <Bell className="h-4 w-4" />
+                            Verification History
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <div className="max-h-[500px] overflow-y-auto">
+                            {notificationsData.notifications.length > 0 ? (
+                              <div className="divide-y divide-gray-100">
+                                {notificationsData.notifications.map((notification) => (
+                                  <motion.div
+                                    key={notification.id}
+                                    whileHover={{ backgroundColor: 'rgba(0, 150, 136, 0.03)' }}
+                                    onClick={() => setSelectedNotification(notification)}
+                                    className={`p-4 cursor-pointer transition-all ${
+                                      selectedNotification?.id === notification.id 
+                                        ? 'bg-[#F0F9F8] border-l-4 border-l-[#009688]' 
+                                        : 'hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex items-start gap-3">
+                                        {notification.status === 'verified' ? (
+                                          <div className="p-1.5 rounded-full bg-[#E8F5F3]">
+                                            <CheckCircle className="h-4 w-4 text-[#4F9D8E]" />
+                                          </div>
+                                        ) : notification.status === 'tampered' ? (
+                                          <div className="p-1.5 rounded-full bg-[#FBEAE8]">
+                                            <XCircle className="h-4 w-4 text-[#D4847C]" />
+                                          </div>
+                                        ) : (
+                                          <div className="p-1.5 rounded-full bg-[#FEF3E2]">
+                                            <AlertCircle className="h-4 w-4 text-[#C9A227]" />
+                                          </div>
+                                        )}
+                                        <div>
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {notification.status === 'verified' 
+                                              ? 'Verified Successfully' 
+                                              : notification.status === 'tampered' 
+                                                ? 'Tampering Detected' 
+                                                : 'Partial Match'}
+                                          </p>
+                                          <p className="text-xs text-gray-500 mt-0.5">
+                                            {new Date(notification.createdAt).toLocaleString()}
+                                          </p>
+                                          <div className="flex gap-1.5 mt-2">
+                                            {notification.hasTamperedImage && (
+                                              <Badge className="bg-[#F0F4FF] text-[#6366F1] border-0 text-xs px-1.5 py-0">
+                                                <ImageIcon className="h-3 w-3 mr-1" />
+                                                Diff
+                                              </Badge>
+                                            )}
+                                            {notification.hasHeatmap && (
+                                              <Badge className="bg-[#FEF3E2] text-[#B45309] border-0 text-xs px-1.5 py-0">
+                                                <Layers className="h-3 w-3 mr-1" />
+                                                Heat
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <Eye className="h-4 w-4 text-gray-400" />
+                                    </div>
+                                  </motion.div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="p-8 text-center text-gray-400">
+                                <Bell className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                                <p>No verification alerts yet</p>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Image Comparison Viewer */}
+                      <Card className="border-[#D9E5E6] shadow-sm lg:col-span-2">
+                        <CardHeader className="bg-[#F5FAFA] border-b border-[#D9E5E6] py-4">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2 text-[#009688] text-base">
+                              <ZoomIn className="h-4 w-4" />
+                              Visual Comparison
+                            </CardTitle>
+                            {selectedNotification && (selectedNotification.hasTamperedImage || selectedNotification.hasHeatmap) && (
+                              <div className="flex gap-1 bg-white rounded-lg p-1 border border-[#D9E5E6]">
+                                <button
+                                  onClick={() => setImageViewMode('side-by-side')}
+                                  className={`px-3 py-1 text-xs rounded-md transition-all ${
+                                    imageViewMode === 'side-by-side' 
+                                      ? 'bg-[#009688] text-white' 
+                                      : 'text-gray-600 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  Side by Side
+                                </button>
+                                <button
+                                  onClick={() => setImageViewMode('overlay')}
+                                  className={`px-3 py-1 text-xs rounded-md transition-all ${
+                                    imageViewMode === 'overlay' 
+                                      ? 'bg-[#009688] text-white' 
+                                      : 'text-gray-600 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  Overlay
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                          {selectedNotification ? (
+                            <>
+                              {/* Status Banner */}
+                              <div className={`mb-6 p-4 rounded-xl border ${
+                                selectedNotification.status === 'verified' 
+                                  ? 'bg-[#E8F5F3] border-[#B8DCD6]' 
+                                  : selectedNotification.status === 'tampered'
+                                    ? 'bg-[#FBEAE8] border-[#E8C5C0]'
+                                    : 'bg-[#FEF3E2] border-[#E8D4A8]'
+                              }`}>
+                                <div className="flex items-center gap-3">
+                                  {selectedNotification.status === 'verified' ? (
+                                    <CheckCircle className="h-5 w-5 text-[#4F9D8E]" />
+                                  ) : selectedNotification.status === 'tampered' ? (
+                                    <XCircle className="h-5 w-5 text-[#D4847C]" />
+                                  ) : (
+                                    <AlertCircle className="h-5 w-5 text-[#C9A227]" />
+                                  )}
+                                  <div>
+                                    <p className={`font-medium ${
+                                      selectedNotification.status === 'verified' 
+                                        ? 'text-[#2D6A5D]' 
+                                        : selectedNotification.status === 'tampered'
+                                          ? 'text-[#8B5A52]'
+                                          : 'text-[#8B6914]'
+                                    }`}>
+                                      {selectedNotification.status === 'verified' 
+                                        ? 'Certificate Verified Successfully' 
+                                        : selectedNotification.status === 'tampered'
+                                          ? 'Tampering Detected'
+                                          : 'Partial Match Detected'}
+                                    </p>
+                                    <div className="flex gap-4 mt-1 text-sm">
+                                      <span className={selectedNotification.isFileHashMatch ? 'text-[#4F9D8E]' : 'text-[#D4847C]'}>
+                                        pHash: {selectedNotification.isFileHashMatch ? '✓ Match' : '✗ Mismatch'}
+                                      </span>
+                                      <span className={selectedNotification.isDataHashMatch ? 'text-[#4F9D8E]' : 'text-[#D4847C]'}>
+                                        Data: {selectedNotification.isDataHashMatch ? '✓ Match' : '✗ Mismatch'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Image Display */}
+                              {(selectedNotification.hasTamperedImage || selectedNotification.hasHeatmap) ? (
+                                <div className={`${imageViewMode === 'side-by-side' ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : ''}`}>
+                                  {imageViewMode === 'side-by-side' ? (
+                                    <>
+                                      {selectedNotification.tamperedImageUrl && (
+                                        <div className="space-y-2">
+                                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                                            <ImageIcon className="h-4 w-4" />
+                                            <span>Difference Highlight</span>
+                                          </div>
+                                          <div className="relative rounded-xl overflow-hidden border border-[#D9E5E6] bg-[#FAFAFA] min-h-[200px]">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img 
+                                              src={selectedNotification.tamperedImageUrl}
+                                              alt="Tampered areas highlighted"
+                                              className="w-full h-auto object-contain max-h-[400px] block"
+                                              style={{ imageRendering: 'auto' }}
+                                              onLoad={(e) => {
+                                                console.log('Tampered image loaded successfully');
+                                                e.target.style.opacity = '1';
+                                              }}
+                                              onError={(e) => {
+                                                console.error('Tampered image failed to load', e);
+                                                e.target.parentElement.innerHTML = '<div class="flex items-center justify-center flex-col p-8 text-gray-400 h-[200px]"><svg class="h-8 w-8 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><span class="text-sm">Failed to load image</span></div>';
+                                              }}
+                                            />
+                                          </div>
+                                          <p className="text-xs text-gray-500 text-center">
+                                            Red areas indicate detected differences
+                                          </p>
+                                        </div>
+                                      )}
+                                      {selectedNotification.heatmapImageUrl && (
+                                        <div className="space-y-2">
+                                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                                            <Layers className="h-4 w-4" />
+                                            <span>Heat Map Analysis</span>
+                                          </div>
+                                          <div className="relative rounded-xl overflow-hidden border border-[#D9E5E6] bg-[#FAFAFA] min-h-[200px]">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img 
+                                              src={selectedNotification.heatmapImageUrl}
+                                              alt="Heat map of differences"
+                                              className="w-full h-auto object-contain max-h-[400px] block"
+                                              style={{ imageRendering: 'auto' }}
+                                              onLoad={(e) => {
+                                                console.log('Heatmap image loaded successfully');
+                                                e.target.style.opacity = '1';
+                                              }}
+                                              onError={(e) => {
+                                                console.error('Heatmap image failed to load', e);
+                                                e.target.parentElement.innerHTML = '<div class="flex items-center justify-center flex-col p-8 text-gray-400 h-[200px]"><svg class="h-8 w-8 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg><span class="text-sm">Failed to load heatmap</span></div>';
+                                              }}
+                                            />
+                                          </div>
+                                          <p className="text-xs text-gray-500 text-center">
+                                            Intensity shows degree of modification
+                                          </p>
+                                        </div>
+                                      )}
+                                    </>
+                                  ) : (
+                                    /* Overlay Mode */
+                                    <div className="space-y-4">
+                                      <div className="relative rounded-xl overflow-hidden border border-[#D9E5E6] bg-[#FAFAFA] min-h-[300px]">
+                                        {selectedNotification.tamperedImageUrl && (
+                                          <>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img 
+                                              src={selectedNotification.tamperedImageUrl}
+                                              alt="Tampered areas highlighted"
+                                              className="w-full h-auto object-contain max-h-[500px] block"
+                                              onLoad={() => console.log('Overlay tampered image loaded')}
+                                              onError={(e) => {
+                                                console.error('Overlay tampered image failed');
+                                                e.target.style.display = 'none';
+                                              }}
+                                            />
+                                          </>
+                                        )}
+                                        {selectedNotification.heatmapImageUrl && !selectedNotification.tamperedImageUrl && (
+                                          <>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img 
+                                              src={selectedNotification.heatmapImageUrl}
+                                              alt="Heat map"
+                                              className="w-full h-auto object-contain max-h-[500px] block"
+                                              onLoad={() => console.log('Overlay heatmap image loaded')}
+                                              onError={(e) => {
+                                                console.error('Overlay heatmap image failed');
+                                                e.target.style.display = 'none';
+                                              }}
+                                            />
+                                          </>
+                                        )}
+                                      </div>
+                                      {selectedNotification.tamperedImageUrl && selectedNotification.heatmapImageUrl && (
+                                        <div className="flex justify-center gap-2">
+                                          <Badge className="bg-[#F0F4FF] text-[#6366F1] border-0">
+                                            <ImageIcon className="h-3 w-3 mr-1" />
+                                            Showing Difference View
+                                          </Badge>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-center py-12 text-gray-400">
+                                  <ImageIcon className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                                  <p className="text-lg font-medium">No Visual Evidence</p>
+                                  <p className="text-sm mt-1">This verification did not produce image comparison data</p>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="text-center py-16 text-gray-400">
+                              <Eye className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                              <p className="text-lg font-medium">Select an Alert</p>
+                              <p className="text-sm mt-1">Choose a verification entry from the list to view comparison details</p>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     </div>
