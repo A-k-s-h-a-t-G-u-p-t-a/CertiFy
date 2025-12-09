@@ -83,8 +83,7 @@ model Certificate {
   blockchainSeal   String? // Blockchain verification seal/badge
 
   alerts    Alert[] // Alerts related to this certificate
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  
 
   // Composite unique index on nqrCode and apaarId
   // This allows the combination to act as a logical primary key while keeping MongoDB _id
