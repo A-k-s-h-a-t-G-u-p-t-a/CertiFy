@@ -24,9 +24,9 @@ const CanvasArea = ({
   }
 
   return (
-    <div className="flex-1 relative flex justify-center items-center bg-gray-50 p-4 overflow-hidden">
+    <div className="flex-1 relative flex justify-center items-center bg-slate-50 p-4 overflow-hidden">
       <div 
-        className="relative border-2 border-dashed border-gray-300 rounded-xl bg-white shadow-inner"
+        className="relative border-2 border-dashed border-slate-300 rounded-lg bg-white shadow-sm"
         style={{
           width: '800px',
           height: '600px',

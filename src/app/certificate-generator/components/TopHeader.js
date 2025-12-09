@@ -7,31 +7,28 @@ import { Loader2, Upload, Download, Settings, Shield, AlertCircle, Save, CheckCi
 
 const TopHeader = ({ account, WALLET_CONTRACT_MAPPING, processingState, downloadCertificate, downloadAndProcess, saveCertificateToDatabase, saveState }) => {
   return (
-            <header className="relative backdrop-blur-lg bg-white/70 border border-white/20 shadow-xl rounded-none mb-0 overflow-hidden hover-scale mx-4">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-indigo-600/10 animate-pulse"></div>
-                
-                <div className="relative container mx-auto px-8 py-6">
+            <header className="relative bg-white border-b border-slate-200 shadow-sm mb-0 overflow-hidden mx-4">
+                <div className="relative container mx-auto px-8 py-5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="relative group animate-float">
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl opacity-75 group-hover:opacity-100 transition-opacity duration-300 animate-pulse"></div>
-                        <div className="relative flex items-center justify-center w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg transform group-hover:scale-105 transition-transform duration-300">
-                          <Settings className="w-6 h-6 text-white" />
+                      <div className="relative group">
+                        <div className="relative flex items-center justify-center w-11 h-11 bg-blue-600 rounded-lg shadow-sm transform group-hover:scale-105 transition-transform duration-200">
+                          <Settings className="w-5 h-5 text-white" />
                         </div>
                       </div>
-                      <div className="space-y-1">
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                      <div className="space-y-0.5">
+                        <h1 className="text-2xl font-bold text-slate-900">
                           CertBuilder
                         </h1>
-                        <p className="text-sm text-slate-600 font-medium">Professional Certificate Designer & Blockchain Deployer</p>
+                        <p className="text-sm text-slate-600">Professional Certificate Designer</p>
                       </div>
                     </div>
-                    <div className="flex gap-4 items-center">
+                    <div className="flex gap-3 items-center">
                       <Button 
                         onClick={saveCertificateToDatabase}
                         disabled={saveState?.isSaving}
                         variant="outline" 
-                        className="gap-2 bg-white/70 backdrop-blur-sm border-slate-200 hover:bg-white hover:border-slate-300 hover:shadow-lg transition-all duration-300 rounded-xl px-6 py-2.5 hover-scale"
+                        className="gap-2 border-slate-300 hover:bg-slate-50 transition-colors duration-200 rounded-lg px-5 py-2"
                       >
                         {saveState?.isSaving ? (
                           <>
@@ -40,7 +37,7 @@ const TopHeader = ({ account, WALLET_CONTRACT_MAPPING, processingState, download
                           </>
                         ) : saveState?.success ? (
                           <>
-                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            <CheckCircle className="w-4 h-4 text-green-600" />
                             Saved!
                           </>
                         ) : (
@@ -52,8 +49,7 @@ const TopHeader = ({ account, WALLET_CONTRACT_MAPPING, processingState, download
                       </Button>
                       <Button 
                         onClick={downloadCertificate} 
-                        variant="outline" 
-                        className="gap-2 bg-white/70 backdrop-blur-sm border-slate-200 hover:bg-white hover:border-slate-300 hover:shadow-lg transition-all duration-300 rounded-xl px-6 py-2.5 hover-scale"
+                        className="gap-2 bg-blue-600 hover:bg-blue-700 text-white transition-colors duration-200 rounded-lg px-5 py-2 shadow-sm"
                       >
                         <Download className="w-4 h-4" />
                         Download

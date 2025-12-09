@@ -25,7 +25,7 @@ export default function CertificateBuilder() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 animate-gradient">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-blue-50">
       <TooltipProvider>
         <div className="pt-12 flex flex-col min-h-screen">
           <TopHeader

@@ -50,14 +50,13 @@ const SidebarRight = ({
   const selectedElement = elements.find((el) => el.id === selectedId)
 
   return (
-    <aside className="w-64 border-l bg-white/60 backdrop-blur-md shadow-lg p-4 overflow-y-auto">
-      <div className="space-y-6">
-        </div>
+    <aside className="w-64 border-l border-slate-200 bg-white p-4 overflow-y-auto">
+      <div className="space-y-4">
         {/* Selected Element Properties */}
-        <Card className="shadow-md hover:shadow-lg transition-all duration-300">
+        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-              <SlidersHorizontal className="w-5 h-5 text-purple-600" />
+            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+              <SlidersHorizontal className="w-4 h-4 text-blue-600" />
               Properties
             </CardTitle>
           </CardHeader>
@@ -98,7 +97,7 @@ const SidebarRight = ({
 
               {selectedElement.type === "image" && (
                 <div className="text-sm text-slate-600 flex gap-2 items-center">
-                  <ImageIcon className="w-4 h-4 text-blue-500" />
+                  <ImageIcon className="w-4 h-4 text-blue-600" />
                   <span>Image Element</span>
                 </div>
               )}
@@ -106,7 +105,7 @@ const SidebarRight = ({
               <Button
                 onClick={deleteSelected}
                 variant="destructive"
-                className="w-full flex gap-2 mt-3"
+                className="w-full flex gap-2 mt-3 bg-red-600 hover:bg-red-700"
               >
                 <Trash2 className="w-4 h-4" />
                 Delete Element
@@ -122,10 +121,10 @@ const SidebarRight = ({
         </Card>
 
         {/* Layer Management */}
-        <Card className="shadow-md hover:shadow-lg transition-all duration-300">
+        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-              <Layers className="w-5 h-5 text-amber-600" />
+            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+              <Layers className="w-4 h-4 text-blue-600" />
               Layers
             </CardTitle>
           </CardHeader>
@@ -150,38 +149,37 @@ const SidebarRight = ({
         </Card>
 
         {uploadedImages.length > 0 && (
-        <Card className="relative overflow-hidden bg-gradient-to-br from-teal-50/80 to-cyan-100/80 border-white/40 shadow-xl backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
-          <div className="absolute inset-0 bg-gradient-to-r from-teal-500/5 to-cyan-500/5"></div>
-          <CardHeader className="pb-3 relative">
-            <CardTitle className="text-lg flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-lg">
-                <ImageIcon className="w-5 h-5 text-white" />
+        <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <div className="p-1.5 bg-blue-600 rounded-md">
+                <ImageIcon className="w-4 h-4 text-white" />
               </div>
-              <span className="bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent font-bold">
+              <span className="text-slate-900 font-semibold">
                 Uploaded Images
               </span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 relative">
-            <div className="grid grid-cols-2 gap-4">
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               {uploadedImages.map((img) => (
                 <div key={img.id} className="group relative">
                   <div 
                     onClick={() => addImage(img.src)}
-                    className="cursor-pointer rounded-xl overflow-hidden border-2 border-white/40 hover:border-teal-300 transition-all duration-300 bg-white/30 backdrop-blur-sm hover:shadow-lg transform hover:scale-105"
+                    className="cursor-pointer rounded-lg overflow-hidden border-2 border-slate-300 hover:border-blue-400 transition-colors duration-200 bg-white hover:shadow-md"
                   >
                     <img 
                       src={img.src} 
                       alt={img.name}
                       className="w-full aspect-square object-cover"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                      <div className="bg-white/90 backdrop-blur-sm text-teal-700 rounded-full p-3 shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300">
-                        <ImageIcon className="w-5 h-5" />
+                    <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                      <div className="bg-white text-blue-600 rounded-full p-2 shadow-md">
+                        <ImageIcon className="w-4 h-4" />
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-center mt-2 truncate text-slate-700 font-medium" title={img.name}>
+                  <p className="text-xs text-center mt-1.5 truncate text-slate-600" title={img.name}>
                     {img.name}
                   </p>
                 </div>
@@ -190,7 +188,7 @@ const SidebarRight = ({
           </CardContent>
         </Card>
       )}
-
+      </div>
     </aside>
   )
 }
