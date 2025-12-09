@@ -244,7 +244,6 @@ function VerifierContent() {
       console.log("Setting adminMatch to:", stegVerification?.matches || false);
 
       const verificationCode = Number(result.code);
-      const isTampered = verificationCode !== 1; // Any code other than 1 (Verified) indicates tampering
 
       // Parse the result - result is an object representing the struct
       setVerificationResult({
@@ -260,8 +259,8 @@ function VerifierContent() {
         steganographyVerified: stegVerification?.matches || false,
       });
 
-      // Create notification if certificate is tampered
-      if (isTampered && selectedOrg) {
+      // Create notification for all verifications (not just tampered ones)
+      if (selectedOrg) {
         try {
           // Determine hash matches from verification result
           const isFileHashMatch = result.storedFilePhash === result.recomputedFilePhash;
@@ -279,7 +278,7 @@ function VerifierContent() {
 
           if (notificationRes.ok) {
             const notificationData = await notificationRes.json();
-            console.log('🔔 Notification created for tampered certificate:', notificationData);
+            console.log('🔔 Verification notification created:', notificationData);
           } else {
             console.error('Failed to create notification:', await notificationRes.text());
           }

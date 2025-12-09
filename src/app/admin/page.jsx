@@ -173,6 +173,40 @@ export default function AdminPage() {
     trendData: []
   });
 
+  // Tampering Analytics state
+  const [tamperingAnalytics, setTamperingAnalytics] = useState({
+    loading: true,
+    globalStats: null,
+    organizationData: [],
+    trendData: [],
+    selectedOrg: null
+  });
+
+  // Fetch tampering analytics
+  const fetchTamperingAnalytics = async () => {
+    try {
+      setTamperingAnalytics(prev => ({ ...prev, loading: true }));
+      const response = await fetch('/api/analytics/tampering');
+      const data = await response.json();
+      if (data.success) {
+        setTamperingAnalytics({
+          loading: false,
+          globalStats: data.globalStats,
+          organizationData: data.organizationData,
+          trendData: data.trendData,
+          selectedOrg: null
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching tampering analytics:', error);
+      setTamperingAnalytics(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  useEffect(() => {
+    fetchTamperingAnalytics();
+  }, []);
+
   // Fetch analytics data
   const fetchAnalyticsData = async () => {
     if (!organizations || organizations.length === 0) {
@@ -205,9 +239,9 @@ export default function AdminPage() {
       totalCertificates = total * 25; 
 
       const pieChartData = [
-        { name: 'Active', value: active, color: '#22c55e' },
-        { name: 'Flagged', value: flagged, color: '#ef4444' },
-        { name: 'Inactive', value: inactive, color: '#6b7280' }
+        { name: 'Active', value: active, color: '#4F9D8E' },
+        { name: 'Flagged', value: flagged, color: '#D4847C' },
+        { name: 'Inactive', value: inactive, color: '#94A3B8' }
       ].filter(item => item.value > 0);
 
       const barChartData = [
@@ -432,29 +466,29 @@ export default function AdminPage() {
   );
 
   return (
-    <div className="h-screen bg-[#F5FAFA] flex pt-20 overflow-hidden">
+    <div className="min-h-screen bg-[#F5FAFA] flex pt-20">
       {/* Sidebar */}
       <motion.div 
         initial={{ width: 280 }}
         animate={{ width: isSidebarOpen ? 280 : 80 }}
-        className="bg-white border-r border-[#D9E5E6] h-full flex flex-col shadow-sm"
+        className="bg-white border-r border-[#D9E5E6] h-[calc(100vh-80px)] flex flex-col shadow-sm flex-shrink-0 sticky top-20"
       >
-        <div className="p-6 flex items-center justify-between">
+        <div className="p-4 flex items-center justify-between">
           {isSidebarOpen ? (
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 min-w-0"
             >
-              <Shield className="h-8 w-8 text-[#009688]" />
-              <span className="text-xl font-bold text-gray-800">Skill India Digital Hub</span>
+              <Shield className="h-7 w-7 text-[#009688] flex-shrink-0" />
+              <span className="text-lg font-bold text-gray-800 truncate">SIDH</span>
             </motion.div>
           ) : (
-            <Shield className="h-8 w-8 text-[#009688] mx-auto" />
+            <Shield className="h-7 w-7 text-[#009688] mx-auto" />
           )}
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 flex-shrink-0"
           >
             {isSidebarOpen ? <Menu className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
           </button>
@@ -462,6 +496,7 @@ export default function AdminPage() {
 
         <div className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
           <SidebarItem id="overview" icon={LayoutDashboard} label="Overview" />
+          <SidebarItem id="analytics" icon={BarChart3} label="Tampering Analytics" />
           <SidebarItem id="organizations" icon={Building2} label="Organizations" />
           <SidebarItem id="management" icon={Settings} label="Management" />
         </div>
@@ -486,7 +521,7 @@ export default function AdminPage() {
       </motion.div>
 
       {/* Main Content */}
-      <div className="flex-1 p-8 overflow-y-auto h-full">
+      <div className="flex-1 p-8 overflow-y-auto h-[calc(100vh-80px)]">
         <div className="max-w-7xl mx-auto space-y-8 pb-20">
           {/* Header */}
           <motion.div 
@@ -497,6 +532,7 @@ export default function AdminPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
                 {activeTab === 'overview' && 'Dashboard Overview'}
+                {activeTab === 'analytics' && 'Tampering Analytics'}
                 {activeTab === 'organizations' && 'Registered Organizations'}
                 {activeTab === 'management' && 'System Management'}
               </h1>
@@ -601,6 +637,420 @@ export default function AdminPage() {
                     </CardContent>
                   </Card>
                 </div>
+              </motion.div>
+            )}
+
+            {/* Tampering Analytics Tab */}
+            {activeTab === 'analytics' && (
+              <motion.div
+                key="analytics"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                {tamperingAnalytics.loading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 className="h-12 w-12 animate-spin text-[#009688]" />
+                  </div>
+                ) : (
+                  <>
+                    {/* Global Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      <motion.div whileHover={{ scale: 1.02 }} className="bg-white rounded-xl p-6 shadow-sm border border-[#D9E5E6]">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                            <Activity className="h-6 w-6 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Total Verifications</p>
+                            <p className="text-2xl font-bold text-gray-900">{tamperingAnalytics.globalStats?.totalVerifications || 0}</p>
+                          </div>
+                        </div>
+                      </motion.div>
+
+                      <motion.div whileHover={{ scale: 1.02 }} className="bg-white rounded-xl p-6 shadow-sm border border-[#D9E5E6]">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-xl bg-green-100 flex items-center justify-center">
+                            <CheckCircle className="h-6 w-6 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Success Rate</p>
+                            <p className="text-2xl font-bold text-green-600">{tamperingAnalytics.globalStats?.successRate || 0}%</p>
+                          </div>
+                        </div>
+                      </motion.div>
+
+                      <motion.div whileHover={{ scale: 1.02 }} className="bg-white rounded-xl p-6 shadow-sm border border-[#D9E5E6]">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-xl bg-red-100 flex items-center justify-center">
+                            <AlertCircle className="h-6 w-6 text-red-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Tampering Rate</p>
+                            <p className="text-2xl font-bold text-red-600">{tamperingAnalytics.globalStats?.tamperingRate || 0}%</p>
+                          </div>
+                        </div>
+                      </motion.div>
+
+                      <motion.div whileHover={{ scale: 1.02 }} className="bg-white rounded-xl p-6 shadow-sm border border-[#D9E5E6]">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                            <Building2 className="h-6 w-6 text-purple-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Organizations Verified</p>
+                            <p className="text-2xl font-bold text-gray-900">{tamperingAnalytics.globalStats?.organizationsWithVerifications || 0}</p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </div>
+
+                    {/* Charts Row */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Verification Results Pie Chart */}
+                      <Card className="border-[#D9E5E6]">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <PieChart className="h-5 w-5 text-[#009688]" />
+                            Verification Results Distribution
+                          </CardTitle>
+                          <CardDescription>Breakdown of verification outcomes</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <ResponsiveContainer width="100%" height={300}>
+                            <RechartsPieChart>
+                              <Pie
+                                data={[
+                                  { name: 'Both Match', value: tamperingAnalytics.globalStats?.totalBothMatch || 0, color: '#4F9D8E' },
+                                  { name: 'Partial Match', value: tamperingAnalytics.globalStats?.totalPartialMatch || 0, color: '#E8B86D' },
+                                  { name: 'Both Mismatch', value: tamperingAnalytics.globalStats?.totalBothMismatch || 0, color: '#D4847C' },
+                                ]}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={60}
+                                outerRadius={100}
+                                paddingAngle={5}
+                                dataKey="value"
+                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                              >
+                                {[
+                                  { name: 'Both Match', value: tamperingAnalytics.globalStats?.totalBothMatch || 0, color: '#4F9D8E' },
+                                  { name: 'Partial Match', value: tamperingAnalytics.globalStats?.totalPartialMatch || 0, color: '#E8B86D' },
+                                  { name: 'Both Mismatch', value: tamperingAnalytics.globalStats?.totalBothMismatch || 0, color: '#D4847C' },
+                                ].map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Tooltip 
+                                contentStyle={{ 
+                                  backgroundColor: '#fff', 
+                                  border: '1px solid #E2E8F0',
+                                  borderRadius: '8px',
+                                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                }}
+                              />
+                              <Legend />
+                            </RechartsPieChart>
+                          </ResponsiveContainer>
+                        </CardContent>
+                      </Card>
+
+                      {/* Hash Match Comparison Bar Chart */}
+                      <Card className="border-[#D9E5E6]">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <BarChart3 className="h-5 w-5 text-[#009688]" />
+                            Hash Verification Breakdown
+                          </CardTitle>
+                          <CardDescription>File Hash vs Data Hash matches</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <ResponsiveContainer width="100%" height={300}>
+                            <BarChart
+                              data={[
+                                { 
+                                  name: 'File Hash', 
+                                  matches: tamperingAnalytics.globalStats?.totalFileHashMatches || 0, 
+                                  mismatches: tamperingAnalytics.globalStats?.totalFileHashMismatches || 0 
+                                },
+                                { 
+                                  name: 'Data Hash', 
+                                  matches: tamperingAnalytics.globalStats?.totalDataHashMatches || 0, 
+                                  mismatches: tamperingAnalytics.globalStats?.totalDataHashMismatches || 0 
+                                },
+                              ]}
+                              layout="vertical"
+                            >
+                              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
+                              <XAxis type="number" stroke="#64748B" />
+                              <YAxis dataKey="name" type="category" width={80} stroke="#64748B" />
+                              <Tooltip 
+                                contentStyle={{ 
+                                  backgroundColor: '#fff', 
+                                  border: '1px solid #E2E8F0',
+                                  borderRadius: '8px',
+                                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                }}
+                              />
+                              <Legend />
+                              <Bar dataKey="matches" name="Matches" fill="#4F9D8E" radius={[0, 4, 4, 0]} />
+                              <Bar dataKey="mismatches" name="Mismatches" fill="#D4847C" radius={[0, 4, 4, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Verification Trend Line Chart */}
+                    <Card className="border-[#D9E5E6]">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5 text-[#009688]" />
+                          Verification Trend (Last 30 Days)
+                        </CardTitle>
+                        <CardDescription>Daily verification activity and outcomes</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={tamperingAnalytics.trendData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                            <XAxis 
+                              dataKey="date" 
+                              stroke="#64748B"
+                              tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            />
+                            <YAxis stroke="#64748B" />
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: '#fff', 
+                                border: '1px solid #E2E8F0',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                              }}
+                              labelFormatter={(value) => new Date(value).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                            />
+                            <Legend />
+                            <Line type="monotone" dataKey="total" name="Total" stroke="#009688" strokeWidth={3} dot={{ r: 4 }} />
+                            <Line type="monotone" dataKey="matches" name="Successful" stroke="#4F9D8E" strokeWidth={2} />
+                            <Line type="monotone" dataKey="mismatches" name="Failed" stroke="#D4847C" strokeWidth={2} strokeDasharray="5 5" />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    {/* Organization Tampering Table */}
+                    <Card className="border-[#D9E5E6]">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Building2 className="h-5 w-5 text-[#009688]" />
+                          Organization Verification Statistics
+                        </CardTitle>
+                        <CardDescription>Detailed breakdown per organization</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b border-[#D9E5E6]">
+                                <th className="text-left py-3 px-4 font-semibold text-gray-700">Organization</th>
+                                <th className="text-center py-3 px-4 font-semibold text-gray-700">Total Verifications</th>
+                                <th className="text-center py-3 px-4 font-semibold text-gray-700">File Hash Match %</th>
+                                <th className="text-center py-3 px-4 font-semibold text-gray-700">Data Hash Match %</th>
+                                <th className="text-center py-3 px-4 font-semibold text-gray-700">Success Rate</th>
+                                <th className="text-center py-3 px-4 font-semibold text-gray-700">Tampering Rate</th>
+                                <th className="text-center py-3 px-4 font-semibold text-gray-700">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {tamperingAnalytics.organizationData.length === 0 ? (
+                                <tr>
+                                  <td colSpan={7} className="text-center py-8 text-gray-500">
+                                    No verification data available yet
+                                  </td>
+                                </tr>
+                              ) : (
+                                tamperingAnalytics.organizationData.map((org, index) => (
+                                  <motion.tr 
+                                    key={org.name}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.05 }}
+                                    className="border-b border-[#D9E5E6] hover:bg-[#F5FAFA] cursor-pointer"
+                                    onClick={() => setTamperingAnalytics(prev => ({ 
+                                      ...prev, 
+                                      selectedOrg: prev.selectedOrg === org.name ? null : org.name 
+                                    }))}
+                                  >
+                                    <td className="py-4 px-4">
+                                      <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-full bg-[#F5FAFA] flex items-center justify-center text-[#009688]">
+                                          <Building2 className="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                          <p className="font-medium text-gray-900">{org.name}</p>
+                                          <p className="text-xs text-gray-500">{org.issuedCertCount} certificates issued</p>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td className="text-center py-4 px-4">
+                                      <span className="font-semibold text-gray-900">{org.totalVerifications}</span>
+                                    </td>
+                                    <td className="text-center py-4 px-4">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                          <div 
+                                            className="h-full bg-green-500 rounded-full" 
+                                            style={{ width: `${org.fileHashMatchRate}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-sm font-medium text-gray-700">{org.fileHashMatchRate}%</span>
+                                      </div>
+                                    </td>
+                                    <td className="text-center py-4 px-4">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                          <div 
+                                            className="h-full bg-blue-500 rounded-full" 
+                                            style={{ width: `${org.dataHashMatchRate}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-sm font-medium text-gray-700">{org.dataHashMatchRate}%</span>
+                                      </div>
+                                    </td>
+                                    <td className="text-center py-4 px-4">
+                                      <Badge className={`${
+                                        parseFloat(org.overallSuccessRate) >= 80 
+                                          ? 'bg-green-100 text-green-700' 
+                                          : parseFloat(org.overallSuccessRate) >= 50 
+                                            ? 'bg-yellow-100 text-yellow-700' 
+                                            : 'bg-red-100 text-red-700'
+                                      }`}>
+                                        {org.overallSuccessRate}%
+                                      </Badge>
+                                    </td>
+                                    <td className="text-center py-4 px-4">
+                                      <Badge className={`${
+                                        parseFloat(org.tamperingRate) <= 10 
+                                          ? 'bg-green-100 text-green-700' 
+                                          : parseFloat(org.tamperingRate) <= 30 
+                                            ? 'bg-yellow-100 text-yellow-700' 
+                                            : 'bg-red-100 text-red-700'
+                                      }`}>
+                                        {org.tamperingRate}%
+                                      </Badge>
+                                    </td>
+                                    <td className="text-center py-4 px-4">
+                                      <div className="flex items-center justify-center gap-2">
+                                        {org.isFlagged ? (
+                                          <Badge variant="destructive" className="flex items-center gap-1">
+                                            <Flag className="h-3 w-3" /> Flagged
+                                          </Badge>
+                                        ) : org.isActive ? (
+                                          <Badge className="bg-green-100 text-green-700">Active</Badge>
+                                        ) : (
+                                          <Badge className="bg-gray-100 text-gray-700">Inactive</Badge>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </motion.tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Selected Organization Detail */}
+                    <AnimatePresence>
+                      {tamperingAnalytics.selectedOrg && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                        >
+                          <Card className="border-[#009688] border-2">
+                            <CardHeader className="bg-[#F5FAFA]">
+                              <div className="flex items-center justify-between">
+                                <CardTitle className="flex items-center gap-2">
+                                  <Eye className="h-5 w-5 text-[#009688]" />
+                                  Detailed View: {tamperingAnalytics.selectedOrg}
+                                </CardTitle>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => setTamperingAnalytics(prev => ({ ...prev, selectedOrg: null }))}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="pt-6">
+                              {(() => {
+                                const org = tamperingAnalytics.organizationData.find(o => o.name === tamperingAnalytics.selectedOrg);
+                                if (!org) return null;
+                                return (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div className="bg-blue-50 rounded-xl p-4">
+                                      <p className="text-sm text-blue-600 font-medium">Total Verifications</p>
+                                      <p className="text-3xl font-bold text-blue-700">{org.totalVerifications}</p>
+                                    </div>
+                                    <div className="bg-green-50 rounded-xl p-4">
+                                      <p className="text-sm text-green-600 font-medium">Both Hash Match</p>
+                                      <p className="text-3xl font-bold text-green-700">{org.bothMatch}</p>
+                                    </div>
+                                    <div className="bg-yellow-50 rounded-xl p-4">
+                                      <p className="text-sm text-yellow-600 font-medium">Partial Match</p>
+                                      <p className="text-3xl font-bold text-yellow-700">{org.partialMatch}</p>
+                                    </div>
+                                    <div className="bg-red-50 rounded-xl p-4">
+                                      <p className="text-sm text-red-600 font-medium">Both Mismatch</p>
+                                      <p className="text-3xl font-bold text-red-700">{org.bothMismatch}</p>
+                                    </div>
+                                    <div className="bg-slate-50 rounded-xl p-4">
+                                      <p className="text-sm text-slate-600 font-medium">File Hash Matches</p>
+                                      <p className="text-3xl font-bold text-slate-700">{org.fileHashMatches}</p>
+                                    </div>
+                                    <div className="bg-slate-50 rounded-xl p-4">
+                                      <p className="text-sm text-slate-600 font-medium">File Hash Mismatches</p>
+                                      <p className="text-3xl font-bold text-slate-700">{org.fileHashMismatches}</p>
+                                    </div>
+                                    <div className="bg-slate-50 rounded-xl p-4">
+                                      <p className="text-sm text-slate-600 font-medium">Data Hash Matches</p>
+                                      <p className="text-3xl font-bold text-slate-700">{org.dataHashMatches}</p>
+                                    </div>
+                                    <div className="bg-slate-50 rounded-xl p-4">
+                                      <p className="text-sm text-slate-600 font-medium">Data Hash Mismatches</p>
+                                      <p className="text-3xl font-bold text-slate-700">{org.dataHashMismatches}</p>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Refresh Button */}
+                    <div className="flex justify-center">
+                      <Button 
+                        onClick={fetchTamperingAnalytics}
+                        className="bg-[#009688] hover:bg-[#00796B]"
+                        disabled={tamperingAnalytics.loading}
+                      >
+                        {tamperingAnalytics.loading ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Activity className="h-4 w-4 mr-2" />
+                        )}
+                        Refresh Analytics
+                      </Button>
+                    </div>
+                  </>
+                )}
               </motion.div>
             )}
 

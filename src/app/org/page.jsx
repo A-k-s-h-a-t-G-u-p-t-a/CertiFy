@@ -14,9 +14,10 @@ import {
   Building2, Users, Loader2, Plus, FileText, CheckCircle, XCircle, 
   AlertCircle, Shield, Award, Hash, Flag, X, Search, BarChart3, 
   Upload, FileUp, LayoutDashboard, FileSignature, ShieldAlert, 
-  Menu, ChevronRight, Wallet, Lock, FileCheck
+  Menu, ChevronRight, Wallet, Lock, FileCheck, TrendingUp, Activity, Clock, PieChart as PieChartIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from "recharts";
 
 export default function Org() {
   const account = useActiveAccount();
@@ -152,6 +153,17 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  // Analytics state
+  const [analyticsData, setAnalyticsData] = useState({
+    loading: true,
+    stats: null,
+    pieChartData: [],
+    barChartData: [],
+    trendData: [],
+    recentVerifications: [],
+    hourlyDistribution: []
+  });
+
   const [certificateData, setCertificateData] = useState({
     certID: "",
     filePhash: "",
@@ -226,6 +238,41 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
   });
 
   const { mutate: sendTransaction } = useSendTransaction();
+
+  // Fetch analytics data for this organization
+  const fetchAnalyticsData = async () => {
+    if (!orgInfo?.name) return;
+    
+    try {
+      setAnalyticsData(prev => ({ ...prev, loading: true }));
+      const response = await fetch(`/api/analytics/org?name=${encodeURIComponent(orgInfo.name)}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setAnalyticsData({
+          loading: false,
+          stats: data.stats,
+          pieChartData: data.pieChartData,
+          barChartData: data.barChartData,
+          trendData: data.trendData,
+          recentVerifications: data.recentVerifications,
+          hourlyDistribution: data.hourlyDistribution
+        });
+      } else {
+        setAnalyticsData(prev => ({ ...prev, loading: false }));
+      }
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      setAnalyticsData(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Fetch analytics when orgInfo changes or when switching to analytics tab
+  useEffect(() => {
+    if (orgInfo?.name && activeTab === 'analytics') {
+      fetchAnalyticsData();
+    }
+  }, [orgInfo?.name, activeTab]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -480,12 +527,12 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
   );
 
   return (
-    <div className="h-screen bg-[#F5FAFA] flex pt-20 overflow-hidden">
+    <div className="min-h-screen bg-[#F5FAFA] flex pt-20">
       {/* Sidebar */}
       <motion.div 
         initial={{ width: 280 }}
         animate={{ width: isSidebarOpen ? 280 : 80 }}
-        className="bg-white border-r border-[#D9E5E6] h-full flex flex-col shadow-sm"
+        className="bg-white border-r border-[#D9E5E6] h-[calc(100vh-80px)] flex flex-col shadow-sm flex-shrink-0 sticky top-20"
       >
         <div className="p-6 flex items-center justify-between">
           {isSidebarOpen ? (
@@ -510,6 +557,7 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
 
         <div className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
           <SidebarItem id="overview" icon={LayoutDashboard} label="Overview" />
+          <SidebarItem id="analytics" icon={BarChart3} label="Analytics" />
           <SidebarItem id="issue" icon={FileSignature} label="Issue Certificate" />
           <SidebarItem id="manage" icon={ShieldAlert} label="Manage & Revoke" />
           <SidebarItem id="verify" icon={FileCheck} label="Verify Certificate" />
@@ -536,7 +584,7 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
       </motion.div>
 
       {/* Main Content */}
-      <div className="flex-1 p-8 overflow-y-auto h-full">
+      <div className="flex-1 p-8 overflow-y-auto h-[calc(100vh-80px)]">
         <div className="max-w-7xl mx-auto space-y-8 pb-20">
           {/* Header */}
           <motion.div 
@@ -547,6 +595,7 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
                 {activeTab === 'overview' && 'Dashboard Overview'}
+                {activeTab === 'analytics' && 'Verification Analytics'}
                 {activeTab === 'issue' && 'Issue New Certificate'}
                 {activeTab === 'manage' && 'Manage Certificates'}
                 {activeTab === 'verify' && 'Verify Certificate'}
@@ -640,6 +689,303 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
                     </div>
                   </CardContent>
                 </Card>
+              </motion.div>
+            )}
+
+            {activeTab === 'analytics' && (
+              <motion.div
+                key="analytics"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                {analyticsData.loading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 className="h-8 w-8 animate-spin text-[#009688] mr-3" />
+                    <span className="text-gray-600">Loading analytics data...</span>
+                  </div>
+                ) : (
+                  <>
+                    {/* Stats Overview Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-white p-5 rounded-xl border border-[#D9E5E6] shadow-sm"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="p-2 rounded-lg bg-blue-50">
+                            <Activity className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <span className="text-sm text-gray-500">Total Verifications</span>
+                        </div>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {analyticsData.stats?.totalVerifications || 0}
+                        </p>
+                      </motion.div>
+
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-white p-5 rounded-xl border border-[#D9E5E6] shadow-sm"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="p-2 rounded-lg bg-green-50">
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                          </div>
+                          <span className="text-sm text-gray-500">Success Rate</span>
+                        </div>
+                        <p className="text-2xl font-bold text-green-600">
+                          {analyticsData.stats?.successRate || 0}%
+                        </p>
+                      </motion.div>
+
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-white p-5 rounded-xl border border-[#D9E5E6] shadow-sm"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="p-2 rounded-lg bg-red-50">
+                            <AlertCircle className="h-5 w-5 text-red-600" />
+                          </div>
+                          <span className="text-sm text-gray-500">Tampering Rate</span>
+                        </div>
+                        <p className="text-2xl font-bold text-red-600">
+                          {analyticsData.stats?.tamperingRate || 0}%
+                        </p>
+                      </motion.div>
+
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-white p-5 rounded-xl border border-[#D9E5E6] shadow-sm"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="p-2 rounded-lg bg-purple-50">
+                            <Clock className="h-5 w-5 text-purple-600" />
+                          </div>
+                          <span className="text-sm text-gray-500">Today</span>
+                        </div>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {analyticsData.stats?.todayVerifications || 0}
+                        </p>
+                      </motion.div>
+                    </div>
+
+                    {/* Charts Row */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Pie Chart - Verification Results */}
+                      <Card className="border-[#D9E5E6] shadow-sm">
+                        <CardHeader className="bg-[#F5FAFA] border-b border-[#D9E5E6]">
+                          <CardTitle className="flex items-center gap-2 text-[#009688]">
+                            <PieChartIcon className="h-5 w-5" />
+                            Verification Results
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                          {analyticsData.pieChartData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={250}>
+                              <PieChart>
+                                <Pie
+                                  data={analyticsData.pieChartData}
+                                  cx="50%"
+                                  cy="50%"
+                                  innerRadius={60}
+                                  outerRadius={100}
+                                  paddingAngle={5}
+                                  dataKey="value"
+                                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                >
+                                  {analyticsData.pieChartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                  ))}
+                                </Pie>
+                                <Tooltip />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="flex items-center justify-center h-[250px] text-gray-400">
+                              No verification data yet
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      {/* Bar Chart - Hash Comparison */}
+                      <Card className="border-[#D9E5E6] shadow-sm">
+                        <CardHeader className="bg-[#F5FAFA] border-b border-[#D9E5E6]">
+                          <CardTitle className="flex items-center gap-2 text-[#009688]">
+                            <BarChart3 className="h-5 w-5" />
+                            Hash Comparison
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                          {analyticsData.barChartData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={250}>
+                              <BarChart data={analyticsData.barChartData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                                <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="#64748B" />
+                                <YAxis stroke="#64748B" />
+                                <Tooltip 
+                                  contentStyle={{ 
+                                    backgroundColor: '#fff', 
+                                    border: '1px solid #E2E8F0',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                  }}
+                                />
+                                <Legend />
+                                <Bar dataKey="matches" name="Matches" fill="#4F9D8E" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="mismatches" name="Mismatches" fill="#D4847C" radius={[4, 4, 0, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="flex items-center justify-center h-[250px] text-gray-400">
+                              No verification data yet
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Trend Chart - 30 Day Verification Trend */}
+                    <Card className="border-[#D9E5E6] shadow-sm">
+                      <CardHeader className="bg-[#F5FAFA] border-b border-[#D9E5E6]">
+                        <CardTitle className="flex items-center gap-2 text-[#009688]">
+                          <TrendingUp className="h-5 w-5" />
+                          30-Day Verification Trend
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        <ResponsiveContainer width="100%" height={300}>
+                          <AreaChart data={analyticsData.trendData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                            <XAxis 
+                              dataKey="date" 
+                              tick={{ fontSize: 11 }}
+                              stroke="#64748B"
+                              tickFormatter={(value) => {
+                                const date = new Date(value);
+                                return `${date.getMonth()+1}/${date.getDate()}`;
+                              }}
+                            />
+                            <YAxis stroke="#64748B" />
+                            <Tooltip 
+                              labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                              contentStyle={{ 
+                                backgroundColor: '#fff', 
+                                border: '1px solid #E2E8F0',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                              }}
+                            />
+                            <Legend />
+                            <Area type="monotone" dataKey="successful" name="Verified" stackId="1" stroke="#4F9D8E" fill="#4F9D8E" fillOpacity={0.7} />
+                            <Area type="monotone" dataKey="partial" name="Partial" stackId="1" stroke="#E8B86D" fill="#E8B86D" fillOpacity={0.7} />
+                            <Area type="monotone" dataKey="tampered" name="Tampered" stackId="1" stroke="#D4847C" fill="#D4847C" fillOpacity={0.7} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    {/* Bottom Row - Recent Verifications & Stats */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Detailed Stats */}
+                      <Card className="border-[#D9E5E6] shadow-sm">
+                        <CardHeader className="bg-[#F5FAFA] border-b border-[#D9E5E6]">
+                          <CardTitle className="flex items-center gap-2 text-[#009688]">
+                            <Hash className="h-5 w-5" />
+                            Detailed Statistics
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="p-4 bg-[#E8F5F3] rounded-lg border border-[#B8DCD6]">
+                              <p className="text-sm text-[#2D6A5D]">File Hash Matches</p>
+                              <p className="text-xl font-bold text-[#1D4942]">{analyticsData.stats?.fileHashMatches || 0}</p>
+                            </div>
+                            <div className="p-4 bg-[#FBEAE8] rounded-lg border border-[#E8C5C0]">
+                              <p className="text-sm text-[#8B5A52]">File Hash Mismatches</p>
+                              <p className="text-xl font-bold text-[#6B4239]">{analyticsData.stats?.fileHashMismatches || 0}</p>
+                            </div>
+                            <div className="p-4 bg-[#E8F5F3] rounded-lg border border-[#B8DCD6]">
+                              <p className="text-sm text-[#2D6A5D]">Data Hash Matches</p>
+                              <p className="text-xl font-bold text-[#1D4942]">{analyticsData.stats?.dataHashMatches || 0}</p>
+                            </div>
+                            <div className="p-4 bg-[#FBEAE8] rounded-lg border border-[#E8C5C0]">
+                              <p className="text-sm text-[#8B5A52]">Data Hash Mismatches</p>
+                              <p className="text-xl font-bold text-[#6B4239]">{analyticsData.stats?.dataHashMismatches || 0}</p>
+                            </div>
+                          </div>
+                          <div className="border-t border-gray-200 pt-4">
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-gray-600">Fully Verified</span>
+                              <Badge className="bg-[#E8F5F3] text-[#2D6A5D] border border-[#B8DCD6]">{analyticsData.stats?.bothMatch || 0}</Badge>
+                            </div>
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-gray-600">Partial Match</span>
+                              <Badge className="bg-[#FEF3E2] text-[#8B6914] border border-[#E8D4A8]">{analyticsData.stats?.partialMatch || 0}</Badge>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-600">Both Mismatched</span>
+                              <Badge className="bg-[#FBEAE8] text-[#8B5A52] border border-[#E8C5C0]">{analyticsData.stats?.bothMismatch || 0}</Badge>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Recent Verifications */}
+                      <Card className="border-[#D9E5E6] shadow-sm">
+                        <CardHeader className="bg-[#F5FAFA] border-b border-[#D9E5E6]">
+                          <CardTitle className="flex items-center gap-2 text-[#009688]">
+                            <Clock className="h-5 w-5" />
+                            Recent Verifications
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <div className="max-h-[350px] overflow-y-auto">
+                            {analyticsData.recentVerifications.length > 0 ? (
+                              <div className="divide-y divide-gray-100">
+                                {analyticsData.recentVerifications.map((v, idx) => (
+                                  <div key={idx} className="p-4 hover:bg-gray-50 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      {v.status === 'verified' ? (
+                                        <CheckCircle className="h-5 w-5 text-[#4F9D8E]" />
+                                      ) : v.status === 'tampered' ? (
+                                        <XCircle className="h-5 w-5 text-[#D4847C]" />
+                                      ) : (
+                                        <AlertCircle className="h-5 w-5 text-[#C9A227]" />
+                                      )}
+                                      <div>
+                                        <p className="text-sm font-medium text-gray-900">
+                                          {v.status === 'verified' ? 'Verified' : v.status === 'tampered' ? 'Tampered' : 'Partial Match'}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          {new Date(v.date).toLocaleString()}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Badge className={v.isFileHashMatch ? "bg-[#E8F5F3] text-[#2D6A5D] border border-[#B8DCD6] text-xs" : "bg-[#FBEAE8] text-[#8B5A52] border border-[#E8C5C0] text-xs"}>
+                                        pHash: {v.isFileHashMatch ? "✓" : "✗"}
+                                      </Badge>
+                                      <Badge className={v.isDataHashMatch ? "bg-[#E8F5F3] text-[#2D6A5D] border border-[#B8DCD6] text-xs" : "bg-[#FBEAE8] text-[#8B5A52] border border-[#E8C5C0] text-xs"}>
+                                        Data: {v.isDataHashMatch ? "✓" : "✗"}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="p-8 text-center text-gray-400">
+                                No verifications recorded yet
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </>
+                )}
               </motion.div>
             )}
 
