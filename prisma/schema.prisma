@@ -158,9 +158,11 @@ model Certificate2 {
 }
 
 model Notification {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  organisationName String // Organization name to identify the org
-  isFileHashMatch  Boolean // Whether file hash matches
-  isDataHashMatch  Boolean // Whether data hash matches
-  createdAt        DateTime @default(now())
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  organisationName  String // Organization name to identify the org
+  isFileHashMatch   Boolean // Whether file hash matches
+  isDataHashMatch   Boolean // Whether data hash matches
+  tamperedImageUrl  String? // Base64 URL of tampered image with highlighted differences
+  heatmapImageUrl   String? // Base64 URL of heatmap image showing difference intensity
+  createdAt         DateTime @default(now())
 }

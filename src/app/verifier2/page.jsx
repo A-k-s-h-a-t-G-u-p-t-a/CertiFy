@@ -235,6 +235,9 @@ function VerifierContent() {
 
       const comparisonResult = await compareResponse.json();
       console.log('Comparison Result:', comparisonResult);
+      console.log('Analysis Images:', comparisonResult.analysis_images);
+      console.log('Tampered Image:', comparisonResult.analysis_images?.tampered_image?.substring(0, 100));
+      console.log('Heatmap Image:', comparisonResult.analysis_images?.heatmap_image?.substring(0, 100));
 
       // Store winner certificate with comparison results
       setWinnerCertificate({
@@ -242,6 +245,62 @@ function VerifierContent() {
         comparison: comparisonResult,
       });
       setShowWinnerPopup(true);
+
+      // Create notification with comparison images
+      if (selectedOrg) {
+        try {
+          const tamperedImg = comparisonResult.analysis_images?.tampered_image || null;
+          const heatmapImg = comparisonResult.analysis_images?.heatmap_image || null;
+          
+          console.log('Sending notification with images:');
+          console.log('- Tampered image exists:', !!tamperedImg);
+          console.log('- Heatmap image exists:', !!heatmapImg);
+          console.log('- Similarity score:', comparisonResult.similarity_score);
+          console.log('- NLP text similarity:', comparisonResult.nlp_analysis?.text_similarity);
+          
+          // Ensure boolean values for hash matches
+          const isFileHashMatch = Boolean(comparisonResult.similarity_score && comparisonResult.similarity_score > 0.95);
+          const isDataHashMatch = Boolean(comparisonResult.nlp_analysis?.text_similarity && comparisonResult.nlp_analysis.text_similarity > 0.95);
+          
+          const notificationPayload = {
+            organisationName: selectedOrg,
+            isFileHashMatch: isFileHashMatch,
+            isDataHashMatch: isDataHashMatch,
+            tamperedImageUrl: tamperedImg,
+            heatmapImageUrl: heatmapImg,
+          };
+          
+          console.log('Notification payload:', {
+            organisationName: notificationPayload.organisationName,
+            isFileHashMatch: notificationPayload.isFileHashMatch,
+            isDataHashMatch: notificationPayload.isDataHashMatch,
+            tamperedImageUrl: tamperedImg ? 'present (' + tamperedImg.substring(0, 50) + '...)' : 'null',
+            heatmapImageUrl: heatmapImg ? 'present (' + heatmapImg.substring(0, 50) + '...)' : 'null',
+          });
+          
+          const notificationRes = await fetch('/api/notifications/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(notificationPayload),
+          });
+
+          if (notificationRes.ok) {
+            const notificationData = await notificationRes.json();
+            console.log('🔔 Notification created successfully:', notificationData);
+            alert('✅ Notification sent to organization!');
+          } else {
+            const errorText = await notificationRes.text();
+            console.error('❌ Failed to create notification. Status:', notificationRes.status);
+            console.error('Error response:', errorText);
+            alert(`❌ Failed to create notification: ${errorText}`);
+          }
+        } catch (notificationError) {
+          console.error('❌ Error creating notification:', notificationError);
+          console.error('Error stack:', notificationError.stack);
+          alert(`❌ Error creating notification: ${notificationError.message}`);
+          // Don't fail the comparison if notification creation fails
+        }
+      }
 
     } catch (error) {
       console.error('Check tampering error:', error);
