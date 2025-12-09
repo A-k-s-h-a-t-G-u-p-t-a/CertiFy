@@ -135,29 +135,6 @@ const SidebarLeft = ({
 
         <CardContent className="space-y-6 relative">
           <div
-            onClick={() => loadBackgroundImage("/diploma.png")}
-            className="group cursor-pointer"
-          >
-            <div className="relative overflow-hidden rounded-xl border-2 border-white/40 hover:border-violet-300 transition-all duration-300 bg-white/30 backdrop-blur-sm hover:shadow-lg transform hover:scale-105">
-              <img
-                src="/diploma.png"
-                alt="Classic Diploma"
-                className="w-full aspect-video object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-violet-500/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/90 backdrop-blur-sm text-violet-700 rounded-full p-3 shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300">
-                  <Type className="w-5 h-5" />
-                </div>
-              </div>
-            </div>
-            <div className="mt-3 text-center">
-              <Badge variant="secondary" className="bg-gradient-to-r from-violet-100 to-purple-100 text-violet-700 border-violet-200 rounded-full px-3 py-1">
-                Classic Diploma
-              </Badge>
-            </div>
-          </div>
-
-          <div
             onClick={() => loadBackgroundImage("/cert-template.png")}
             className="group cursor-pointer"
           >

@@ -3,7 +3,8 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Calendar, Award, Building2, ExternalLink, Search, FileText, ArrowRight } from 'lucide-react';
+import { User, Calendar, Award, Building2, ExternalLink, Search, FileText, ArrowRight, TrendingUp, BookOpen } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 export default function UserPortalPage() {
   const { data: session, status } = useSession();
@@ -13,6 +14,8 @@ export default function UserPortalPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
   useEffect(() => {
     // Wait for session loading to complete
@@ -30,8 +33,9 @@ export default function UserPortalPage() {
       return;
     }
     
-    // If everything is good, fetch certificates
+    // If everything is good, fetch certificates and analytics
     fetchUserCertificates();
+    fetchUserAnalytics();
   }, [session, status, router]);
 
   const fetchUserCertificates = async () => {
@@ -53,10 +57,32 @@ export default function UserPortalPage() {
     }
   };
 
-  const filteredCertificates = certificates.filter(cert =>
+  const fetchUserAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const response = await fetch('/api/user-analytics');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch analytics');
+      }
+      
+      const data = await response.json();
+      setAnalytics(data);
+    } catch (err) {
+      console.error('Analytics error:', err);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  // Use analytics certificates (Certificate2) for display
+  const displayCertificates = analytics?.certificates || [];
+  
+  const filteredCertificates = displayCertificates.filter(cert =>
     cert?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cert?.certificateId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cert?.organisation?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    cert?.courseName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cert?.courseDomain?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const formatDate = (dateString) => {
@@ -74,10 +100,10 @@ export default function UserPortalPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/30 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-slate-900 mx-auto mb-4"></div>
-          <p className="text-slate-500 text-sm">Loading certificates...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-200 border-t-emerald-600 mx-auto mb-4"></div>
+          <p className="text-slate-600 text-sm font-medium">Loading certificates...</p>
         </div>
       </div>
     );
@@ -85,7 +111,7 @@ export default function UserPortalPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/30 flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 text-sm mb-2">Something went wrong</div>
           <p className="text-slate-600 text-sm">{error}</p>
@@ -95,10 +121,9 @@ export default function UserPortalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/30">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="border-t-2 border-emerald-500"></div>
+      <div className="bg-gradient-to-r from-white via-emerald-50/20 to-white border-b border-emerald-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between">
             <div>
@@ -115,8 +140,8 @@ export default function UserPortalPage() {
           </div>
 
           {/* User Info */}
-          <div className="mt-6 flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-            <div className="p-3 bg-emerald-500 rounded-xl">
+          <div className="mt-6 flex items-center gap-4 p-4 bg-gradient-to-br from-emerald-50/50 via-white to-teal-50/50 rounded-xl border border-emerald-100 shadow-sm">
+            <div className="p-3 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-md">
               <User className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1">
@@ -140,24 +165,100 @@ export default function UserPortalPage() {
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Analytics Section */}
+        {!analyticsLoading && analytics && analytics.totalCertificates > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">Your Learning Analytics</h2>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Total Credits Card */}
+              <div className="bg-gradient-to-br from-white via-emerald-50/30 to-white rounded-xl border border-emerald-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <h3 className="text-base font-semibold text-slate-900">Total Credits Earned</h3>
+                </div>
+                <div className="text-4xl font-bold text-emerald-600 mb-2">
+                  {analytics.totalCredits}
+                </div>
+                <p className="text-sm text-slate-500">
+                  Across {analytics.totalCertificates} certificate{analytics.totalCertificates !== 1 ? 's' : ''}
+                </p>
+              </div>
+
+              {/* Pie Chart Card */}
+              <div className="bg-gradient-to-br from-white via-teal-50/30 to-white rounded-xl border border-teal-100 p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-gradient-to-br from-teal-100 to-teal-50 rounded-lg">
+                    <BookOpen className="w-5 h-5 text-teal-600" />
+                  </div>
+                  <h3 className="text-base font-semibold text-slate-900">Course Distribution</h3>
+                </div>
+                
+                {analytics.domainData && analytics.domainData.length > 0 ? (
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={analytics.domainData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {analytics.domainData.map((entry, index) => {
+                            const colors = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
+                            return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                          })}
+                        </Pie>
+                        <Tooltip 
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                  <p className="font-semibold text-slate-900">{data.name}</p>
+                                  <p className="text-sm text-slate-600">{data.value} course{data.value !== 1 ? 's' : ''}</p>
+                                  <p className="text-sm text-emerald-600">{data.credits} credits</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500 text-center py-8">No domain data available</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <div className="text-3xl font-bold text-emerald-600">{certificates.length}</div>
+          <div className="bg-gradient-to-br from-white via-emerald-50/40 to-white rounded-xl border border-emerald-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-3xl font-bold text-emerald-600">{analytics?.totalCertificates || 0}</div>
             <div className="text-sm text-slate-500 mt-1">Total Certificates</div>
           </div>
           
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <div className="text-3xl font-bold text-emerald-600">
-              {new Set(certificates.filter(cert => cert?.organisation?.name).map(cert => cert.organisation.name)).size}
+          <div className="bg-gradient-to-br from-white via-teal-50/40 to-white rounded-xl border border-teal-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-3xl font-bold text-teal-600">
+              {analytics?.domainData?.length || 0}
             </div>
-            <div className="text-sm text-slate-500 mt-1">Organizations</div>
+            <div className="text-sm text-slate-500 mt-1">Course Domains</div>
           </div>
           
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <div className="text-lg font-semibold text-emerald-600">
-              {certificates.length > 0 
-                ? formatDate(certificates[0]?.dateIssued || certificates[0]?.createdAt)
+          <div className="bg-gradient-to-br from-white via-cyan-50/40 to-white rounded-xl border border-cyan-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div className="text-lg font-semibold text-cyan-600">
+              {displayCertificates.length > 0 
+                ? formatDate(displayCertificates[0]?.createdAt)
                 : 'N/A'
               }
             </div>
@@ -170,7 +271,7 @@ export default function UserPortalPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 bg-gradient-to-r from-white via-emerald-50/20 to-white border border-emerald-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent shadow-sm"
             placeholder="Search by name, ID, or organization..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -178,7 +279,7 @@ export default function UserPortalPage() {
         </div>
 
         {/* Certificates List */}
-        <div className="bg-white rounded-xl border border-slate-200">
+        <div className="bg-gradient-to-br from-white via-slate-50/30 to-white rounded-xl border border-slate-200 shadow-md">
           <div className="px-5 py-4 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-900">
               Certificates ({filteredCertificates.length})
@@ -201,11 +302,11 @@ export default function UserPortalPage() {
           ) : (
             <div className="divide-y divide-slate-100">
               {filteredCertificates.map((certificate) => (
-                <div key={certificate.id} className="p-5 hover:bg-slate-50 transition-colors">
+                <div key={certificate.id} className="p-5 hover:bg-gradient-to-r hover:from-emerald-50/30 hover:to-teal-50/30 transition-all">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="p-2 bg-emerald-50 rounded-lg">
+                        <div className="p-2 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-lg shadow-sm">
                           <Award className="w-4 h-4 text-emerald-600" />
                         </div>
                         <h3 className="text-base font-semibold text-slate-900">
@@ -219,15 +320,17 @@ export default function UserPortalPage() {
                       </div>
                       
                       <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
-                        <div className="flex items-center gap-1.5">
-                          <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{certificate.organisation.name}</span>
-                        </div>
-                        
-                        {certificate.year && (
+                        {certificate.courseDomain && (
                           <div className="flex items-center gap-1.5">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{certificate.year}</span>
+                            <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{certificate.courseDomain}</span>
+                          </div>
+                        )}
+                        
+                        {certificate.courseCredits && (
+                          <div className="flex items-center gap-1.5">
+                            <Award className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{certificate.courseCredits} credits</span>
                           </div>
                         )}
                         
@@ -235,6 +338,13 @@ export default function UserPortalPage() {
                           <div className="flex items-center gap-1.5">
                             <span className="text-slate-400">•</span>
                             <span>{certificate.courseName}</span>
+                          </div>
+                        )}
+                        
+                        {certificate.marks && certificate.maxMarks && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-slate-400">•</span>
+                            <span>{certificate.marks}/{certificate.maxMarks}</span>
                           </div>
                         )}
                       </div>

@@ -6,6 +6,73 @@ import path from "path";
 import fs from "fs";
 
 
+
+/**
+ * Compute SHA-256 hash of identity data object
+ * 
+ * @param {Object} identityData - The identity data object to hash
+ * @returns {Promise<string>} - The SHA-256 hash as a hex string (bytes32 format)
+ */
+export async function computeDataHash(identityData) {
+  try {
+    // Convert object to JSON string (deterministic order)
+    const jsonString = JSON.stringify(identityData, Object.keys(identityData).sort());
+    
+    // Convert string to Uint8Array
+    const encoder = new TextEncoder();
+    const data = encoder.encode(jsonString);
+    
+    // Compute SHA-256 hash
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    
+    // Convert to hex string
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    // Return in bytes32 format
+    return '0x' + hashHex;
+  } catch (error) {
+    console.error('Error computing data hash:', error);
+    throw new Error('Failed to compute data hash');
+  }
+}
+
+// LSB Steganography: Embed data into image
+function embedDataInImage(canvas, data) {
+  const ctx = canvas.getContext("2d");
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const pixels = imageData.data;
+  
+  // Convert data to binary string
+  const jsonString = JSON.stringify(data);
+  const dataLength = jsonString.length;
+  
+  // First 32 pixels store the length of data (4 bytes = 32 bits)
+  let lengthBinary = dataLength.toString(2).padStart(32, '0');
+  
+  for (let i = 0; i < 32; i++) {
+    pixels[i * 4] = (pixels[i * 4] & 0xFE) | parseInt(lengthBinary[i]);
+  }
+  
+  // Convert message to binary
+  let binaryData = '';
+  for (let i = 0; i < dataLength; i++) {
+    binaryData += jsonString.charCodeAt(i).toString(2).padStart(8, '0');
+  }
+  
+  // Embed binary data in LSB of red channel
+  for (let i = 0; i < binaryData.length; i++) {
+    const pixelIndex = (i + 32) * 4; // Start after length encoding
+    if (pixelIndex < pixels.length) {
+      pixels[pixelIndex] = (pixels[pixelIndex] & 0xFE) | parseInt(binaryData[i]);
+    }
+  }
+  
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+
 // Helper function to generate a single certificate
 async function generateSingleCertificate(certData, additionalImageBase64 = null) {
   const {
@@ -73,9 +140,9 @@ async function generateSingleCertificate(certData, additionalImageBase64 = null)
   const centerX = CANVAS_WIDTH / 2;
 
   // STANDARDIZED POSITIONS FOR 1200x900 CANVAS
-  drawText(name, centerX, 320, "38px 'Times New Roman'", "center");
+  drawText(name, centerX, 310, "38px 'Times New Roman'", "center");
   drawText(courseName || "", centerX, 430);
-  drawText(year || "", centerX, 520);
+  drawText(year || "", centerX, 540);
 
   // LEFT SIDE
   drawText(`${organisation || ""}`, 390, 600, "28px Serif", "left");
@@ -116,17 +183,38 @@ async function generateSingleCertificate(certData, additionalImageBase64 = null)
     year: year || null
   };
 
-  // Upload to Cloudinary
+  const dataHashFinal = await computeDataHash(identityData);
+
+  // 2. Embed identityData into certificate using steganography
+  embedDataInImage(canvas, dataHashFinal);
+  
+  // 3. Convert to base64 after embedding data
   const base64 = canvas.toDataURL("image/png");
   
-  // Compute file hash from base64 data (remove data:image/png;base64, prefix)
+  // 4. Save certificate locally before uploading to Cloudinary
+  const localStorageDir = path.join(process.cwd(), "certificates_backup");
+  if (!fs.existsSync(localStorageDir)) {
+    fs.mkdirSync(localStorageDir, { recursive: true });
+  }
+  
+  const timestamp = Date.now();
+  const sanitizedCertId = certificateId.replace(/[^a-zA-Z0-9-_]/g, '_');
+  const localFileName = `${sanitizedCertId}_${timestamp}.png`;
+  const localFilePath = path.join(localStorageDir, localFileName);
+  
+  // Save base64 to local file
   const base64Data = base64.split(',')[1];
+  fs.writeFileSync(localFilePath, Buffer.from(base64Data, 'base64'));
+  console.log(`Certificate saved locally: ${localFilePath}`);
+  
+  // 5. Compute file hash from base64 data
   const fileHash = await computeFileHash(base64Data);
   
-  // Prepare blockchain-ready hashes (for contract upload)
-  const dataHash = getZeroDataHash(); // Using zero hash as placeholder
+  // 6. Prepare blockchain-ready hashes (for contract upload)
+  const dataHash = dataHashFinal; // Using computed data hash
   const encryptedData = getZeroEncryption(); // Using zero encryption as placeholder
   
+  // 7. Upload to Cloudinary
   const upload = await cloudinary.uploader.upload(base64, {
     folder: "certificates",
     unique_filename: true,

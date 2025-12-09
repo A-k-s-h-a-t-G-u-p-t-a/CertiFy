@@ -108,6 +108,59 @@ function VerifierContent() {
     });
   };
 
+  // Handle OCR extraction for certificate ID
+  const handleOCRExtraction = async () => {
+    if (!selectedFile) {
+      alert("Please upload a certificate file first");
+      return;
+    }
+
+    setIsExtractingOCR(true);
+    setOcrError("");
+
+    try {
+      // Convert file to base64
+      const base64Data = await fileToBase64(selectedFile);
+      
+      // Call Python OCR API
+      const response = await fetch('http://localhost:5001/extract', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: selectedFile.name,
+          b64: base64Data,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('OCR extraction failed');
+      }
+
+      const data = await response.json();
+      console.log('OCR Response:', data);
+
+      // Extract certificateId from the first page/result
+      if (data.results && data.results.length > 0) {
+        const fields = data.results[0].fields;
+        if (fields && fields.certificateId) {
+          setCertificateId(fields.certificateId);
+          setOcrError("");
+        } else {
+          setOcrError("Certificate ID not found in document");
+        }
+      } else {
+        setOcrError("No data extracted from document");
+      }
+    } catch (error) {
+      console.error('OCR extraction error:', error);
+      setOcrError(error.message || "Failed to extract certificate ID");
+    } finally {
+      setIsExtractingOCR(false);
+    }
+  };
+
   // Handle verification
   const handleVerify = async () => {
     if (!certContractAddress.trim()) {

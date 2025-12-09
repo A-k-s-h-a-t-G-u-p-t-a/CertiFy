@@ -15,7 +15,7 @@ import {
   MobileNavToggle,
   MobileNavMenu,
 } from "@/components/ui/navbar";
-import { User, LogOut, ChevronDown, LogIn, UserPlus, Award, FileSpreadsheet } from "lucide-react";
+import { User, LogOut, ChevronDown, LogIn, UserPlus, Award, FileSpreadsheet, Building2 } from "lucide-react";
 
 export function NavbarDemo() {
   const { data: session } = useSession() // get session
@@ -27,7 +27,6 @@ export function NavbarDemo() {
     { name: "Admin", link: "/admin" },
     { name: "Organizations", link: "/org" },
     { name: "Verifier", link: "/verifier2" },
-    { name: "Certificate Playground", link: "/certificate-generator" },
   ]
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -57,11 +56,13 @@ export function NavbarDemo() {
         <NavBody>
           <NavbarLogo />
           <NavItems items={navItems} />
-          <div className="flex items-center gap-2">
-            <GoogleTranslate />
+          <div className="flex items-center gap-3">
+            <div className="relative z-[60]">
+              <GoogleTranslate />
+            </div>
 
             {session ? (
-              <div className="relative" ref={dropdownRef}>
+              <div className="relative z-50" ref={dropdownRef}>
                 <button 
                   onClick={toggleDropdown}
                   className="flex items-center justify-center w-10 h-10 rounded-full bg-[#a7d7b8] text-white hover:bg-[#66b2a0] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#66b2a0] focus:ring-offset-2"
@@ -70,7 +71,7 @@ export function NavbarDemo() {
                 </button>
                 
                 {isDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-[100]">
                     <div className="py-1">
                       <div className="px-4 py-2 text-sm font-medium text-[#4e796b] border-b border-gray-100 flex items-center">
                         <User className="w-4 h-4 mr-2" />
@@ -87,14 +88,24 @@ export function NavbarDemo() {
                         </a>
                       )}
                       {session.user?.role === "organisation" && (
-                        <a
-                          href="/upload-certificates"
-                          onClick={() => setIsDropdownOpen(false)}
-                          className="w-full px-4 py-2 text-sm text-[#4e796b] hover:bg-gray-50 flex items-center transition-colors duration-150"
-                        >
-                          <FileSpreadsheet className="w-4 h-4 mr-2" />
-                          Upload Certificates
-                        </a>
+                        <>
+                          <a
+                            href="/organizations"
+                            onClick={() => setIsDropdownOpen(false)}
+                            className="w-full px-4 py-2 text-sm text-[#4e796b] hover:bg-gray-50 flex items-center transition-colors duration-150"
+                          >
+                            <Building2 className="w-4 h-4 mr-2" />
+                            My Portal
+                          </a>
+                          <a
+                            href="/upload-certificates"
+                            onClick={() => setIsDropdownOpen(false)}
+                            className="w-full px-4 py-2 text-sm text-[#4e796b] hover:bg-gray-50 flex items-center transition-colors duration-150"
+                          >
+                            <FileSpreadsheet className="w-4 h-4 mr-2" />
+                            Upload Certificates
+                          </a>
+                        </>
                       )}
                       <button
                         onClick={() => {
@@ -111,10 +122,10 @@ export function NavbarDemo() {
                 )}
               </div>
             ) : (
-              <div className="relative" ref={enterDropdownRef}>
+              <div className="relative z-50" ref={enterDropdownRef}>
                 <button
                   onClick={() => setIsEnterDropdownOpen(!isEnterDropdownOpen)}
-                  className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#4e796b] to-[#66b2a0] hover:from-[#3d5f55] hover:to-[#559089] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#66b2a0] focus:ring-offset-2 rounded-lg shadow-md"
+                  className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#4e796b] to-[#66b2a0] hover:from-[#3d5f55] hover:to-[#559089] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#66b2a0] focus:ring-offset-2 rounded-lg shadow-md whitespace-nowrap"
                 >
                   <LogIn className="w-4 h-4" />
                   Login/Signup
@@ -122,7 +133,7 @@ export function NavbarDemo() {
                 </button>
                 
                 {isEnterDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden">
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-[100] overflow-hidden">
                     <div className="py-2">
                       {/* Student Option */}
                       <div className="px-3 py-1">
@@ -192,7 +203,9 @@ export function NavbarDemo() {
           <MobileNavHeader>
             <NavbarLogo />
             <div className="flex items-center gap-2">
-              <GoogleTranslate />
+              <div className="relative z-[60]">
+                <GoogleTranslate />
+              </div>
               <MobileNavToggle isOpen={isMobileMenuOpen} onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
             </div>
           </MobileNavHeader>

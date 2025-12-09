@@ -3,12 +3,11 @@
 import React from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Loader2, Upload, Download, Settings, Shield, AlertCircle } from "lucide-react"
+import { Loader2, Upload, Download, Settings, Shield, AlertCircle, Save, CheckCircle } from "lucide-react"
 
-const TopHeader = ({ account, WALLET_CONTRACT_MAPPING, processingState, downloadCertificate, downloadAndProcess }) => {
+const TopHeader = ({ account, WALLET_CONTRACT_MAPPING, processingState, downloadCertificate, downloadAndProcess, saveCertificateToDatabase, saveState }) => {
   return (
             <header className="relative backdrop-blur-lg bg-white/70 border border-white/20 shadow-xl rounded-none mb-0 overflow-hidden hover-scale mx-4">
-                {/* Animated background gradient */}
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-indigo-600/10 animate-pulse"></div>
                 
                 <div className="relative container mx-auto px-8 py-6">
@@ -28,51 +27,37 @@ const TopHeader = ({ account, WALLET_CONTRACT_MAPPING, processingState, download
                       </div>
                     </div>
                     <div className="flex gap-4 items-center">
-                      {!account ? (
-                        <Badge variant="outline" className="gap-2 text-amber-700 border-amber-300 bg-amber-50 px-4 py-2 rounded-full shadow-sm hover:shadow-md transition-all duration-300 hover-scale">
-                          <AlertCircle className="w-4 h-4" />
-                          Wallet not connected
-                        </Badge>
-                      ) : WALLET_CONTRACT_MAPPING[account.address] ? (
-                        <Badge variant="default" className="gap-2 text-emerald-700 border-emerald-300 bg-emerald-50 px-4 py-2 rounded-full shadow-sm hover:shadow-md transition-all duration-300 hover-scale">
-                          <Shield className="w-4 h-4" />
-                          Valid Organization
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="gap-2 text-red-700 border-red-300 bg-red-50 px-4 py-2 rounded-full shadow-sm hover:shadow-md transition-all duration-300 hover-scale">
-                          <AlertCircle className="w-4 h-4" />
-                          Invalid Organization
-                        </Badge>
-                      )}
+                      <Button 
+                        onClick={saveCertificateToDatabase}
+                        disabled={saveState?.isSaving}
+                        variant="outline" 
+                        className="gap-2 bg-white/70 backdrop-blur-sm border-slate-200 hover:bg-white hover:border-slate-300 hover:shadow-lg transition-all duration-300 rounded-xl px-6 py-2.5 hover-scale"
+                      >
+                        {saveState?.isSaving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : saveState?.success ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            Saved!
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Save to DB
+                          </>
+                        )}
+                      </Button>
                       <Button 
                         onClick={downloadCertificate} 
                         variant="outline" 
                         className="gap-2 bg-white/70 backdrop-blur-sm border-slate-200 hover:bg-white hover:border-slate-300 hover:shadow-lg transition-all duration-300 rounded-xl px-6 py-2.5 hover-scale"
                       >
                         <Download className="w-4 h-4" />
-                        Download Only
-                      </Button>
-                      <Button 
-                        onClick={downloadAndProcess} 
-                        disabled={processingState.isProcessing || (!account || !WALLET_CONTRACT_MAPPING[account?.address])}
-                        className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed hover-scale"
-                      >
-                        {processingState.isProcessing ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            {processingState.step === "generating" && "Generating..."}
-                            {processingState.step === "converting" && "Converting..."}
-                            {processingState.step === "extracting" && "Extracting..."}
-                            {processingState.step === "hashing" && "Hashing..."}
-                            {processingState.step === "blockchain" && "Deploying to Blockchain..."}
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-4 h-4" />
-                            Download & Deploy to Blockchain
-                          </>
-                        )}
-                      </Button>
+                        Download
+                      </Button>          
                     </div>
                   </div>
                 </div>

@@ -6,7 +6,6 @@ import {
   FileSpreadsheet,
   CheckCircle,
   XCircle,
-  Shield,
   Loader2,
   X,
   ImageIcon,
@@ -14,7 +13,6 @@ import {
   ArrowRight,
   FileUp,
   Check,
- AlertCircle, 
 } from "lucide-react"
 import * as XLSX from "xlsx"
 import { getContract, prepareContractCall, readContract } from "thirdweb"
@@ -27,6 +25,7 @@ import { Progress } from "@/components/ui/progress"
 import { useActiveAccount, useSendTransaction, useReadContract } from "thirdweb/react";
 import { useRouter } from "next/navigation";
 import { computeFileHash, getZeroDataHash } from "@/utils/phash";
+import { Shield } from "lucide-react"
 
 // Step indicator component
 const StepIndicator = ({ currentStep, steps }) => (

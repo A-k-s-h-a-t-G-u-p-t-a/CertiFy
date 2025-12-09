@@ -104,4 +104,22 @@ model Alert {
   updatedAt           DateTime     @updatedAt
 }
 
+model Certificate2 {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  certificateId  String    @unique
+  name           String
+  nqrCode        String
+  courseName     String
+  apaarId        String
+  courseDomain   String
+  courseCredits  Int
+  marks          Int?
+  maxMarks       Int?
+  url            String
+  createdAt      DateTime? @default(now())
+
+  @@index([apaarId])
+  @@map("Certificate2")
+}
+
 

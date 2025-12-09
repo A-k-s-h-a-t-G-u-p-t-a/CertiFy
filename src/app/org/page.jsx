@@ -513,6 +513,7 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
           <SidebarItem id="issue" icon={FileSignature} label="Issue Certificate" />
           <SidebarItem id="manage" icon={ShieldAlert} label="Manage & Revoke" />
           <SidebarItem id="verify" icon={FileCheck} label="Verify Certificate" />
+          <SidebarItem id="playground" icon={FileText} label="Certificate Playground" />
         </div>
 
         <div className="p-4 border-t border-[#D9E5E6]">
@@ -549,6 +550,7 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
                 {activeTab === 'issue' && 'Issue New Certificate'}
                 {activeTab === 'manage' && 'Manage Certificates'}
                 {activeTab === 'verify' && 'Verify Certificate'}
+                {activeTab === 'playground' && 'Certificate Playground'}
               </h1>
               <p className="text-gray-500 mt-1">
                 Manage your organization's certificates and records.
@@ -857,6 +859,46 @@ function OrgDashboard({ orgContract, account, orgInfo }) {
                     </CardContent>
                   </Card>
                 </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'playground' && (
+              <motion.div
+                key="playground"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="border-[#D9E5E6] shadow-sm bg-white">
+                  <CardHeader className="bg-[#F5FAFA] border-b border-[#D9E5E6]">
+                    <CardTitle className="flex items-center gap-2 text-[#009688]">
+                      <FileText className="h-5 w-5" />
+                      Certificate Playground
+                    </CardTitle>
+                    <CardDescription>
+                      Design and preview your certificates with our interactive builder
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <div className="text-center py-12">
+                      <FileText className="h-16 w-16 text-[#009688] mx-auto mb-4 opacity-50" />
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        Certificate Builder
+                      </h3>
+                      <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                        Create beautiful, professional certificates with our easy-to-use builder. 
+                        Customize templates, add your branding, and preview in real-time.
+                      </p>
+                      <Button 
+                        onClick={() => window.location.href = '/certificate-generator'}
+                        className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
+                      >
+                        Open Certificate Playground
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </motion.div>
             )}
 
