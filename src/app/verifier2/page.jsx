@@ -38,6 +38,12 @@ function VerifierContent() {
   const [fileHash, setFileHash] = useState("");
   const [steganographyResult, setSteganographyResult] = useState(null);
   const [extractedStegData, setExtractedStegData] = useState(null);
+  
+  // Check Tampering states
+  const [isCheckingTampering, setIsCheckingTampering] = useState(false);
+  const [showWinnerPopup, setShowWinnerPopup] = useState(false);
+  const [winnerCertificate, setWinnerCertificate] = useState(null);
+  const [tamperingError, setTamperingError] = useState(null);
   const [organizations, setOrganizations] = useState([]);
   const [isLoadingOrgs, setIsLoadingOrgs] = useState(true);
 
@@ -119,6 +125,190 @@ function VerifierContent() {
       reader.onerror = (error) => reject(error);
       reader.readAsDataURL(file);
     });
+  };
+
+  // Handle Check Tampering
+  const handleCheckTampering = async () => {
+    if (!selectedFile) {
+      alert("Please upload a certificate file first");
+      return;
+    }
+
+    setIsCheckingTampering(true);
+    setTamperingError(null);
+    setWinnerCertificate(null);
+
+    try {
+      // Step 1: Extract OCR fields from uploaded certificate
+      const base64Data = await fileToBase64(selectedFile);
+      
+      const ocrResponse = await fetch('http://localhost:5001/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: selectedFile.name,
+          b64: base64Data,
+        }),
+      });
+
+      if (!ocrResponse.ok) {
+        throw new Error('OCR extraction failed');
+      }
+
+      const ocrData = await ocrResponse.json();
+      console.log('OCR Response:', ocrData);
+
+      if (!ocrData.results || ocrData.results.length === 0) {
+        throw new Error('No data extracted from certificate');
+      }
+
+      const extractedFields = ocrData.results[0].fields;
+      console.log('Extracted Fields:', extractedFields);
+
+      // Step 2: Find winner certificate using the backend API
+      const winnerResponse = await fetch('/api/certificates/find-winner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          extractedFields: {
+            certificateId: extractedFields.certificateId || '',
+            name: extractedFields.name || '',
+            courseName: extractedFields.courseName || '',
+            nqrCode: extractedFields.nqrCode || '',
+            apaarId: extractedFields.apaarId || '',
+            year: extractedFields.year || '',
+            organisation: selectedOrg || '',
+          },
+        }),
+      });
+
+      if (!winnerResponse.ok) {
+        const errorData = await winnerResponse.json();
+        throw new Error(errorData.error || 'Failed to find matching certificate');
+      }
+
+      const winnerData = await winnerResponse.json();
+      console.log('Winner Certificate:', winnerData);
+
+      if (!winnerData.success || !winnerData.url) {
+        throw new Error('No matching certificate found');
+      }
+
+      // Step 3: Compare the uploaded certificate with the winner certificate
+      console.log('Comparing certificates...');
+      
+      // Convert uploaded file to base64 with data URL prefix
+      const reader = new FileReader();
+      const uploadedBase64Promise = new Promise((resolve) => {
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(selectedFile);
+      });
+      const uploadedBase64 = await uploadedBase64Promise;
+
+      // Fetch winner certificate and convert to base64
+      const winnerImageResponse = await fetch(winnerData.url);
+      if (!winnerImageResponse.ok) {
+        throw new Error('Failed to fetch winner certificate image');
+      }
+      const winnerBlob = await winnerImageResponse.blob();
+      const winnerBase64Promise = new Promise((resolve) => {
+        const winnerReader = new FileReader();
+        winnerReader.onload = () => resolve(winnerReader.result);
+        winnerReader.readAsDataURL(winnerBlob);
+      });
+      const winnerBase64 = await winnerBase64Promise;
+
+      // Call Python comparison API
+      const compareResponse = await fetch('http://localhost:5000/compare-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file1: uploadedBase64,
+          file2: winnerBase64,
+        }),
+      });
+
+      if (!compareResponse.ok) {
+        const compareError = await compareResponse.json();
+        throw new Error(compareError.detail || 'Certificate comparison failed');
+      }
+
+      const comparisonResult = await compareResponse.json();
+      console.log('Comparison Result:', comparisonResult);
+      console.log('Analysis Images:', comparisonResult.analysis_images);
+      console.log('Tampered Image:', comparisonResult.analysis_images?.tampered_image?.substring(0, 100));
+      console.log('Heatmap Image:', comparisonResult.analysis_images?.heatmap_image?.substring(0, 100));
+
+      // Store winner certificate with comparison results
+      setWinnerCertificate({
+        url: winnerData.url,
+        comparison: comparisonResult,
+      });
+      setShowWinnerPopup(true);
+
+      // Create notification with comparison images
+      if (selectedOrg) {
+        try {
+          const tamperedImg = comparisonResult.analysis_images?.tampered_image || null;
+          const heatmapImg = comparisonResult.analysis_images?.heatmap_image || null;
+          
+          console.log('Sending notification with images:');
+          console.log('- Tampered image exists:', !!tamperedImg);
+          console.log('- Heatmap image exists:', !!heatmapImg);
+          console.log('- Similarity score:', comparisonResult.similarity_score);
+          console.log('- NLP text similarity:', comparisonResult.nlp_analysis?.text_similarity);
+          
+          // Ensure boolean values for hash matches
+          const isFileHashMatch = Boolean(comparisonResult.similarity_score && comparisonResult.similarity_score > 0.95);
+          const isDataHashMatch = Boolean(comparisonResult.nlp_analysis?.text_similarity && comparisonResult.nlp_analysis.text_similarity > 0.95);
+          
+          const notificationPayload = {
+            organisationName: selectedOrg,
+            isFileHashMatch: isFileHashMatch,
+            isDataHashMatch: isDataHashMatch,
+            tamperedImageUrl: tamperedImg,
+            heatmapImageUrl: heatmapImg,
+          };
+          
+          console.log('Notification payload:', {
+            organisationName: notificationPayload.organisationName,
+            isFileHashMatch: notificationPayload.isFileHashMatch,
+            isDataHashMatch: notificationPayload.isDataHashMatch,
+            tamperedImageUrl: tamperedImg ? 'present (' + tamperedImg.substring(0, 50) + '...)' : 'null',
+            heatmapImageUrl: heatmapImg ? 'present (' + heatmapImg.substring(0, 50) + '...)' : 'null',
+          });
+          
+          const notificationRes = await fetch('/api/notifications/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(notificationPayload),
+          });
+
+          if (notificationRes.ok) {
+            const notificationData = await notificationRes.json();
+            console.log('🔔 Notification created successfully:', notificationData);
+            alert('✅ Notification sent to organization!');
+          } else {
+            const errorText = await notificationRes.text();
+            console.error('❌ Failed to create notification. Status:', notificationRes.status);
+            console.error('Error response:', errorText);
+            alert(`❌ Failed to create notification: ${errorText}`);
+          }
+        } catch (notificationError) {
+          console.error('❌ Error creating notification:', notificationError);
+          console.error('Error stack:', notificationError.stack);
+          alert(`❌ Error creating notification: ${notificationError.message}`);
+          // Don't fail the comparison if notification creation fails
+        }
+      }
+
+    } catch (error) {
+      console.error('Check tampering error:', error);
+      setTamperingError(error.message || 'Failed to check tampering');
+      alert(`Error: ${error.message}`);
+    } finally {
+      setIsCheckingTampering(false);
+    }
   };
 
   // Handle OCR extraction for certificate ID
@@ -598,32 +788,62 @@ function VerifierContent() {
                 )}
               </AnimatePresence>
 
-              {/* Verify Button */}
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleVerify}
-                disabled={isVerifying || !certificateId || !selectedFile || !certContractAddress}
-                className="w-full py-5 bg-gradient-to-r from-[#4e796b] via-[#5a8a7a] to-[#66b2a0] text-white font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3 group relative overflow-hidden"
-              >
-                <motion.div
-                  className="absolute inset-0 bg-white/20"
-                  initial={{ x: "-100%" }}
-                  whileHover={{ x: "100%" }}
-                  transition={{ duration: 0.6 }}
-                />
-                {isVerifying ? (
-                  <>
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                    <span>Verifying Certificate...</span>
-                  </>
-                ) : (
-                  <>
-                    <Shield className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-                    <span>Verify Certificate on Blockchain</span>
-                  </>
-                )}
-              </motion.button>
+              {/* Action Buttons */}
+              <div className="flex gap-4">
+                {/* Check Tampering Button */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleCheckTampering}
+                  disabled={isCheckingTampering || !selectedFile}
+                  className="flex-1 py-5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3 group relative overflow-hidden"
+                >
+                  <motion.div
+                    className="absolute inset-0 bg-white/20"
+                    initial={{ x: "-100%" }}
+                    whileHover={{ x: "100%" }}
+                    transition={{ duration: 0.6 }}
+                  />
+                  {isCheckingTampering ? (
+                    <>
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                      <span>Checking...</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+                      <span>Check Tampering</span>
+                    </>
+                  )}
+                </motion.button>
+
+                {/* Verify Button */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleVerify}
+                  disabled={isVerifying || !certificateId || !selectedFile || !certContractAddress}
+                  className="flex-1 py-5 bg-gradient-to-r from-[#4e796b] via-[#5a8a7a] to-[#66b2a0] text-white font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3 group relative overflow-hidden"
+                >
+                  <motion.div
+                    className="absolute inset-0 bg-white/20"
+                    initial={{ x: "-100%" }}
+                    whileHover={{ x: "100%" }}
+                    transition={{ duration: 0.6 }}
+                  />
+                  {isVerifying ? (
+                    <>
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+                      <span>Verify on Blockchain</span>
+                    </>
+                  )}
+                </motion.button>
+              </div>
             </div>
           </div>
 
@@ -1002,6 +1222,208 @@ function VerifierContent() {
           </p>
         </motion.div>
       </div>
+
+      {/* Winner Certificate Popup */}
+      <AnimatePresence>
+        {showWinnerPopup && winnerCertificate && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowWinnerPopup(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-[#4e796b] to-[#66b2a0] p-6 rounded-t-3xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                      <CheckCircle className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">Matching Certificate Found</h2>
+                      <p className="text-sm text-white/80 mt-1">
+                        Certificate found by Certificate ID match
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowWinnerPopup(false)}
+                    className="text-white/80 hover:text-white transition-colors"
+                  >
+                    <XCircle className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-6">
+
+                {/* Cloudinary URL */}
+                <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Eye className="w-4 h-4 text-emerald-600" />
+                    <p className="text-sm font-semibold text-emerald-900">Certificate URL (Cloudinary)</p>
+                  </div>
+                  <a
+                    href={winnerCertificate.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-emerald-600 hover:text-emerald-700 hover:underline break-all font-mono"
+                  >
+                    {winnerCertificate.url}
+                  </a>
+                </div>
+
+                {/* Comparison Results */}
+                {winnerCertificate.comparison && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 pt-4 border-t border-slate-200">
+                      <Shield className="w-5 h-5 text-slate-700" />
+                      <h3 className="text-lg font-semibold text-slate-900">Tampering Analysis</h3>
+                    </div>
+
+                    {/* Scores Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className={`p-4 rounded-xl border ${
+                        winnerCertificate.comparison.tampering_score < 0.2 
+                          ? 'bg-emerald-50 border-emerald-200' 
+                          : winnerCertificate.comparison.tampering_score < 0.5
+                          ? 'bg-yellow-50 border-yellow-200'
+                          : 'bg-red-50 border-red-200'
+                      }`}>
+                        <p className="text-xs text-slate-600 mb-1">Tampering Risk</p>
+                        <p className={`text-2xl font-bold ${
+                          winnerCertificate.comparison.tampering_score < 0.2 
+                            ? 'text-emerald-600' 
+                            : winnerCertificate.comparison.tampering_score < 0.5
+                            ? 'text-yellow-600'
+                            : 'text-red-600'
+                        }`}>
+                          {Math.round(winnerCertificate.comparison.tampering_score * 100)}%
+                        </p>
+                      </div>
+
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                        <p className="text-xs text-slate-600 mb-1">Similarity</p>
+                        <p className="text-2xl font-bold text-blue-600">
+                          {Math.round(winnerCertificate.comparison.similarity_score * 100)}%
+                        </p>
+                      </div>
+
+                      <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl">
+                        <p className="text-xs text-slate-600 mb-1">Match Points</p>
+                        <p className="text-2xl font-bold text-purple-600">
+                          {winnerCertificate.comparison.match_count || 0}
+                        </p>
+                      </div>
+
+                      <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl">
+                        <p className="text-xs text-slate-600 mb-1">Suspicious Regions</p>
+                        <p className="text-2xl font-bold text-orange-600">
+                          {winnerCertificate.comparison.num_boxes || 0}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* NLP Analysis if available */}
+                    {winnerCertificate.comparison.nlp_analysis?.nlp_available && (
+                      <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-semibold text-indigo-900">NLP Analysis</p>
+                          <span className="text-xs text-indigo-600 font-medium">
+                            {Math.round(winnerCertificate.comparison.nlp_tampering_score * 100)}% Risk
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-slate-600">Text Similarity:</span>
+                            <span className="ml-1 font-semibold text-slate-900">
+                              {Math.round((winnerCertificate.comparison.nlp_analysis.text_similarity || 0) * 100)}%
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-600">Semantic Match:</span>
+                            <span className="ml-1 font-semibold text-slate-900">
+                              {Math.round((winnerCertificate.comparison.nlp_analysis.semantic_similarity || 0) * 100)}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Analysis Images */}
+                    {winnerCertificate.comparison.analysis_images && (
+                      <div className="space-y-3">
+                        <p className="text-sm font-semibold text-slate-900">Visual Analysis</p>
+                        <div className="grid md:grid-cols-2 gap-3">
+                          {winnerCertificate.comparison.analysis_images.tampered_image && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-slate-600">Detected Regions</p>
+                              <img
+                                src={winnerCertificate.comparison.analysis_images.tampered_image}
+                                alt="Tampered regions"
+                                className="w-full rounded-lg border border-slate-200"
+                              />
+                            </div>
+                          )}
+                          {winnerCertificate.comparison.analysis_images.heatmap_image && (
+                            <div className="space-y-1">
+                              <p className="text-xs text-slate-600">Difference Heatmap</p>
+                              <img
+                                src={winnerCertificate.comparison.analysis_images.heatmap_image}
+                                alt="Heatmap"
+                                className="w-full rounded-lg border border-slate-200"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Algorithm Info */}
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <p className="text-xs text-slate-600">
+                        <span className="font-semibold">Algorithm:</span> {winnerCertificate.comparison.algorithm || 'SSIM + Computer Vision'}
+                      </p>
+                      {winnerCertificate.comparison.detection_method && (
+                        <p className="text-xs text-slate-600 mt-1">
+                          <span className="font-semibold">Method:</span> {winnerCertificate.comparison.detection_method}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <a
+                    href={winnerCertificate.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 py-3 bg-gradient-to-r from-[#4e796b] to-[#66b2a0] text-white text-center font-semibold rounded-xl hover:shadow-lg transition-all"
+                  >
+                    View Certificate
+                  </a>
+                  <button
+                    onClick={() => setShowWinnerPopup(false)}
+                    className="px-6 py-3 border-2 border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

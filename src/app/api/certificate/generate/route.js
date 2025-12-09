@@ -5,92 +5,101 @@ import { computeFileHash, getZeroDataHash, getZeroEncryption } from "@/utils/pha
 import path from "path";
 import fs from "fs";
 
-
-
 /**
  * Compute SHA-256 hash of identity data object
- * 
- * @param {Object} identityData - The identity data object to hash
- * @returns {Promise<string>} - The SHA-256 hash as a hex string (bytes32 format)
  */
 export async function computeDataHash(identityData) {
   try {
-    // Convert object to JSON string (deterministic order)
     const jsonString = JSON.stringify(identityData, Object.keys(identityData).sort());
-    
-    // Convert string to Uint8Array
     const encoder = new TextEncoder();
     const data = encoder.encode(jsonString);
-    
-    // Compute SHA-256 hash
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    
-    // Convert to hex string
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
-    // Return in bytes32 format
-    return '0x' + hashHex;
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashHex = Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+    return "0x" + hashHex;
   } catch (error) {
-    console.error('Error computing data hash:', error);
-    throw new Error('Failed to compute data hash');
+    console.error("Error computing data hash:", error);
+    throw new Error("Failed to compute data hash");
   }
 }
 
-// LSB Steganography: Embed data into image
-// LSB Steganography: Embed data into image
+// ------------------------------------------------------
+// LSB STEGANOGRAPHY
+// ------------------------------------------------------
 function embedDataInImage(canvas, data) {
   const ctx = canvas.getContext("2d");
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const pixels = imageData.data;
-  
-  // Convert data to string (if it's already a string, use it directly; if object, stringify)
-  const dataString = typeof data === 'string' ? data : JSON.stringify(data);
+
+  const dataString = typeof data === "string" ? data : JSON.stringify(data);
   const dataLength = dataString.length;
-  
-  console.log(`Embedding data: ${dataString.substring(0, 100)}... (length: ${dataLength})`);
-  
-  // First 32 pixels store the length of data (4 bytes = 32 bits)
-  let lengthBinary = dataLength.toString(2).padStart(32, '0');
-  
+
+  let lengthBinary = dataLength.toString(2).padStart(32, "0");
+
+  // Store length
   for (let i = 0; i < 32; i++) {
-    pixels[i * 4] = (pixels[i * 4] & 0xFE) | parseInt(lengthBinary[i]);
+    pixels[i * 4] = (pixels[i * 4] & 0xfe) | parseInt(lengthBinary[i]);
   }
-  
-  // Convert message to binary
-  let binaryData = '';
+
+  let binaryData = "";
   for (let i = 0; i < dataLength; i++) {
-    binaryData += dataString.charCodeAt(i).toString(2).padStart(8, '0');
+    binaryData += dataString.charCodeAt(i).toString(2).padStart(8, "0");
   }
-  
-  // Embed binary data in LSB of red channel
-  // Start at pixel 32, and each bit goes into consecutive pixels
+
+  // Store binary message
   for (let i = 0; i < binaryData.length; i++) {
-    const pixelIndex = (32 + i) * 4; // Pixel 32, 33, 34... (red channel)
+    const pixelIndex = (32 + i) * 4;
     if (pixelIndex < pixels.length) {
-      pixels[pixelIndex] = (pixels[pixelIndex] & 0xFE) | parseInt(binaryData[i]);
+      pixels[pixelIndex] = (pixels[pixelIndex] & 0xfe) | parseInt(binaryData[i]);
     }
   }
-  
+
   ctx.putImageData(imageData, 0, 0);
-  console.log(`Successfully embedded ${dataLength} characters`);
   return canvas;
 }
 
-
-// Helper function to generate a single certificate
-async function generateSingleCertificate(certData, additionalImageBase64 = null) {
+// ------------------------------------------------------
+// GENERATE CERTIFICATE
+// ------------------------------------------------------
+async function generateSingleCertificate(certData, imagePack = {}) {
   const {
     name,
     courseName,
-    year,
     certificateId,
-    courseId,
-    apaarId,
     organisation,
-    nqrCode,
     organisationId,
+    nqrCode,
+    apaarId,
+    year,
+    degree, // job role per schema
+
+    // NEW FIELDS
+    dateOfBirth,
+    enrolmentNo,
+    district,
+    state,
+    placeOfIssue,
+    dateOfIssue,
+    duration,
+    grade,
+    creditsAtTrainingCentre,
+    
+    // ADDITIONAL FIELDS
+    fatherName,
+    assessedBy,
+    nsqfLevel,
   } = certData;
+
+  // Extract images from imagePack
+  const {
+    candidatePhoto,
+    organisationLogo,
+    qrCodeImage,
+    schemeLogo,
+    awardingBodyLogo,
+    blockchainSeal,
+  } = imagePack;
 
   if (!name) throw new Error("Name is required");
   if (!certificateId) throw new Error("Certificate ID is required");
@@ -100,84 +109,140 @@ async function generateSingleCertificate(certData, additionalImageBase64 = null)
 
   const template = await loadImage(templatePath);
 
-  // Standardized canvas dimensions
   const CANVAS_WIDTH = 1200;
   const CANVAS_HEIGHT = 900;
-
   const canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
   const ctx = canvas.getContext("2d");
 
-  // Fill with white background
   ctx.fillStyle = "#FFFFFF";
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-  // Calculate scaling and positioning to fit template while maintaining aspect ratio
-  const templateAspectRatio = template.width / template.height;
-  const canvasAspectRatio = CANVAS_WIDTH / CANVAS_HEIGHT;
+  // ------------------------------------------------------
+  // DRAW TEMPLATE EXACT FIT
+  // ------------------------------------------------------
+  ctx.drawImage(template, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-  let drawWidth, drawHeight, drawX, drawY;
-
-  if (templateAspectRatio > canvasAspectRatio) {
-    // Template is wider, fit to width
-    drawWidth = CANVAS_WIDTH;
-    drawHeight = CANVAS_WIDTH / templateAspectRatio;
-    drawX = 0;
-    drawY = (CANVAS_HEIGHT - drawHeight) / 2;
-  } else {
-    // Template is taller, fit to height
-    drawHeight = CANVAS_HEIGHT;
-    drawWidth = CANVAS_HEIGHT * templateAspectRatio;
-    drawX = (CANVAS_WIDTH - drawWidth) / 2;
-    drawY = 0;
-  }
-
-  // Draw template image centered and scaled
-  ctx.drawImage(template, drawX, drawY, drawWidth, drawHeight);
-
-  // REUSABLE TEXT DRAWER
-  function drawText(txt, x, y, font = "32px Serif", align = "center") {
-    ctx.fillStyle = "#2A2A2A";
+  // ------------------------------------------------------
+  // TEXT UTILITY
+  // ------------------------------------------------------
+  function drawText(txt, x, y, font = "24px 'Times New Roman'", align = "left") {
+    if (!txt) return;
+    ctx.fillStyle = "#1A1A1A";
     ctx.font = font;
     ctx.textAlign = align;
     ctx.fillText(txt, x, y);
   }
 
-  const centerX = CANVAS_WIDTH / 2;
-
-  // STANDARDIZED POSITIONS FOR 1200x900 CANVAS
-  drawText(name, centerX, 310, "38px 'Times New Roman'", "center");
-  drawText(courseName || "", centerX, 430);
-  drawText(year || "", centerX, 540);
-
-  // LEFT SIDE
-  drawText(`${organisation || ""}`, 390, 600, "28px Serif", "left");
-  drawText(`${certificateId}`, 390, 680, "28px Serif", "left");
-
-  // RIGHT SIDE
-  drawText(`${courseId || nqrCode || ""}`, 800, 600, "28px Serif", "left");
-  drawText(`${apaarId || ""}`, 800, 680, "28px Serif", "left");
-
-  // Add additional image if provided
-  if (additionalImageBase64) {
+  // ------------------------------------------------------
+  // DATE FORMATTING UTILITY
+  // ------------------------------------------------------
+  function formatDate(dateValue) {
+    if (!dateValue) return "";
     try {
-      const imageBuffer = Buffer.from(additionalImageBase64, 'base64');
-      const additionalImage = await loadImage(imageBuffer);
-      
-      // Fixed size and position for the additional image at the bottom center
-      const imgWidth = 120;
-      const imgHeight = 80;
-      const imgX = (CANVAS_WIDTH - imgWidth) / 2; // Center horizontally
-      const imgY = CANVAS_HEIGHT - imgHeight - 90; // 30px from bottom
-      
-      ctx.drawImage(additionalImage, imgX, imgY, imgWidth, imgHeight);
-    } catch (error) {
-      console.warn("Failed to add additional image:", error.message);
-      // Continue certificate generation without the image
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return String(dateValue);
+      // Format as DD/MM/YYYY
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch (e) {
+      return String(dateValue);
     }
   }
 
-  // --- Steganography & Hashing ---
-  // 1. Construct Identity Data (Excluding URL)
+  // ------------------------------------------------------
+  // POSITIONS (Mapped to certificate in image)
+  // ------------------------------------------------------
+
+  // **Name of Candidate**
+  drawText(name, 390, 415);
+  
+  // **Son/Daughter/Ward of**
+  drawText(fatherName, 330, 475);
+
+  // **Date of Birth**
+  drawText(formatDate(dateOfBirth), 700, 475);
+
+  // **Enrolment No**
+  drawText(enrolmentNo, 1100, 470, "24px 'Times New Roman'", "right");
+
+  // **Assessed by**
+  drawText(assessedBy, 330, 530);
+
+  // **Job role qualification (degree)**
+  drawText(degree, 330, 590);
+
+  // **NSQF Level**
+  drawText(nsqfLevel, 1150, 590, "24px 'Times New Roman'", "right");
+
+  // **Duration**
+  drawText(duration, 200, 650);
+
+  // **Credits at Training Centre**
+  drawText(creditsAtTrainingCentre, 820, 635);
+
+  // **District**
+  drawText(district, 170, 710);
+
+  // **State**
+  drawText(state, 370, 710);
+
+  // **Grade / %**
+  drawText(grade, 530, 710, "24px 'Times New Roman'", "left");
+
+  // **Place of Issue**
+  drawText(placeOfIssue, 250, 755);
+
+  // **Date of Issue**
+  drawText(formatDate(dateOfIssue), 480, 755);
+
+  // **Certificate Number**
+  drawText(certificateId, 930, 400, "22px 'Times New Roman'", "left");
+
+  // **APAAR ID**
+  drawText(apaarId, 1015, 423, "22px 'Times New Roman'", "left");
+
+  // ------------------------------------------------------
+  // IMAGE DRAWER
+  // ------------------------------------------------------
+  async function drawBase64Image(base64, x, y, w, h) {
+    if (!base64) return;
+    try {
+      const buf = Buffer.from(base64, "base64");
+      const img = await loadImage(buf);
+      ctx.drawImage(img, x, y, w, h);
+    } catch (e) {
+      console.warn("Image error:", e.message);
+    }
+  }
+
+  // ------------------------------------------------------
+  // IMAGE POSITIONS (Mapped to certificate)
+  // ------------------------------------------------------
+
+  // Candidate Photo (top-right box)
+  await drawBase64Image(candidatePhoto, 930, 120, 190, 230);
+
+  // Organisation Logo (top-left)
+  await drawBase64Image(organisationLogo, 60, 100, 130, 130);
+
+  // Scheme Logo (top-right above photo)
+  await drawBase64Image(schemeLogo, 1020, 40, 120, 120);
+
+  // QR Code (bottom-left)
+  await drawBase64Image(qrCodeImage, 80, 760, 150, 150);
+
+  // Blockchain Seal (bottom-center)
+  await drawBase64Image(blockchainSeal, 550, 760, 140, 140);
+
+  // Awarding Body Logo (bottom-right)
+  await drawBase64Image(awardingBodyLogo, 830, 760, 180, 120);
+
+
+  // ------------------------------------------------------
+  //   STEGANOGRAPHY
+  // ------------------------------------------------------
   const identityData = {
     certificateId,
     name,
@@ -185,43 +250,46 @@ async function generateSingleCertificate(certData, additionalImageBase64 = null)
     courseName: courseName || null,
     organisationId: organisationId || null,
     apaarId: apaarId || null,
-    year: year || null
+    year: year || null,
+    degree: degree || null,
+
+    // NEW FIELDS
+    dateOfBirth: dateOfBirth || null,
+    enrolmentNo: enrolmentNo || null,
+    district: district || null,
+    state: state || null,
+    placeOfIssue: placeOfIssue || null,
+    dateOfIssue: dateOfIssue || null,
+    duration: duration || null,
+    grade: grade || null,
+    creditsAtTrainingCentre: creditsAtTrainingCentre || null,
+    
+    // ADDITIONAL FIELDS
+    fatherName: fatherName || null,
+    assessedBy: assessedBy || null,
+    nsqfLevel: nsqfLevel || null
   };
 
-  // 2. Embed the IDENTITY DATA OBJECT (not the hash) into certificate using steganography
-  // This way, when extracted and hashed, it will match the blockchain dataHash
-  console.log("Embedding identity data object:", identityData);
   embedDataInImage(canvas, identityData);
-  
-  // 3. Convert to base64 after embedding data
+
+  // Final PNG
   const base64 = canvas.toDataURL("image/png");
-  
-  // 4. Save certificate locally before uploading to Cloudinary
-  const localStorageDir = path.join(process.cwd(), "certificates_backup");
-  if (!fs.existsSync(localStorageDir)) {
-    fs.mkdirSync(localStorageDir, { recursive: true });
-  }
-  
-  const timestamp = Date.now();
-  const sanitizedCertId = certificateId.replace(/[^a-zA-Z0-9-_]/g, '_');
-  const localFileName = `${sanitizedCertId}_${timestamp}.png`;
-  const localFilePath = path.join(localStorageDir, localFileName);
-  
-  // Save base64 to local file
-  const base64Data = base64.split(',')[1];
-  fs.writeFileSync(localFilePath, Buffer.from(base64Data, 'base64'));
-  console.log(`Certificate saved locally: ${localFilePath}`);
-  
-  // 5. Compute file hash from base64 data
+  const base64Data = base64.split(",")[1];
+
+  // Local Backup
+  const backupDir = path.join(process.cwd(), "certificates_backup");
+  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+  const fileName = `${certificateId}_${Date.now()}.png`;
+  const filePath = path.join(backupDir, fileName);
+  fs.writeFileSync(filePath, Buffer.from(base64Data, "base64"));
+
+  // Hashes
   const fileHash = await computeFileHash(base64Data);
-  
-  // 6. Compute data hash from the identity data object for blockchain
   const dataHash = await computeDataHash(identityData);
-  console.log("Computed dataHash for blockchain:", dataHash);
-  
-  const encryptedData = getZeroEncryption(); // Using zero encryption as placeholder
-  
-  // 7. Upload to Cloudinary
+  const encryptedData = getZeroEncryption();
+
+  // Upload to Cloudinary
   const upload = await cloudinary.uploader.upload(base64, {
     folder: "certificates",
     unique_filename: true,
@@ -231,124 +299,81 @@ async function generateSingleCertificate(certData, additionalImageBase64 = null)
     ...certData,
     url: upload.secure_url,
     publicId: upload.public_id,
-    fileHash: fileHash,
-    dataHash: dataHash,
-    encryptedData: encryptedData,
-    // Blockchain-ready data for contract call
+    fileHash,
+    dataHash,
+    encryptedData,
     blockchainData: {
       certID: certificateId,
-      filePhash: fileHash, // Already in bytes32 format (0x...)
-      dataHash: dataHash,
-      encryptedData: encryptedData
+      filePhash: fileHash,
+      dataHash,
+      encryptedData
     }
   };
 }
 
+// ------------------------------------------------------
+// POST HANDLER
+// ------------------------------------------------------
 export async function POST(req) {
   try {
     const body = await req.json();
+    const { certificates, images } = body;
 
-    // Check if it's a batch request (array of certificates) or single certificate
-    const { certificates, additionalImage } = body;
-
-    // Batch processing: array of certificates
+    // -------- BATCH MODE --------
     if (certificates && Array.isArray(certificates)) {
-      console.log(`Processing ${certificates.length} certificates...`);
-
-      const processedCertificates = [];
+      const results = [];
       const errors = [];
 
-      // Process each certificate one at a time
       for (let i = 0; i < certificates.length; i++) {
-        const certData = certificates[i];
-        console.log(`Processing certificate ${i + 1}/${certificates.length}:`, certData.name || certData.Name);
-
         try {
-          const result = await generateSingleCertificate({
-            name: certData.Name || certData.name || "",
-            certificateId: certData.CertificateId || certData.certificateId || certData['Certificate ID'] || "",
-            courseName: certData.CourseName || certData.courseName || certData['Course Name'] || null,
-            courseId: certData.CourseId || certData.courseId || certData['Course ID'] || certData['Course Code'] || null,
-            year: certData.Year || certData.year || null,
-            apaarId: certData.ApaarId || certData.apaarId || certData['APAAR ID'] || null,
-            organisation: certData.Organisation || certData.organisation || certData['Organisation'] || null,
-            organisationId: certData.OrganisationId || certData.organisationId || certData['Organisation ID'] || null,
-            nqrCode: certData.NqrCode || certData.nqrCode || certData['NQR Code'] || null,
-          }, additionalImage); // Pass additional image to generation function
+          const mergedImagePack = {
+            candidatePhoto: images?.candidatePhoto,
+            organisationLogo: images?.organisationLogo,
+            qrCodeImage: images?.qrCodeImage,
+            schemeLogo: images?.schemeLogo,
+            awardingBodyLogo: images?.awardingBodyLogo,
+            blockchainSeal: images?.blockchainSeal
+          };
 
-          // Append URL and Hashes to original certificate data
-          processedCertificates.push({
-            ...certData,
-            url: result.url,
-            publicId: result.publicId,
-            fileHash: result.fileHash,
-            dataHash: result.dataHash,
-            encryptedData: result.encryptedData,
-            blockchainData: result.blockchainData
-          });
-
-          console.log(` Certificate ${i + 1} generated successfully`);
-
-        } catch (error) {
-          console.error(` Error generating certificate ${i + 1}:`, error.message);
+          const result = await generateSingleCertificate(certificates[i], mergedImagePack);
+          results.push(result);
+        } catch (err) {
+          console.error(`Error generating certificate ${i}:`, err);
           errors.push({
             index: i,
-            name: certData.Name || certData.name,
-            error: error.message,
+            name: certificates[i]?.name || 'Unknown',
+            error: err.message,
+            stack: err.stack
           });
-          // Continue processing remaining certificates
-          continue;
         }
       }
 
-      console.log(` Completed: ${processedCertificates.length}/${certificates.length} certificates generated`);
+      // If all certificates failed, return error
+      if (results.length === 0 && errors.length > 0) {
+        return NextResponse.json({
+          success: false,
+          error: "All certificates failed to generate",
+          errors
+        }, { status: 400 });
+      }
 
-      return NextResponse.json(
-        {
-          success: true,
-          message: `Generated ${processedCertificates.length} out of ${certificates.length} certificates`,
-          totalRequested: certificates.length,
-          successfulCount: processedCertificates.length,
-          certificates: processedCertificates,
-          errors: errors.length > 0 ? errors : undefined,
-        },
-        { status: 200 }
-      );
-    }
-
-    // Single certificate processing (backward compatibility)
-    const { name, courseName, year, certificateId, courseId, apaarId, organisation, organisationId, nqrCode } = body;
-
-    if (!name) {
-      return NextResponse.json({ error: "Name is required" }, { status: 400 });
-    }
-
-    if (!certificateId) {
-      return NextResponse.json({ error: "Certificate ID is required" }, { status: 400 });
-    }
-
-    const result = await generateSingleCertificate({ name, courseName, year, certificateId, courseId, apaarId, organisation, organisationId, nqrCode }, additionalImage);
-
-    return NextResponse.json(
-      {
+      return NextResponse.json({
         success: true,
-        url: result.url,
-        publicId: result.publicId,
-        fileHash: result.fileHash,
-        dataHash: result.dataHash,
-        encryptedData: result.encryptedData,
-        blockchainData: result.blockchainData,
-        pHash: result.pHash,
-        certificateHash: result.certificateHash,
-      },
-      { status: 200 }
-    );
+        certificates: results,
+        errors
+      });
+    }
+
+    // -------- SINGLE MODE --------
+    const result = await generateSingleCertificate(body, images);
+
+    return NextResponse.json({
+      success: true,
+      ...result
+    });
 
   } catch (err) {
     console.error(err);
-    return NextResponse.json(
-      { error: "Error generating certificate" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Error generating certificate" }, { status: 500 });
   }
 }

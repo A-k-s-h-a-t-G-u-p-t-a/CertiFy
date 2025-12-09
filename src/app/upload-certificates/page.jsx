@@ -72,8 +72,22 @@ export default function UploadCertificatesPage() {
   const [results, setResults] = useState(null)
   const [error, setError] = useState("")
   const [parsedData, setParsedData] = useState(null)
-  const [uploadedImage, setUploadedImage] = useState(null)
-  const [imageFile, setImageFile] = useState(null)
+  const [uploadedImages, setUploadedImages] = useState({
+    candidatePhoto: null,
+    organisationLogo: null,
+    qrCodeImage: null,
+    schemeLogo: null,
+    awardingBodyLogo: null,
+    blockchainSeal: null
+  })
+  const [imageFiles, setImageFiles] = useState({
+    candidatePhoto: null,
+    organisationLogo: null,
+    qrCodeImage: null,
+    schemeLogo: null,
+    awardingBodyLogo: null,
+    blockchainSeal: null
+  })
 
   // New UX states
   const [isDragging, setIsDragging] = useState(false)
@@ -191,28 +205,28 @@ export default function UploadCertificatesPage() {
     processFile(droppedFile)
   }, [])
 
-  const handleImageChange = (e) => {
+  const handleImageChange = (e, imageType) => {
     const selectedImage = e.target.files[0]
     if (selectedImage) {
       if (selectedImage.type.startsWith("image/")) {
-        setImageFile(selectedImage)
+        setImageFiles(prev => ({ ...prev, [imageType]: selectedImage }))
         const reader = new FileReader()
         reader.onload = (event) => {
-          setUploadedImage(event.target.result)
+          setUploadedImages(prev => ({ ...prev, [imageType]: event.target.result }))
         }
         reader.readAsDataURL(selectedImage)
         setError("")
       } else {
         setError("Please select a valid image file (jpg, png, gif, etc.)")
-        setImageFile(null)
-        setUploadedImage(null)
+        setImageFiles(prev => ({ ...prev, [imageType]: null }))
+        setUploadedImages(prev => ({ ...prev, [imageType]: null }))
       }
     }
   }
 
-  const removeImage = () => {
-    setImageFile(null)
-    setUploadedImage(null)
+  const removeImage = (imageType) => {
+    setImageFiles(prev => ({ ...prev, [imageType]: null }))
+    setUploadedImages(prev => ({ ...prev, [imageType]: null }))
   }
 
   const convertToBase64 = (file) => {
@@ -272,10 +286,12 @@ export default function UploadCertificatesPage() {
       console.log("Parsed Excel data:", excelData)
       setParsedData(excelData)
 
-      // Convert image to base64 if present
-      let imageBase64 = null
-      if (imageFile) {
-        imageBase64 = await convertToBase64(imageFile)
+      // Convert all images to base64 if present
+      const imageBase64Objects = {}
+      for (const [key, file] of Object.entries(imageFiles)) {
+        if (file) {
+          imageBase64Objects[key] = await convertToBase64(file)
+        }
       }
 
       setUploadProgress(50)
@@ -288,7 +304,7 @@ export default function UploadCertificatesPage() {
         },
         body: JSON.stringify({
           certificates: excelData,
-          additionalImage: imageBase64,
+          images: imageBase64Objects, // Send all images
         }),
       })
 
@@ -539,55 +555,67 @@ export default function UploadCertificatesPage() {
               )}
             </div>
 
-            {/* Optional Image Upload */}
+            {/* Optional Images Upload */}
             <div className="mt-6 p-5 bg-gradient-to-br from-green-50/50 to-green-50/20 rounded-xl border border-green-100/50 transition-colors duration-200">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <ImageIcon className="w-5 h-5 text-black-600" />
-                  <span className="font-semibold text-black-900">Optional: Add Logo or Signature</span>
+                  <span className="font-semibold text-black-900">Optional: Add Certificate Images</span>
                   <Badge variant="outline" className="text-xs border-green-200/70 text-black-700 bg-green-50/50">
                     Optional
                   </Badge>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 flex-wrap">
-                {!uploadedImage ? (
-                  <label
-                    htmlFor="image-upload"
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-green-200/50 rounded-lg text-black-700 hover:bg-green-50/50 hover:border-green-300/70 transition-all duration-200 cursor-pointer font-medium"
-                  >
-                    <Upload className="w-4 h-4" />
-                    <span className="text-sm">Choose Image</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                      id="image-upload"
-                    />
-                  </label>
-                ) : (
-                  <div className="flex items-center gap-3 bg-white p-2.5 rounded-lg border border-green-200/50">
-                    <img
-                      src={uploadedImage || "/placeholder.svg"}
-                      alt="Preview"
-                      className="w-12 h-12 object-cover rounded-lg"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-black-900 truncate">{imageFile?.name}</p>
-                      <p className="text-xs text-black-700/70">{(imageFile?.size / 1024).toFixed(1)} KB</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={removeImage}
-                      className="text-black-400 hover:text-black-600 hover:bg-green-50/70 flex-shrink-0 transition-colors duration-200"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  { key: 'candidatePhoto', label: 'Candidate Photo' },
+                  { key: 'organisationLogo', label: 'Organisation Logo' },
+                  { key: 'qrCodeImage', label: 'QR Code' },
+                  { key: 'schemeLogo', label: 'Scheme Logo' },
+                  { key: 'awardingBodyLogo', label: 'Awarding Body Logo' },
+                  { key: 'blockchainSeal', label: 'Blockchain Seal' }
+                ].map(({ key, label }) => (
+                  <div key={key} className="flex flex-col gap-2">
+                    <label className="text-xs font-medium text-black-700">{label}</label>
+                    {!uploadedImages[key] ? (
+                      <label
+                        htmlFor={`image-upload-${key}`}
+                        className="flex items-center gap-2 px-3 py-2 bg-white border border-green-200/50 rounded-lg text-black-700 hover:bg-green-50/50 hover:border-green-300/70 transition-all duration-200 cursor-pointer text-sm"
+                      >
+                        <Upload className="w-3 h-3" />
+                        <span className="text-xs">Choose {label}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageChange(e, key)}
+                          className="hidden"
+                          id={`image-upload-${key}`}
+                        />
+                      </label>
+                    ) : (
+                      <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-green-200/50">
+                        <img
+                          src={uploadedImages[key] || "/placeholder.svg"}
+                          alt={label}
+                          className="w-10 h-10 object-cover rounded-lg"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-black-900 truncate">{imageFiles[key]?.name}</p>
+                          <p className="text-xs text-black-700/70">{(imageFiles[key]?.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeImage(key)}
+                          className="text-black-400 hover:text-black-600 hover:bg-green-50/70 flex-shrink-0 transition-colors duration-200 h-8 w-8"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                )}
+                ))}
               </div>
             </div>
 
