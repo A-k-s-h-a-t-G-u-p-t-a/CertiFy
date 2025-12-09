@@ -95,7 +95,7 @@ export function NavbarDemo() {
                             className="w-full px-4 py-2 text-sm text-[#4e796b] hover:bg-gray-50 flex items-center transition-colors duration-150"
                           >
                             <Building2 className="w-4 h-4 mr-2" />
-                            Organizations
+                            My Portal
                           </a>
                           <a
                             href="/upload-certificates"
