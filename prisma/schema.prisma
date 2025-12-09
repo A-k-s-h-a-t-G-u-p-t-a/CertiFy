@@ -50,7 +50,7 @@ model Certificate {
   organisation   Organisation @relation(fields: [organisationId], references: [id])
   apaarId        String? // APAAR ID (Automated Permanent Academic Account Registry) - part of composite key
   year           String?
-  degree         String? // Added field from new schema
+  degree         String? // job role 
   url            String
 
   // New fields from updated schema
@@ -63,6 +63,11 @@ model Certificate {
   duration                String? // Duration of the course/program
   grade                   String? // Grade or percentage achieved
   creditsAtTrainingCentre String? // Credits earned at training center
+
+  // Additional certificate fields
+  fatherName String? // Father/Guardian name
+  assessedBy String? // Assessment agency/body
+  nsqfLevel  String? // NSQF Level
 
   // Blockchain hashes
   fileHash      String? // SHA-256 hash of certificate file

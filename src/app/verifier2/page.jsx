@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ThirdwebProvider, useActiveAccount } from "thirdweb/react";
 import { createThirdwebClient, getContract, defineChain, readContract } from "thirdweb";
 import { Upload, CheckCircle, XCircle, AlertCircle, Loader2, FileText, Shield, Building2, Hash, Clock, Eye, Lock } from "lucide-react";
@@ -17,14 +17,6 @@ const client = createThirdwebClient({
 // Contract configuration
 const VERIFIER_CONTRACT_ADDRESS = "0x25aF0a1fCC9188303aEcc9Df8D64a4093e3Bf6d5";
 const CHAIN_ID = 11155111; // Sepolia testnet
-
-const ORGANIZATIONS = [
-  { name: "Org1", address: "0x0Ae905eAB69D11a85b38f2D99F9A60682d362d3b" },
-  { name: "AdminOrg", address: "0x035cEaF7eF32Bdb850866d7bb0d82F3397D466F9" },
-  { name: "IIT Bombay", address: "0x60E6de3b551bCb530f5f2ECaEbe98bfDF3902E99" },
-  {name : "IIT DELHI", address:"0x853BD0627eF73dF5283A070CC2ACFA99dbdFfeF9"},
-
-];
 
 // Main component wrapped in ThirdwebProvider
 export default function Verifier2Page() {
@@ -52,6 +44,27 @@ function VerifierContent() {
   const [showWinnerPopup, setShowWinnerPopup] = useState(false);
   const [winnerCertificate, setWinnerCertificate] = useState(null);
   const [tamperingError, setTamperingError] = useState(null);
+  const [organizations, setOrganizations] = useState([]);
+  const [isLoadingOrgs, setIsLoadingOrgs] = useState(true);
+
+  // Fetch organizations from database
+  useEffect(() => {
+    const fetchOrganizations = async () => {
+      try {
+        setIsLoadingOrgs(true);
+        const response = await fetch('/api/organizations/list');
+        const data = await response.json();
+        if (data.success && data.organizations) {
+          setOrganizations(data.organizations);
+        }
+      } catch (error) {
+        console.error('Error fetching organizations:', error);
+      } finally {
+        setIsLoadingOrgs(false);
+      }
+    };
+    fetchOrganizations();
+  }, []);
 
   // Get contract instance
   const contract = getContract({
@@ -64,7 +77,7 @@ function VerifierContent() {
   const handleOrgChange = (e) => {
     const orgName = e.target.value;
     setSelectedOrg(orgName);
-    const org = ORGANIZATIONS.find(o => o.name === orgName);
+    const org = organizations.find(o => o.name === orgName);
     if (org) {
       setCertContractAddress(org.address);
     }
@@ -528,7 +541,7 @@ function VerifierContent() {
             <Shield className="w-10 h-10 text-white" />
           </motion.div>
           <h1 className="text-5xl font-extrabold bg-gradient-to-r from-[#2d5a47] via-[#4e796b] to-[#66b2a0] bg-clip-text text-transparent mb-4">
-            Certificate Verifier
+            Verifier / Employer
           </h1>
           <p className="text-[#4e796b] text-lg max-w-2xl mx-auto mb-6">
             Verify the authenticity of certificates on the blockchain with advanced cryptographic validation
@@ -563,22 +576,34 @@ function VerifierContent() {
                   <select
                     value={selectedOrg}
                     onChange={handleOrgChange}
-                    className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-[#a7d7b8]/50 focus:border-[#4e796b] focus:ring-4 focus:ring-[#4e796b]/10 outline-none transition-all bg-white/70 text-[#2d5a47] font-medium hover:bg-white hover:shadow-md appearance-none cursor-pointer"
+                    disabled={isLoadingOrgs}
+                    className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-[#a7d7b8]/50 focus:border-[#4e796b] focus:ring-4 focus:ring-[#4e796b]/10 outline-none transition-all bg-white/70 text-[#2d5a47] font-medium hover:bg-white hover:shadow-md appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-wait"
                   >
-                    <option value="">Select an organization (Optional)</option>
-                    {ORGANIZATIONS.map((org) => (
-                      <option key={org.name} value={org.name}>
+                    <option value="">
+                      {isLoadingOrgs ? "Loading organizations..." : "Select an organization (Optional)"}
+                    </option>
+                    {organizations.map((org) => (
+                      <option key={org.id || org.name} value={org.name}>
                         {org.name}
                       </option>
                     ))}
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <svg className="w-5 h-5 text-[#4e796b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
+                    {isLoadingOrgs ? (
+                      <Loader2 className="w-5 h-5 text-[#4e796b] animate-spin" />
+                    ) : (
+                      <svg className="w-5 h-5 text-[#4e796b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    )}
                   </div>
                 </div>
-                <p className="text-xs text-[#4e796b]/60 ml-11">Choose a pre-configured organization or enter the contract address manually below</p>
+                <p className="text-xs text-[#4e796b]/60 ml-11">
+                  {isLoadingOrgs 
+                    ? "Fetching organizations from database..." 
+                    : `${organizations.length} organization${organizations.length !== 1 ? 's' : ''} available - or enter the contract address manually below`
+                  }
+                </p>
               </motion.div>
 
               {/* Step 2: Contract Address */}
