@@ -23,37 +23,68 @@ model Admin {
 }
 
 model Organisation {
-  id             String        @id @default(auto()) @map("_id") @db.ObjectId
-  username       String        @unique
-  hashedPassword String
-  name           String        @unique
-  walletAddress  String?       @unique // Organization wallet address from blockchain
-  contractAddress String?      @unique // Certificate contract address from blockchain
-  metadata       String?       // Additional metadata from blockchain
-  isActive       Boolean       @default(true)
-  isFlagged      Boolean       @default(false)
-  issuedCertCount Int          @default(0)
-  certificates   Certificate[]
-  courses        Course[]
-  alerts         Alert[]       // Alerts received by this organization
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  username        String        @unique
+  hashedPassword  String
+  name            String        @unique
+  walletAddress   String?       @unique // Organization wallet address from blockchain
+  contractAddress String?       @unique // Certificate contract address from blockchain
+  metadata        String? // Additional metadata from blockchain
+  isActive        Boolean       @default(true)
+  isFlagged       Boolean       @default(false)
+  issuedCertCount Int           @default(0)
+  certificates    Certificate[]
+  courses         Course[]
+  alerts          Alert[] // Alerts received by this organization
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 model Certificate {
   id             String       @id @default(auto()) @map("_id") @db.ObjectId
-  certificateId  String // your certificate unique ID
+  certificateId  String       @unique // Unique certificate ID for backward compatibility
   name           String
-  nqrCode       String? // the NQR Code(courseId to be specific)
+  nqrCode        String? // NQR Code (National Qualification Register) - part of composite key
   courseName     String?
   organisationId String       @db.ObjectId
   organisation   Organisation @relation(fields: [organisationId], references: [id])
-  apaarId        String? // Simple string field to link to user when they exist
+  apaarId        String? // APAAR ID (Automated Permanent Academic Account Registry) - part of composite key
   year           String?
+  degree         String? // Added field from new schema
   url            String
-  alerts         Alert[]      // Alerts related to this certificate
-  createdAt      DateTime     @default(now())
 
+  // New fields from updated schema
+  dateOfBirth             DateTime? // Date of birth of candidate
+  enrolmentNo             String? // Enrollment number
+  district                String? // District information
+  state                   String? // State information
+  placeOfIssue            String? // Place where certificate was issued
+  dateOfIssue             DateTime? // Date when certificate was issued
+  duration                String? // Duration of the course/program
+  grade                   String? // Grade or percentage achieved
+  creditsAtTrainingCentre String? // Credits earned at training center
+
+  // Blockchain hashes
+  fileHash      String? // SHA-256 hash of certificate file
+  dataHash      String? // SHA-256 hash of identity data
+  encryptedData String? // Encrypted/hashed steganographic data
+
+  // Images and Logos (Cloudinary URLs)
+  candidatePhoto   String? // Photo of the candidate
+  organisationLogo String? // Logo of the issuing organization
+  qrCodeImage      String? // QR code for verification
+  schemeLogo       String? // Logo of the scheme (e.g., Skill India, NCVET)
+  awardingBodyLogo String? // Logo of the awarding body/authority
+  blockchainSeal   String? // Blockchain verification seal/badge
+
+  alerts    Alert[] // Alerts related to this certificate
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Composite unique index on nqrCode and apaarId
+  // This allows the combination to act as a logical primary key while keeping MongoDB _id
+  @@unique([nqrCode, apaarId], name: "certificate_unique_key")
+  @@index([apaarId])
   @@index([nqrCode])
 }
 
@@ -79,47 +110,53 @@ model Course {
 }
 
 model Alert {
-  id                  String       @id @default(auto()) @map("_id") @db.ObjectId
-  certificateId       String       @db.ObjectId
-  certificate         Certificate  @relation(fields: [certificateId], references: [id])
-  organisationId      String       @db.ObjectId
-  organisation        Organisation @relation(fields: [organisationId], references: [id])
-  message             String?      // Alert message or description
-  status              String       @default("pending") // pending, reviewed, resolved
-  
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  certificateId  String       @db.ObjectId
+  certificate    Certificate  @relation(fields: [certificateId], references: [id])
+  organisationId String       @db.ObjectId
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  message        String? // Alert message or description
+  status         String       @default("pending") // pending, reviewed, resolved
+
   // Comparison Results - Store all comparison data for later display
-  similarityScore     Float?       // Overall similarity score (0-1)
-  tamperingScore      Float?       // Overall tampering score (0-1)
-  cvTamperingScore    Float?       // Computer vision tampering score
-  nlpTamperingScore   Float?       // NLP tampering score
-  ssimScore           Float?       // SSIM algorithm score
-  
+  similarityScore   Float? // Overall similarity score (0-1)
+  tamperingScore    Float? // Overall tampering score (0-1)
+  cvTamperingScore  Float? // Computer vision tampering score
+  nlpTamperingScore Float? // NLP tampering score
+  ssimScore         Float? // SSIM algorithm score
+
   // Detailed comparison data stored as JSON
-  comparisonData      String?      // Full comparison result as JSON string
-  
+  comparisonData String? // Full comparison result as JSON string
+
   // OCR extracted fields for reference
-  extractedFields     String?      // Extracted fields as JSON string
-  
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  extractedFields String? // Extracted fields as JSON string
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Certificate2 {
-  id             String    @id @default(auto()) @map("_id") @db.ObjectId
-  certificateId  String    @unique
-  name           String
-  nqrCode        String
-  courseName     String
-  apaarId        String
-  courseDomain   String
-  courseCredits  Int
-  marks          Int?
-  maxMarks       Int?
-  url            String
-  createdAt      DateTime? @default(now())
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  certificateId String    @unique
+  name          String
+  nqrCode       String
+  courseName    String
+  apaarId       String
+  courseDomain  String
+  courseCredits Int
+  marks         Int?
+  maxMarks      Int?
+  url           String
+  createdAt     DateTime? @default(now())
 
   @@index([apaarId])
   @@map("Certificate2")
 }
 
-
+model Notification {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  organisationName String // Organization name to identify the org
+  isFileHashMatch  Boolean // Whether file hash matches
+  isDataHashMatch  Boolean // Whether data hash matches
+  createdAt        DateTime @default(now())
+}

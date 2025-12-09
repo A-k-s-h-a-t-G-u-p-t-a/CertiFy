@@ -243,9 +243,12 @@ function VerifierContent() {
       console.log("Final stegVerification.matches:", stegVerification?.matches);
       console.log("Setting adminMatch to:", stegVerification?.matches || false);
 
+      const verificationCode = Number(result.code);
+      const isTampered = verificationCode !== 1; // Any code other than 1 (Verified) indicates tampering
+
       // Parse the result - result is an object representing the struct
       setVerificationResult({
-        code: Number(result.code),
+        code: verificationCode,
         message: result.message,
         adminMatch: stegVerification?.matches || false, // Use steganography match status
         storedFilePhash: result.storedFilePhash,
@@ -256,6 +259,35 @@ function VerifierContent() {
         timestamp: new Date().toISOString(),
         steganographyVerified: stegVerification?.matches || false,
       });
+
+      // Create notification if certificate is tampered
+      if (isTampered && selectedOrg) {
+        try {
+          // Determine hash matches from verification result
+          const isFileHashMatch = result.storedFilePhash === result.recomputedFilePhash;
+          const isDataHashMatch = result.storedDataHash === result.recomputedDataHash;
+          
+          const notificationRes = await fetch('/api/notifications/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              organisationName: selectedOrg,
+              isFileHashMatch: isFileHashMatch,
+              isDataHashMatch: isDataHashMatch,
+            }),
+          });
+
+          if (notificationRes.ok) {
+            const notificationData = await notificationRes.json();
+            console.log('🔔 Notification created for tampered certificate:', notificationData);
+          } else {
+            console.error('Failed to create notification:', await notificationRes.text());
+          }
+        } catch (notificationError) {
+          console.error('Error creating notification:', notificationError);
+          // Don't fail the verification if notification creation fails
+        }
+      }
     } catch (error) {
       console.error("Verification error:", error);
       setVerificationResult({
