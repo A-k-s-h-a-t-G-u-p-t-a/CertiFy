@@ -169,13 +169,22 @@ OPTIONAL FIELDS:
 - courseName: Name of the course, degree, program, or qualification earned
 - apaarId: Student's APAAR ID if mentioned (Automated Permanent Academic Account Registry). This is typically a plain integer number (e.g., "123456789", "987654321")
 - year: Year of completion, graduation year, or issuance year (extract only the year as a string, e.g., "2024")
+- degree: Degree or qualification type (e.g., "Bachelor of Science", "Master of Arts", "Diploma", "Certificate")
+- dateOfBirth: Date of birth of the candidate (format: YYYY-MM-DD or extract as found)
+- enrolmentNo: Enrollment number or student ID number
+- district: District information where student studied or certificate was issued
+- state: State or province information
+- placeOfIssue: Place/city where the certificate was issued
+- dateOfIssue: Date when the certificate was issued (format: YYYY-MM-DD or extract as found)
 
 IMPORTANT NOTES:
 - certificateId usually starts with "CERT" prefix
 - apaarId is typically a plain integer (numeric digits only, no letters)
+- For dates, try to extract in YYYY-MM-DD format if possible
+- If multiple dates exist, dateOfIssue is usually near signature/seal
 
 Return ONLY a valid JSON object without any explanations, comments, markdown formatting, or extra text.
-Use these exact keys: "certificateId", "name", "nqrCode", "courseName", "apaarId", "year"
+Use these exact keys: "certificateId", "name", "nqrCode", "courseName", "apaarId", "year", "degree", "dateOfBirth", "enrolmentNo", "district", "state", "placeOfIssue", "dateOfIssue"
 If a field is not found or not applicable, use null for that field.
 
 Certificate Text:
