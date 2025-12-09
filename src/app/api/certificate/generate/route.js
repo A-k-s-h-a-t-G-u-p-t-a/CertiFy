@@ -5,6 +5,38 @@ import { computeFileHash, getZeroDataHash, getZeroEncryption } from "@/utils/pha
 import path from "path";
 import fs from "fs";
 
+
+
+/**
+ * Compute SHA-256 hash of identity data object
+ * 
+ * @param {Object} identityData - The identity data object to hash
+ * @returns {Promise<string>} - The SHA-256 hash as a hex string (bytes32 format)
+ */
+export async function computeDataHash(identityData) {
+  try {
+    // Convert object to JSON string (deterministic order)
+    const jsonString = JSON.stringify(identityData, Object.keys(identityData).sort());
+    
+    // Convert string to Uint8Array
+    const encoder = new TextEncoder();
+    const data = encoder.encode(jsonString);
+    
+    // Compute SHA-256 hash
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    
+    // Convert to hex string
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    // Return in bytes32 format
+    return '0x' + hashHex;
+  } catch (error) {
+    console.error('Error computing data hash:', error);
+    throw new Error('Failed to compute data hash');
+  }
+}
+
 // LSB Steganography: Embed data into image
 function embedDataInImage(canvas, data) {
   const ctx = canvas.getContext("2d");
@@ -151,8 +183,10 @@ async function generateSingleCertificate(certData, additionalImageBase64 = null)
     year: year || null
   };
 
+  const dataHashFinal = await computeDataHash(identityData);
+
   // 2. Embed identityData into certificate using steganography
-  embedDataInImage(canvas, identityData);
+  embedDataInImage(canvas, dataHashFinal);
   
   // 3. Convert to base64 after embedding data
   const base64 = canvas.toDataURL("image/png");
@@ -177,7 +211,7 @@ async function generateSingleCertificate(certData, additionalImageBase64 = null)
   const fileHash = await computeFileHash(base64Data);
   
   // 6. Prepare blockchain-ready hashes (for contract upload)
-  const dataHash = getZeroDataHash(); // Using zero hash as placeholder
+  const dataHash = dataHashFinal; // Using computed data hash
   const encryptedData = getZeroEncryption(); // Using zero encryption as placeholder
   
   // 7. Upload to Cloudinary
