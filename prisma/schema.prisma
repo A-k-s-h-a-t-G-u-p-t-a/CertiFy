@@ -125,6 +125,8 @@ model Certificate2 {
 model Notification {
   id               String   @id @default(auto()) @map("_id") @db.ObjectId
   organisationName String   // Organization name to identify the org
+  isFileHashMatch  Boolean  // Whether file hash matches
+  isDataHashMatch  Boolean  // Whether data hash matches
   createdAt        DateTime @default(now())
 }
 

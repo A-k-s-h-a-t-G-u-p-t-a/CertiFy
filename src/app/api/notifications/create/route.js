@@ -4,11 +4,18 @@ import { prisma } from "@/lib/prisma";
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { organisationName } = body;
+    const { organisationName, isFileHashMatch, isDataHashMatch } = body;
 
     if (!organisationName) {
       return NextResponse.json(
         { success: false, error: "Organisation name is required" },
+        { status: 400 }
+      );
+    }
+
+    if (typeof isFileHashMatch !== 'boolean' || typeof isDataHashMatch !== 'boolean') {
+      return NextResponse.json(
+        { success: false, error: "isFileHashMatch and isDataHashMatch must be boolean values" },
         { status: 400 }
       );
     }
@@ -31,12 +38,16 @@ export async function POST(request) {
     const notification = await prisma.notification.create({
       data: {
         organisationName: organisationName,
+        isFileHashMatch: isFileHashMatch,
+        isDataHashMatch: isDataHashMatch,
       },
     });
 
     console.log("🔔 Notification created:", {
       id: notification.id,
       organisationName: notification.organisationName,
+      isFileHashMatch: notification.isFileHashMatch,
+      isDataHashMatch: notification.isDataHashMatch,
     });
 
     return NextResponse.json({
@@ -44,6 +55,8 @@ export async function POST(request) {
       notification: {
         id: notification.id,
         organisationName: notification.organisationName,
+        isFileHashMatch: notification.isFileHashMatch,
+        isDataHashMatch: notification.isDataHashMatch,
         createdAt: notification.createdAt,
       },
     });

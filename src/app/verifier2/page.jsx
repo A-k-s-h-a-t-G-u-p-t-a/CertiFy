@@ -250,11 +250,17 @@ function VerifierContent() {
       // Create notification if certificate is tampered
       if (isTampered && selectedOrg) {
         try {
+          // Determine hash matches from verification result
+          const isFileHashMatch = result.storedFilePhash === result.recomputedFilePhash;
+          const isDataHashMatch = result.storedDataHash === result.recomputedDataHash;
+          
           const notificationRes = await fetch('/api/notifications/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               organisationName: selectedOrg,
+              isFileHashMatch: isFileHashMatch,
+              isDataHashMatch: isDataHashMatch,
             }),
           });
 
