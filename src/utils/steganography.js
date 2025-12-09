@@ -52,7 +52,7 @@ export function extractSteganography(canvas) {
     let binaryData = '';
     const bitsToRead = length * 8;
     for (let i = 0; i < bitsToRead; i++) {
-      const pixelIndex = (i + 32) * 4; // Red channel of pixel (i + 32)
+      const pixelIndex = (32 + i) * 4; // Red channel of pixel 32, 33, 34...
       if (pixelIndex >= pixels.length) break;
       binaryData += (pixels[pixelIndex] & 1).toString();
     }
@@ -151,13 +151,24 @@ export async function extractFromImageFile(file) {
 
 /**
  * Compute SHA-256 hash of a string (for comparing with blockchain data hash)
- * @param {string} data - String data to hash
+ * @param {string} data - String data to hash (JSON string from steganography)
  * @returns {Promise<string>} - Hash in bytes32 format (0x...)
  */
 export async function computeDataHash(data) {
   try {
+    // Parse the JSON string if it's a valid JSON object
+    let jsonString = data;
+    try {
+      const parsedData = JSON.parse(data);
+      // Re-stringify with sorted keys to match server-side computation
+      jsonString = JSON.stringify(parsedData, Object.keys(parsedData).sort());
+    } catch (e) {
+      // If not valid JSON, use the string as-is
+      jsonString = data;
+    }
+    
     const encoder = new TextEncoder();
-    const dataBuffer = encoder.encode(data);
+    const dataBuffer = encoder.encode(jsonString);
     const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');

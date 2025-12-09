@@ -183,46 +183,41 @@ function VerifierContent() {
     setSteganographyResult(null);
 
     try {
+      // Compute data hash from extracted steganographic data
+      let recomputedDataHash = getZeroDataHash(); // Default to zero hash
+      
+      // If steganographic data was extracted, compute its hash
+      if (extractedStegData && extractedStegData.success && extractedStegData.encryptedData) {
+        const { computeDataHash } = await import("@/utils/steganography");
+        recomputedDataHash = await computeDataHash(extractedStegData.encryptedData);
+        console.log("Recomputed data hash from extracted steganography:", recomputedDataHash);
+      }
+
       // Call the verify function on the VerifierContract using readContract
       // The contract returns a struct VerificationResult
-      // First call to get the stored data hash
-      const zeroHash = getZeroDataHash();
-      
-      // First, get the stored data hash from blockchain
-      const initialResult = await readContract({
-        contract: contract,
-        method: "function verify(address certContract, string certID, bytes32 recomputedFilePhash, bytes32 recomputedDataHash) view returns ((uint8 code, string message, address certContract, bytes32 storedFilePhash, bytes32 storedDataHash, bytes32 recomputedFilePhash, bytes32 recomputedDataHash, bool adminDecryptedMatches))",
-        params: [
-          certContractAddress.trim(),
-          certificateId.trim(),
-          fileHash, // SHA-256 hash of the file used as filePhash
-          zeroHash, // temporary zero hash to get stored values
-        ],
-      });
-
-      // Now call again with storedDataHash as recomputedDataHash to force data hash match
-      // This ignores steganography comparison and only compares file hash (pHash)
       const result = await readContract({
         contract: contract,
         method: "function verify(address certContract, string certID, bytes32 recomputedFilePhash, bytes32 recomputedDataHash) view returns ((uint8 code, string message, address certContract, bytes32 storedFilePhash, bytes32 storedDataHash, bytes32 recomputedFilePhash, bytes32 recomputedDataHash, bool adminDecryptedMatches))",
         params: [
           certContractAddress.trim(),
           certificateId.trim(),
-          fileHash, // SHA-256 hash of the file used as filePhash
-          initialResult.storedDataHash, // Pass stored hash to force match - ignore steganography
+          fileHash, // SHA-256 hash of the file
+          recomputedDataHash, // Hash computed from extracted steganographic data
         ],
       });
 
-      // Perform steganography verification if data was extracted (for display only)
+      // Perform steganography verification for display
       let stegVerification = null;
       if (extractedStegData && extractedStegData.success) {
         stegVerification = await verifySteganographicData(
           extractedStegData.encryptedData,
           result.storedDataHash
         );
+        console.log("Steganography verification result:", stegVerification);
         setSteganographyResult(stegVerification);
       } else {
         // No steganographic data extracted
+        console.log("No steganographic data extracted");
         stegVerification = {
           matches: false,
           extractedHash: null,
@@ -232,11 +227,14 @@ function VerifierContent() {
         setSteganographyResult(stegVerification);
       }
 
+      console.log("Final stegVerification.matches:", stegVerification?.matches);
+      console.log("Setting adminMatch to:", stegVerification?.matches || false);
+
       // Parse the result - result is an object representing the struct
       setVerificationResult({
         code: Number(result.code),
         message: result.message,
-        adminMatch: result.adminDecryptedMatches,
+        adminMatch: stegVerification?.matches || false, // Use steganography match status
         storedFilePhash: result.storedFilePhash,
         storedDataHash: result.storedDataHash,
         recomputedFilePhash: result.recomputedFilePhash,
@@ -372,23 +370,6 @@ function VerifierContent() {
           <p className="text-[#4e796b] text-lg max-w-2xl mx-auto mb-6">
             Verify the authenticity of certificates on the blockchain with advanced cryptographic validation
           </p>
-          
-          {/* Connection Status */}
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3 }}
-            className="inline-flex items-center gap-3 px-6 py-3 bg-white/70 backdrop-blur-md rounded-full border border-[#a7d7b8]/50 shadow-lg"
-          >
-            <motion.div 
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className={`w-3 h-3 rounded-full ${account ? 'bg-green-500' : 'bg-gray-400'}`}
-            />
-            <span className="text-sm text-[#4e796b] font-semibold">
-              {account ? `Connected: ${account.address.slice(0, 6)}...${account.address.slice(-4)}` : 'Wallet not connected'}
-            </span>
-          </motion.div>
         </motion.div>
 
         {/* Main Verification Card */}
@@ -674,14 +655,14 @@ function VerifierContent() {
                               </p>
                             </motion.div>
 
-                            {/* Admin Match */}
+                            {/* Steganography Data Match */}
                             <motion.div 
                               whileHover={{ scale: 1.02 }}
                               className="bg-white/70 backdrop-blur-sm p-5 rounded-2xl border border-white/50 shadow-md"
                             >
                               <p className="text-xs font-semibold text-[#4e796b]/70 mb-2 flex items-center gap-2">
                                 <CheckCircle className="w-4 h-4" />
-                                Admin Decrypted Match
+                                Steganography Data Match
                               </p>
                               <p className={`text-2xl font-bold ${verificationResult.adminMatch ? 'text-green-600' : 'text-gray-600'}`}>
                                 {verificationResult.adminMatch ? "Matched ✓" : "Not Matched ✗"}
@@ -806,9 +787,9 @@ function VerifierContent() {
                                 <div className="space-y-4">
                                   {/* Status Banner */}
                                   <div className={`flex items-center gap-3 p-3 rounded-xl ${
-                                    steganographyResult.isValid 
+                                    steganographyResult.matches 
                                       ? 'bg-green-100 text-green-800' 
-                                      : steganographyResult.error 
+                                      : !steganographyResult.extractedHash 
                                         ? 'bg-yellow-100 text-yellow-800'
                                         : 'bg-red-100 text-red-800'
                                   }`}>
@@ -816,17 +797,17 @@ function VerifierContent() {
                                       animate={{ scale: [1, 1.2, 1] }}
                                       transition={{ duration: 1, repeat: Infinity }}
                                       className={`w-4 h-4 rounded-full ${
-                                        steganographyResult.isValid 
+                                        steganographyResult.matches 
                                           ? 'bg-green-500' 
-                                          : steganographyResult.error 
+                                          : !steganographyResult.extractedHash 
                                             ? 'bg-yellow-500'
                                             : 'bg-red-500'
                                       }`}
                                     />
                                     <span className="text-sm font-bold">
-                                      {steganographyResult.isValid 
+                                      {steganographyResult.matches 
                                         ? '✓ Hidden Data Verified - Authentic Certificate' 
-                                        : steganographyResult.error 
+                                        : !steganographyResult.extractedHash 
                                           ? '⚠ Could Not Extract Hidden Data'
                                           : '✗ Hidden Data Mismatch - Possible Tampering'}
                                     </span>
@@ -861,10 +842,10 @@ function VerifierContent() {
                                   </div>
 
                                   {/* Extracted Data Preview (if available) */}
-                                  {extractedStegData?.encryptedData && !steganographyResult.error && (
+                                  {extractedStegData?.encryptedData && (
                                     <details className="bg-white/40 p-3 rounded-lg">
                                       <summary className="text-xs font-semibold text-[#4e796b]/70 cursor-pointer hover:text-[#4e796b]">
-                                        View Extracted Hidden Data (Encrypted)
+                                        ▶ View Extracted Hidden Data (Encrypted)
                                       </summary>
                                       <p className="text-xs text-[#2d5a47] font-mono break-all bg-gray-100 p-2 rounded mt-2 max-h-32 overflow-auto">
                                         {extractedStegData.encryptedData.length > 500 
