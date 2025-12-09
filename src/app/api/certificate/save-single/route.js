@@ -31,8 +31,9 @@ function embedDataInImage(canvas, data) {
   }
   
   // Embed binary data in LSB of red channel
+  // Start at pixel 32, and each bit goes into consecutive pixels
   for (let i = 0; i < binaryData.length; i++) {
-    const pixelIndex = (i + 32) * 4; // Start after length encoding
+    const pixelIndex = (32 + i) * 4; // Pixel 32, 33, 34... (red channel)
     if (pixelIndex < pixels.length) {
       pixels[pixelIndex] = (pixels[pixelIndex] & 0xFE) | parseInt(binaryData[i]);
     }

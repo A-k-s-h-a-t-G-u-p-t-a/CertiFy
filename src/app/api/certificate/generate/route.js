@@ -38,14 +38,17 @@ export async function computeDataHash(identityData) {
 }
 
 // LSB Steganography: Embed data into image
+// LSB Steganography: Embed data into image
 function embedDataInImage(canvas, data) {
   const ctx = canvas.getContext("2d");
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const pixels = imageData.data;
   
-  // Convert data to binary string
-  const jsonString = JSON.stringify(data);
-  const dataLength = jsonString.length;
+  // Convert data to string (if it's already a string, use it directly; if object, stringify)
+  const dataString = typeof data === 'string' ? data : JSON.stringify(data);
+  const dataLength = dataString.length;
+  
+  console.log(`Embedding data: ${dataString.substring(0, 100)}... (length: ${dataLength})`);
   
   // First 32 pixels store the length of data (4 bytes = 32 bits)
   let lengthBinary = dataLength.toString(2).padStart(32, '0');
@@ -57,18 +60,20 @@ function embedDataInImage(canvas, data) {
   // Convert message to binary
   let binaryData = '';
   for (let i = 0; i < dataLength; i++) {
-    binaryData += jsonString.charCodeAt(i).toString(2).padStart(8, '0');
+    binaryData += dataString.charCodeAt(i).toString(2).padStart(8, '0');
   }
   
   // Embed binary data in LSB of red channel
+  // Start at pixel 32, and each bit goes into consecutive pixels
   for (let i = 0; i < binaryData.length; i++) {
-    const pixelIndex = (i + 32) * 4; // Start after length encoding
+    const pixelIndex = (32 + i) * 4; // Pixel 32, 33, 34... (red channel)
     if (pixelIndex < pixels.length) {
       pixels[pixelIndex] = (pixels[pixelIndex] & 0xFE) | parseInt(binaryData[i]);
     }
   }
   
   ctx.putImageData(imageData, 0, 0);
+  console.log(`Successfully embedded ${dataLength} characters`);
   return canvas;
 }
 
@@ -183,10 +188,10 @@ async function generateSingleCertificate(certData, additionalImageBase64 = null)
     year: year || null
   };
 
-  const dataHashFinal = await computeDataHash(identityData);
-
-  // 2. Embed identityData into certificate using steganography
-  embedDataInImage(canvas, dataHashFinal);
+  // 2. Embed the IDENTITY DATA OBJECT (not the hash) into certificate using steganography
+  // This way, when extracted and hashed, it will match the blockchain dataHash
+  console.log("Embedding identity data object:", identityData);
+  embedDataInImage(canvas, identityData);
   
   // 3. Convert to base64 after embedding data
   const base64 = canvas.toDataURL("image/png");
@@ -210,8 +215,10 @@ async function generateSingleCertificate(certData, additionalImageBase64 = null)
   // 5. Compute file hash from base64 data
   const fileHash = await computeFileHash(base64Data);
   
-  // 6. Prepare blockchain-ready hashes (for contract upload)
-  const dataHash = dataHashFinal; // Using computed data hash
+  // 6. Compute data hash from the identity data object for blockchain
+  const dataHash = await computeDataHash(identityData);
+  console.log("Computed dataHash for blockchain:", dataHash);
+  
   const encryptedData = getZeroEncryption(); // Using zero encryption as placeholder
   
   // 7. Upload to Cloudinary
