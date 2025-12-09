@@ -194,12 +194,12 @@ export default function SignInPage() {
           {/* Footer */}
           <div className="mt-8 pt-6 border-t border-[#a7d7b8]/30 text-center">
             <p className="text-[#4e796b]/80 text-sm">
-              Looking for user login?{' '}
+              Looking for learner login?{' '}
               <Link 
                 href="/user-signin" 
                 className="text-[#2d5a47] font-bold hover:text-[#4e796b] hover:underline decoration-2 underline-offset-4 transition-all"
               >
-                User Login
+                Learner Login
               </Link>
             </p>
           </div>

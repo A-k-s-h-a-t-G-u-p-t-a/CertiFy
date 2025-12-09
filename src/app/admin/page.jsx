@@ -384,7 +384,7 @@ export default function AdminPage() {
           <div className="space-y-4">
             <h1 className="text-3xl font-bold text-red-600">Access Denied</h1>
             <p className="text-gray-600">
-              You are not authorized to access this admin panel.
+              You are not authorized to access Skill India Digital Hub.
             </p>
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <p className="text-sm text-red-700 font-mono">
@@ -408,7 +408,7 @@ export default function AdminPage() {
       <div className="flex items-center justify-center min-h-screen bg-[#F5FAFA] pt-20">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-[#009688]" />
-          <p className="text-[#009688] font-medium animate-pulse">Loading Admin Dashboard...</p>
+          <p className="text-[#009688] font-medium animate-pulse">Loading Skill India Digital Hub...</p>
         </div>
       </div>
     );
@@ -447,7 +447,7 @@ export default function AdminPage() {
               className="flex items-center gap-2"
             >
               <Shield className="h-8 w-8 text-[#009688]" />
-              <span className="text-xl font-bold text-gray-800">CertiFy Admin</span>
+              <span className="text-xl font-bold text-gray-800">Skill India Digital Hub</span>
             </motion.div>
           ) : (
             <Shield className="h-8 w-8 text-[#009688] mx-auto" />
@@ -474,7 +474,7 @@ export default function AdminPage() {
               </div>
               <div className="overflow-hidden">
                 <p className="text-sm font-medium text-gray-900 truncate">{adminUsername}</p>
-                <p className="text-xs text-gray-500">Administrator</p>
+                <p className="text-xs text-gray-500">SIDH Admin</p>
               </div>
             </div>
           ) : (
@@ -511,7 +511,7 @@ export default function AdminPage() {
               </Badge>
               <Badge className="bg-[#009688] hover:bg-[#00796B] px-4 py-1.5 text-sm">
                 <Shield className="h-4 w-4 mr-2" />
-                Admin Active
+                SIDH Active
               </Badge>
             </div>
           </motion.div>

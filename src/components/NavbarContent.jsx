@@ -24,9 +24,9 @@ export function NavbarDemo() {
   const dropdownRef = useRef(null)
   const enterDropdownRef = useRef(null)
   const navItems = [
-    { name: "Admin", link: "/admin" },
+    { name: "Skill India Digital Hub", link: "/admin" },
     { name: "Organizations", link: "/org" },
-    { name: "Verifier", link: "/verifier2" },
+    { name: "Verifier/Employer", link: "/verifier2" },
   ]
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -135,16 +135,16 @@ export function NavbarDemo() {
                 {isEnterDropdownOpen && (
                   <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-[100] overflow-hidden">
                     <div className="py-2">
-                      {/* Student Option */}
+                      {/* Learner Option */}
                       <div className="px-3 py-1">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1 mb-2">Student</p>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1 mb-2">Learner</p>
                         <a
                           href="/user-signin"
                           onClick={() => setIsEnterDropdownOpen(false)}
                           className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center transition-colors duration-150 rounded"
                         >
                           <LogIn className="w-4 h-4 mr-2 text-blue-500" />
-                          Student Login
+                          Learner Login
                         </a>
                         <a
                           href="/signup"
@@ -152,22 +152,22 @@ export function NavbarDemo() {
                           className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center transition-colors duration-150 rounded"
                         >
                           <UserPlus className="w-4 h-4 mr-2 text-blue-500" />
-                          Student Signup
+                          Learner Signup
                         </a>
                       </div>
 
                       <div className="h-px bg-gray-100 my-2"></div>
 
-                      {/* Admin/Organization Option */}
+                      {/* SIDH/Organization Option */}
                       <div className="px-3 py-1">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1 mb-2">Admin & Organization</p>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1 mb-2">SIDH & Organization</p>
                         <a
                           href="/signin"
                           onClick={() => setIsEnterDropdownOpen(false)}
                           className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-slate-50 hover:text-slate-700 flex items-center transition-colors duration-150 rounded"
                         >
                           <LogIn className="w-4 h-4 mr-2 text-slate-600" />
-                          Admin/Org Login
+                          SIDH/Org Login
                         </a>
                       </div>
                     </div>
@@ -240,9 +240,9 @@ export function NavbarDemo() {
                 </>
               ) : (
                 <>
-                  {/* Student Login/Signup Section */}
+                  {/* Learner Login/Signup Section */}
                   <div className="border-b pb-3 mb-3">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 mb-2">Student</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 mb-2">Learner</p>
                     <NavbarButton
                       onClick={() => setIsMobileMenuOpen(false)}
                       variant="secondary"
@@ -250,7 +250,7 @@ export function NavbarDemo() {
                       href="/user-signin"
                     >
                       <LogIn className="w-4 h-4 mr-2" />
-                      Student Login
+                      Learner Login
                     </NavbarButton>
                     <NavbarButton
                       onClick={() => setIsMobileMenuOpen(false)}
@@ -259,13 +259,13 @@ export function NavbarDemo() {
                       href="/signup"
                     >
                       <UserPlus className="w-4 h-4 mr-2" />
-                      Student Signup
+                      Learner Signup
                     </NavbarButton>
                   </div>
 
-                  {/* Admin/Organization Login Section */}
+                  {/* SIDH/Organization Login Section */}
                   <div className="border-b pb-3 mb-3">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 mb-2">Admin & Organization</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 mb-2">SIDH & Organization</p>
                     <NavbarButton
                       onClick={() => setIsMobileMenuOpen(false)}
                       variant="secondary"
@@ -273,7 +273,7 @@ export function NavbarDemo() {
                       href="/signin"
                     >
                       <LogIn className="w-4 h-4 mr-2" />
-                      Admin/Org Login
+                      SIDH/Org Login
                     </NavbarButton>
                   </div>
                 </>

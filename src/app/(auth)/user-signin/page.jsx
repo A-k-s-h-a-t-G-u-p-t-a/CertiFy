@@ -75,7 +75,7 @@ export default function UserSignInPage() {
             </svg>
           </div>
           <h2 className="text-3xl font-bold bg-gradient-to-r from-emerald-700 to-teal-600 bg-clip-text text-transparent">
-            User Login
+            Learner Login
           </h2>
           <p className="text-slate-600 text-sm mt-2">Access your certificate dashboard</p>
         </div>

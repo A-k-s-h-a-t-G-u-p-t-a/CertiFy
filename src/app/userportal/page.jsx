@@ -147,7 +147,7 @@ export default function UserPortalPage() {
             <div className="flex-1">
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-semibold text-slate-900">{session?.user?.name || userDetails?.name}</h2>
-                <span className="text-xs text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Student</span>
+                <span className="text-xs text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Learner</span>
               </div>
               <div className="mt-1 flex items-center gap-2 text-sm">
                 <span className="text-slate-500">APAAR ID:</span>
