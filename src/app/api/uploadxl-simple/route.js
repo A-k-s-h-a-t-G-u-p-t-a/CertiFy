@@ -2,6 +2,24 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// Helper function to convert Excel date serial to JavaScript Date
+function excelDateToJSDate(serial) {
+  if (!serial) return null;
+  // If already a Date object or valid date string, return it
+  if (serial instanceof Date) return serial;
+  if (typeof serial === 'string' && !isNaN(Date.parse(serial))) {
+    return new Date(serial);
+  }
+  // If it's an Excel serial number (days since 1899-12-30)
+  if (typeof serial === 'number') {
+    const utc_days = Math.floor(serial - 25569);
+    const utc_value = utc_days * 86400;
+    const date_info = new Date(utc_value * 1000);
+    return date_info;
+  }
+  return null;
+}
+
 export async function POST(request) {
   const session = await getServerSession(authOptions);
 
@@ -32,12 +50,12 @@ export async function POST(request) {
   }
 
   try {
-    // Receive certificates array and optional additional image from frontend
-    const { certificates, additionalImage } = await request.json();
+    // Receive certificates array and optional images from frontend
+    const { certificates, images } = await request.json();
 
     console.log("Processing certificates from frontend...");
-    if (additionalImage) {
-      console.log("Additional image (signature/logo) provided, will be added to certificates");
+    if (images && Object.keys(images).length > 0) {
+      console.log("Images provided for certificates:", Object.keys(images).filter(k => images[k]));
     }
 
     if (!certificates || !Array.isArray(certificates)) {
@@ -50,7 +68,14 @@ export async function POST(request) {
     // First, let's generate certificate images using the certificate generation API
     const json_certificates_data = {
       certificates: certificates,
-      additionalImage: additionalImage || null  // Pass the additional image (signature/logo)
+      images: images || {
+        candidatePhoto: null,
+        organisationLogo: null,
+        qrCodeImage: null,
+        schemeLogo: null,
+        awardingBodyLogo: null,
+        blockchainSeal: null
+      }
     };
 
     // Get the base URL for the API call
@@ -111,11 +136,44 @@ export async function POST(request) {
         const finalFields = {
           name: name,
           certificateId: certificateId,
-          courseName: String(certData.CourseName || certData.courseName || certData['Course Name'] || null),
-          nqrCode: String(certData.CourseId || certData.courseId || certData['Course ID'] || certData['NQR Code'] || null),
-          year: String(certData.Year || certData.year || null),
-          apaarId: String(certData.ApaarId || certData.apaarId || certData['APAAR ID'] || null),
-          url: String(certData.url || ""), // URL from certificate generation
+          courseName: String(certData.CourseName || certData.courseName || certData['Course Name'] || ""),
+          nqrCode: String(certData.CourseId || certData.courseId || certData['Course ID'] || certData['NQR Code'] || certData.nqrCode || ""),
+          year: String(certData.Year || certData.year || ""),
+          apaarId: String(certData.ApaarId || certData.apaarId || certData['APAAR ID'] || ""),
+          degree: String(certData.Degree || certData.degree || certData['Job Role'] || certData['Qualification'] || ""),
+          
+          // Personal Information (with date conversion)
+          dateOfBirth: excelDateToJSDate(certData.DateOfBirth || certData.dateOfBirth || certData['Date of Birth'] || certData.dob),
+          fatherName: String(certData.FatherName || certData.fatherName || certData['Father Name'] || certData["Son/Daughter/Ward of"] || ""),
+          enrolmentNo: String(certData.EnrolmentNo || certData.enrolmentNo || certData['Enrolment No'] || certData['Enrollment Number'] || ""),
+          
+          // Location Information
+          district: String(certData.District || certData.district || ""),
+          state: String(certData.State || certData.state || ""),
+          placeOfIssue: String(certData.PlaceOfIssue || certData.placeOfIssue || certData['Place of Issue'] || ""),
+          
+          // Course/Assessment Information (with date conversion)
+          dateOfIssue: excelDateToJSDate(certData.DateOfIssue || certData.dateOfIssue || certData['Date of Issue']),
+          duration: String(certData.Duration || certData.duration || ""),
+          grade: String(certData.Grade || certData.grade || certData['Grade/Percentage'] || certData.percentage || ""),
+          creditsAtTrainingCentre: String(certData.CreditsAtTrainingCentre || certData.creditsAtTrainingCentre || certData['Credits at Training Centre'] || certData.credits || ""),
+          assessedBy: String(certData.AssessedBy || certData.assessedBy || certData['Assessed By'] || certData['Assessment Agency'] || ""),
+          nsqfLevel: String(certData.NsqfLevel || certData.nsqfLevel || certData['NSQF Level'] || ""),
+          
+          // Certificate URL and Images
+          url: String(certData.url || ""),
+          candidatePhoto: String(certData.candidatePhoto || ""),
+          organisationLogo: String(certData.organisationLogo || ""),
+          qrCodeImage: String(certData.qrCodeImage || ""),
+          schemeLogo: String(certData.schemeLogo || ""),
+          awardingBodyLogo: String(certData.awardingBodyLogo || ""),
+          blockchainSeal: String(certData.blockchainSeal || ""),
+          
+          // Blockchain hashes
+          fileHash: String(certData.fileHash || ""),
+          dataHash: String(certData.dataHash || ""),
+          encryptedData: String(certData.encryptedData || ""),
+          
           organisation: {
             connect: { id: org.id }
           }

@@ -134,6 +134,24 @@ async function generateSingleCertificate(certData, imagePack = {}) {
   }
 
   // ------------------------------------------------------
+  // DATE FORMATTING UTILITY
+  // ------------------------------------------------------
+  function formatDate(dateValue) {
+    if (!dateValue) return "";
+    try {
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return String(dateValue);
+      // Format as DD/MM/YYYY
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch (e) {
+      return String(dateValue);
+    }
+  }
+
+  // ------------------------------------------------------
   // POSITIONS (Mapped to certificate in image)
   // ------------------------------------------------------
 
@@ -144,7 +162,7 @@ async function generateSingleCertificate(certData, imagePack = {}) {
   drawText(fatherName, 330, 475);
 
   // **Date of Birth**
-  drawText(dateOfBirth, 700, 475);
+  drawText(formatDate(dateOfBirth), 700, 475);
 
   // **Enrolment No**
   drawText(enrolmentNo, 1100, 470, "24px 'Times New Roman'", "right");
@@ -177,7 +195,7 @@ async function generateSingleCertificate(certData, imagePack = {}) {
   drawText(placeOfIssue, 250, 755);
 
   // **Date of Issue**
-  drawText(dateOfIssue, 480, 755);
+  drawText(formatDate(dateOfIssue), 480, 755);
 
   // **Certificate Number**
   drawText(certificateId, 930, 400, "22px 'Times New Roman'", "left");
