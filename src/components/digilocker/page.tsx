@@ -27,10 +27,10 @@ export default function DigiLockerPage({ initialSelectedId }: { initialSelectedI
   }, [items, query])
 
   return (
-    <div className="min-h-dvh flex flex-col bg-background">
+    <div className="min-h-dvh flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50">
       <DigiLockerHeader />
       <div className="flex flex-1">
-        <aside className="hidden md:block w-64 shrink-0 border-r border-border bg-card">
+        <aside className="hidden md:block w-72 shrink-0 border-r border-gray-200 bg-white shadow-sm">
           <DigiLockerSidebar
             counts={{
               total: items.length,
@@ -40,24 +40,26 @@ export default function DigiLockerPage({ initialSelectedId }: { initialSelectedI
           />
         </aside>
 
-        <main className="flex-1 p-4 md:p-6">
-          <div className="grid gap-4 md:gap-6 md:grid-cols-3">
-            <section className="md:col-span-1">
-              <DocumentList
-                items={filtered}
-                selectedId={selected?.id}
-                onSelect={(id) => {
-                  const next = items.find((i) => i.id === id)
-                  if (next) setSelected(next)
-                }}
-                query={query}
-                onQueryChange={setQuery}
-              />
-            </section>
+        <main className="flex-1 p-4 md:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid gap-6 lg:grid-cols-5">
+              <section className="lg:col-span-2">
+                <DocumentList
+                  items={filtered}
+                  selectedId={selected?.id}
+                  onSelect={(id) => {
+                    const next = items.find((i) => i.id === id)
+                    if (next) setSelected(next)
+                  }}
+                  query={query}
+                  onQueryChange={setQuery}
+                />
+              </section>
 
-            <section className="md:col-span-2">
-              <DocumentViewer doc={selected} />
-            </section>
+              <section className="lg:col-span-3">
+                <DocumentViewer doc={selected} />
+              </section>
+            </div>
           </div>
         </main>
       </div>
