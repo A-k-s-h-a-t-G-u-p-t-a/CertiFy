@@ -64,7 +64,7 @@ Create `.env` file in root directory:
 
 ```env
 # Database
-DATABASE_URL="postgresql://neondb_owner:npg_0GtLEgiHK7TI@ep-hidden-leaf-adu8lbfm-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+DATABASE_URL="your_DB_URL"
 
 # NextAuth
 NEXTAUTH_SECRET="your-nextauth-secret"
