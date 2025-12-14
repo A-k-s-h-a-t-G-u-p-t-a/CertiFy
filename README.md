@@ -70,11 +70,11 @@ DATABASE_URL="postgresql://neondb_owner:npg_0GtLEgiHK7TI@ep-hidden-leaf-adu8lbfm
 NEXTAUTH_SECRET="your-nextauth-secret"
 
 # Google AI (Get from: https://makersuite.google.com/app/apikey)
-GEMINI_API_KEY="AIzaSyDMarCbFM3nHQQo1Ahp6o90MoK8wMNODfc"
+GEMINI_API_KEY="abcdefghijklmnopqrstuvwxyz"
 
 # Thirdweb
-YOUR_CLIENT_ID="46d711b3df7e82f546ee080b590da647"
-YOUR_SECRET_KEY="3U2yDIQsBhvwU1ZO6bY8a_6_zX5NJkYNxvf30WrByE6TUl5YHdm6mbBgVhWl4chSpnjC0flCL6Vw7kDcLdu-Lg"
+YOUR_CLIENT_ID="---------"
+YOUR_SECRET_KEY="--------"
 ```
 
 ### 3. Database Setup
